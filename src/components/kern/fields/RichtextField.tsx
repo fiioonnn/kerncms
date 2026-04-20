@@ -386,6 +386,10 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
           </ToolbarButton>
           <div className="w-px h-4 bg-input mx-0.5" />
+          <ToolbarButton onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} disabled={disabled}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="m5 7 1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" /><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>
+          </ToolbarButton>
+          <div className="w-px h-4 bg-input mx-0.5" />
           <ToolbarButton active={mode === "html"} onClick={() => switchMode(mode === "html" ? "wysiwyg" : "html")} disabled={disabled}>
             <span className="text-[10px] font-mono">&lt;/&gt;</span>
           </ToolbarButton>
