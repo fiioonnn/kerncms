@@ -341,12 +341,21 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
         </div>
         {!disabled && !htmlMode && <TailwindBubbleMenu editor={editor} />}
         {htmlMode ? (
-          <textarea
-            value={htmlSource}
-            onChange={(e) => setHtmlSource(e.target.value)}
-            className="w-full min-h-[120px] px-3 py-2 font-mono text-xs text-cyan-300 bg-[#1a1a2e] outline-none resize-y"
-            spellCheck={false}
-          />
+          <div className="flex flex-col">
+            <textarea
+              value={htmlSource}
+              onChange={(e) => setHtmlSource(e.target.value)}
+              className="w-full min-h-[120px] px-3 py-2 font-mono text-xs text-cyan-300 bg-[#1a1a2e] outline-none resize-y"
+              spellCheck={false}
+            />
+            <div className="border-t border-input px-1.5 py-0.5 bg-muted/30">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Preview</span>
+            </div>
+            <div
+              className="px-3 py-2 min-h-[60px] text-sm"
+              dangerouslySetInnerHTML={{ __html: htmlSource }}
+            />
+          </div>
         ) : (
           <EditorContent
             editor={editor}
