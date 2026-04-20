@@ -1,0 +1,15 @@
+services:
+  kern:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - kern-data:/app/data
+      - kern-media:/app/public/kern/media
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  kern-data:
+  kern-media:

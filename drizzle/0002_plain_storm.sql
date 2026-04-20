@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `local_path` text;

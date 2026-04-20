@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1776695286245,
+      "tag": "0000_flawless_ted_forrester",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776700009061,
+      "tag": "0001_daffy_tombstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776713966715,
+      "tag": "0002_plain_storm",
+      "breakpoints": true
+    }
+  ]
+}
