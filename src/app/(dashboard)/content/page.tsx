@@ -223,6 +223,7 @@ function useDraft(projectId: string | undefined) {
   const localDirtyRef = useRef(new Map<string, boolean>());
   const [localChangeCount, setLocalChangeCount] = useState(0);
   const saveTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const pendingSavesRef = useRef(new Map<string, { content: Record<string, unknown>; original: Record<string, unknown> }>());
   const publishedRef = useRef(false);
   const [discardVersion, setDiscardVersion] = useState(0);
 
@@ -242,7 +243,8 @@ function useDraft(projectId: string | undefined) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const save = useCallback((path: string, content: Record<string, unknown>, original: Record<string, unknown>) => {
-    if (!projectId || publishedRef.current) return;
+    if (!projectId) return;
+    publishedRef.current = false;
 
     // Instant local diff check
     const isDiff = JSON.stringify(content) !== JSON.stringify(original);
@@ -266,8 +268,14 @@ function useDraft(projectId: string | undefined) {
     // Debounced DB save
     const existing = saveTimersRef.current.get(path);
     if (existing) clearTimeout(existing);
+    if (isDiff) {
+      pendingSavesRef.current.set(path, { content, original });
+    } else {
+      pendingSavesRef.current.delete(path);
+    }
     saveTimersRef.current.set(path, setTimeout(async () => {
       saveTimersRef.current.delete(path);
+      pendingSavesRef.current.delete(path);
       if (publishedRef.current) return;
       setSaving(true);
       try {
@@ -277,6 +285,7 @@ function useDraft(projectId: string | undefined) {
           body: JSON.stringify({ path, content, original }),
         });
         try { localStorage.removeItem(`kern-draft:${projectId}:${path}`); } catch { /* */ }
+        clearSectionCache(projectId);
         await refresh();
       } finally {
         setSaving(false);
@@ -291,6 +300,18 @@ function useDraft(projectId: string | undefined) {
     publishedRef.current = true;
     setPublishing(true);
     try {
+      // Flush any pending debounced saves before publishing
+      const pending = [...pendingSavesRef.current.entries()];
+      pendingSavesRef.current.clear();
+      if (pending.length > 0) {
+        await Promise.all(pending.map(([path, { content, original }]) =>
+          fetch(`/api/projects/${projectId}/kern/draft`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path, content, original }),
+          })
+        ));
+      }
       const res = await fetch(`/api/projects/${projectId}/kern/draft`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -312,12 +333,14 @@ function useDraft(projectId: string | undefined) {
       }
     } finally {
       setPublishing(false);
-      setTimeout(() => { publishedRef.current = false; }, 2000);
     }
   }, [projectId, refresh]);
 
   const discard = useCallback(async () => {
     if (!projectId) return;
+    for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+    saveTimersRef.current.clear();
+    pendingSavesRef.current.clear();
     await fetch(`/api/projects/${projectId}/kern/draft`, { method: "DELETE" });
     setChanges([]);
     localDirtyRef.current.clear();
@@ -742,7 +765,7 @@ const FIELD_TYPE_ICONS: Record<string, React.ReactNode> = {
 const FIELD_TYPES = [
   { type: "text", label: "Text", desc: "Short text input" },
   { type: "textarea", label: "Textarea", desc: "Multi-line text" },
-  { type: "richtext", label: "Rich Text", desc: "Markdown editor" },
+  { type: "richtext", label: "Rich Text", desc: "HTML editor with Tailwind support" },
   { type: "number", label: "Number", desc: "Numeric value" },
   { type: "boolean", label: "Boolean", desc: "Toggle on/off" },
   { type: "image", label: "Image", desc: "Image upload" },
@@ -2046,7 +2069,7 @@ function SectionEditor({
             if (selectedCommit) {
               setRevertConfirmOpen(true);
             } else {
-              (async () => { await draft.publish(targetBranch); originalDataRef.current = JSON.parse(JSON.stringify(fileData)); toast.success("Successfully published"); })();
+              (async () => { originalDataRef.current = JSON.parse(JSON.stringify(fileData)); await draft.publish(targetBranch); toast.success("Successfully published"); })();
             }
           }}
           onShowChanges={() => setChangesOpen(true)}
@@ -2075,8 +2098,8 @@ function SectionEditor({
                 variant="destructive"
                 onClick={async () => {
                   setRevertConfirmOpen(false);
-                  await draft.publish(currentBranch);
                   originalDataRef.current = JSON.parse(JSON.stringify(fileData));
+                  await draft.publish(currentBranch);
                   onCommitSelect(null);
                   toast.success("Successfully published");
                 }}
@@ -2274,6 +2297,7 @@ export default function ContentPage() {
   const [scanFilesExcluded, setScanFilesExcluded] = useState<Set<number>>(new Set());
   const [scanFilesCollapsed, setScanFilesCollapsed] = useState<Set<number>>(new Set());
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const draft = useDraft(current?.id);
 
   const loadScanFiles = useCallback(() => {
     if (!current?.repo || !current?.branch) return;
@@ -2662,8 +2686,6 @@ export default function ContentPage() {
       setErrorItems((prev) => new Set(prev).add(key));
     }
   }, [sectionError, selectedPage, activeSection, activeGlobal]);
-
-  const draft = useDraft(current?.id);
   const { branches, loading: branchesLoading, reload: reloadBranches } = useBranches(current?.repo ?? undefined);
   const [activeBranch, setActiveBranch] = useState<string | null>(null);
   const currentBranch = activeBranch ?? current?.branch ?? "main";
