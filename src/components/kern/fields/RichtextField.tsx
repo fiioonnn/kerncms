@@ -57,31 +57,6 @@ function looksLikeMarkdown(str: string): boolean {
   return /^#{1,3}\s|^\*\*|\*[^*]|\[.+\]\(.+\)|^- /m.test(str) && !/<[a-z][\s\S]*>/i.test(str);
 }
 
-const TailwindClass = Mark.create({
-  name: "tailwindClass",
-
-  addAttributes() {
-    return {
-      class: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute("class"),
-        renderHTML: (attributes: Record<string, string>) => {
-          if (!attributes.class) return {};
-          return { class: attributes.class };
-        },
-      },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "span[class]" }];
-  },
-
-  renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, string> }) {
-    return ["span", mergeAttributes(HTMLAttributes), 0];
-  },
-});
-
 const COLORS = [
   { name: "red", hex: "#ef4444", shades: { 100: "#fee2e2", 200: "#fecaca", 300: "#fca5a5", 400: "#f87171", 500: "#ef4444", 600: "#dc2626", 700: "#b91c1c", 800: "#991b1b", 900: "#7f1d1d" } },
   { name: "blue", hex: "#3b82f6", shades: { 100: "#dbeafe", 200: "#bfdbfe", 300: "#93c5fd", 400: "#60a5fa", 500: "#3b82f6", 600: "#2563eb", 700: "#1d4ed8", 800: "#1e40af", 900: "#1e3a8a" } },
@@ -284,6 +259,42 @@ function buildColorStyleMap(): Record<string, string> {
 }
 
 const COLOR_STYLES = buildColorStyleMap();
+
+function classesToInlineStyle(classes: string): string {
+  let style = "";
+  for (const cls of classes.split(/\s+/).filter(Boolean)) {
+    if (COLOR_STYLES[cls]) style += COLOR_STYLES[cls];
+    else if (SIZE_STYLES[cls]) style += SIZE_STYLES[cls];
+    else if (WEIGHT_STYLES[cls]) style += WEIGHT_STYLES[cls];
+  }
+  return style;
+}
+
+const TailwindClass = Mark.create({
+  name: "tailwindClass",
+
+  addAttributes() {
+    return {
+      class: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("class"),
+        renderHTML: (attributes: Record<string, string>) => {
+          if (!attributes.class) return {};
+          const style = classesToInlineStyle(attributes.class);
+          return style ? { class: attributes.class, style } : { class: attributes.class };
+        },
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "span[class]" }];
+  },
+
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, string> }) {
+    return ["span", mergeAttributes(HTMLAttributes), 0];
+  },
+});
 
 function tailwindClassesToInlineStyles(html: string): string {
   return html.replace(/class="([^"]*)"/g, (_, classes: string) => {
