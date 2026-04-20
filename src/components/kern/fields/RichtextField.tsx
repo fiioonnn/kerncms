@@ -50,24 +50,9 @@ function markdownToHtml(md: string): string {
     .replace(/\n/g, "<br>");
 }
 
-function htmlToMarkdown(html: string): string {
-  return html
-    .replace(/<h2>(.*?)<\/h2>/g, "## $1")
-    .replace(/<h3>(.*?)<\/h3>/g, "### $1")
-    .replace(/<strong>(.*?)<\/strong>/g, "**$1**")
-    .replace(/<em>(.*?)<\/em>/g, "*$1*")
-    .replace(/<a href="(.*?)">(.*?)<\/a>/g, "[$2]($1)")
-    .replace(/<ul>/g, "")
-    .replace(/<\/ul>/g, "")
-    .replace(/<ol>/g, "")
-    .replace(/<\/ol>/g, "")
-    .replace(/<li><p>(.*?)<\/p><\/li>/g, "- $1")
-    .replace(/<li>(.*?)<\/li>/g, "- $1")
-    .replace(/<p><\/p>/g, "\n")
-    .replace(/<p>(.*?)<\/p>/g, "$1\n")
-    .replace(/<br\s*\/?>/g, "\n")
-    .replace(/<[^>]+>/g, "")
-    .trim();
+function looksLikeMarkdown(str: string): boolean {
+  if (!str) return false;
+  return /^#{1,3}\s|^\*\*|\*[^*]|\[.+\]\(.+\)|^- /m.test(str) && !/<[a-z][\s\S]*>/i.test(str);
 }
 
 export function RichtextField({ value, onChange, label, disabled }: FieldProps) {
@@ -79,10 +64,10 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
       }),
       Link.configure({ openOnClick: false }),
     ],
-    content: markdownToHtml(value ?? ""),
+    content: looksLikeMarkdown(value ?? "") ? markdownToHtml(value ?? "") : (value ?? ""),
     editable: !disabled,
     onUpdate: ({ editor }) => {
-      onChange(htmlToMarkdown(editor.getHTML()));
+      onChange(editor.getHTML());
     },
   });
 
