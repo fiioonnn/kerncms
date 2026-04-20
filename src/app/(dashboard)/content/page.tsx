@@ -223,6 +223,7 @@ function useDraft(projectId: string | undefined) {
   const localDirtyRef = useRef(new Map<string, boolean>());
   const [localChangeCount, setLocalChangeCount] = useState(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const publishedRef = useRef(false);
   const [discardVersion, setDiscardVersion] = useState(0);
 
   const refresh = useCallback(async () => {
@@ -241,7 +242,7 @@ function useDraft(projectId: string | undefined) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const save = useCallback((path: string, content: Record<string, unknown>, original: Record<string, unknown>) => {
-    if (!projectId) return;
+    if (!projectId || publishedRef.current) return;
 
     // Instant local diff check
     const isDiff = JSON.stringify(content) !== JSON.stringify(original);
@@ -287,6 +288,7 @@ function useDraft(projectId: string | undefined) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
+    publishedRef.current = true;
     setPublishing(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/kern/draft`, {
@@ -310,6 +312,7 @@ function useDraft(projectId: string | undefined) {
       }
     } finally {
       setPublishing(false);
+      setTimeout(() => { publishedRef.current = false; }, 2000);
     }
   }, [projectId, refresh]);
 
