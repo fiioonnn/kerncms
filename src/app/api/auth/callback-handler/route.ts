@@ -6,9 +6,18 @@ import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { createTransferToken, isDomainRegistered } from "@/lib/domains";
 
-function appUrl(path: string, fallback: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
-  return base ? new URL(path, base) : new URL(path, fallback);
+function getRequestOrigin(request: NextRequest): string {
+  const h = request.headers;
+  const proto = h.get("x-forwarded-proto") ?? (request.url.startsWith("https") ? "https" : "http");
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (host) return `${proto}://${host}`;
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl;
+  return new URL(request.url).origin;
+}
+
+function appUrl(path: string, request: NextRequest) {
+  return new URL(path, getRequestOrigin(request));
 }
 
 const SESSION_COOKIE = process.env.BETTER_AUTH_URL?.startsWith("https")
@@ -19,7 +28,7 @@ export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
-    return NextResponse.redirect(appUrl("/auth", request.url));
+    return NextResponse.redirect(appUrl("/auth", request));
   }
 
   const userId = session.user.id;
@@ -29,7 +38,7 @@ export async function GET(request: NextRequest) {
   // ── Check if setup is complete ──
   const setupRow = db.select().from(systemConfig).where(eq(systemConfig.key, "setup_complete")).get();
   if (setupRow?.value !== "true") {
-    return NextResponse.redirect(appUrl("/setup", request.url));
+    return NextResponse.redirect(appUrl("/setup", request));
   }
 
   // ── Block uninvited users ──
@@ -46,7 +55,7 @@ export async function GET(request: NextRequest) {
       db.delete(sessionTable).where(eq(sessionTable.userId, userId)).run();
       db.delete(account).where(eq(account.userId, userId)).run();
       db.delete(user).where(eq(user.id, userId)).run();
-      const response = NextResponse.redirect(appUrl("/auth?error=not_invited", request.url));
+      const response = NextResponse.redirect(appUrl("/auth?error=not_invited", request));
       response.cookies.delete(SESSION_COOKIE);
       return response;
     }
@@ -95,7 +104,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.redirect(appUrl("/", request.url));
+    const response = NextResponse.redirect(appUrl("/", request));
     response.cookies.delete("invite_token");
     return response;
   }
@@ -114,5 +123,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(appUrl("/", request.url));
+  return NextResponse.redirect(appUrl("/", request));
 }
