@@ -255,8 +255,58 @@ function TailwindBubbleMenu({ editor }: { editor: EditorInstance }) {
   );
 }
 
+const SIZE_STYLES: Record<string, string> = {
+  "text-xs": "font-size:0.75rem;line-height:1rem;",
+  "text-sm": "font-size:0.875rem;line-height:1.25rem;",
+  "text-base": "font-size:1rem;line-height:1.5rem;",
+  "text-lg": "font-size:1.125rem;line-height:1.75rem;",
+  "text-xl": "font-size:1.25rem;line-height:1.75rem;",
+  "text-2xl": "font-size:1.5rem;line-height:2rem;",
+};
+
+const WEIGHT_STYLES: Record<string, string> = {
+  "font-light": "font-weight:300;",
+  "font-normal": "font-weight:400;",
+  "font-medium": "font-weight:500;",
+  "font-semibold": "font-weight:600;",
+  "font-bold": "font-weight:700;",
+};
+
+function buildColorStyleMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const color of COLORS) {
+    for (const [shade, hex] of Object.entries(color.shades)) {
+      map[`text-${color.name}-${shade}`] = `color:${hex};`;
+      map[`bg-${color.name}-${shade}`] = `background-color:${hex};`;
+    }
+  }
+  return map;
+}
+
+const COLOR_STYLES = buildColorStyleMap();
+
+function tailwindClassesToInlineStyles(html: string): string {
+  return html.replace(/class="([^"]*)"/g, (_, classes: string) => {
+    const classList = classes.split(/\s+/).filter(Boolean);
+    let style = "";
+    const remaining: string[] = [];
+    for (const cls of classList) {
+      if (COLOR_STYLES[cls]) style += COLOR_STYLES[cls];
+      else if (SIZE_STYLES[cls]) style += SIZE_STYLES[cls];
+      else if (WEIGHT_STYLES[cls]) style += WEIGHT_STYLES[cls];
+      else remaining.push(cls);
+    }
+    const parts: string[] = [];
+    if (remaining.length > 0) parts.push(`class="${remaining.join(" ")}"`);
+    if (style) parts.push(`style="${style}"`);
+    return parts.join(" ") || "";
+  });
+}
+
+type EditorMode = "wysiwyg" | "html" | "preview";
+
 export function RichtextField({ value, onChange, label, disabled }: FieldProps) {
-  const [htmlMode, setHtmlMode] = useState(false);
+  const [mode, setMode] = useState<EditorMode>("wysiwyg");
   const [htmlSource, setHtmlSource] = useState("");
 
   const editor = useEditor({
@@ -283,15 +333,16 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
 
   if (!editor) return null;
 
-  function toggleHtmlMode() {
+  function switchMode(newMode: EditorMode) {
     if (!editor) return;
-    if (htmlMode) {
+    if (mode === "html" && newMode !== "html") {
       editor.commands.setContent(htmlSource);
       onChange(editor.getHTML());
-    } else {
+    }
+    if (newMode === "html" || newMode === "preview") {
       setHtmlSource(editor.getHTML());
     }
-    setHtmlMode(!htmlMode);
+    setMode(newMode);
   }
 
   function handleLink() {
@@ -335,28 +386,29 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
           </ToolbarButton>
           <div className="w-px h-4 bg-input mx-0.5" />
-          <ToolbarButton active={htmlMode} onClick={toggleHtmlMode} disabled={disabled}>
+          <ToolbarButton active={mode === "html"} onClick={() => switchMode(mode === "html" ? "wysiwyg" : "html")} disabled={disabled}>
             <span className="text-[10px] font-mono">&lt;/&gt;</span>
           </ToolbarButton>
+          <ToolbarButton active={mode === "preview"} onClick={() => switchMode(mode === "preview" ? "wysiwyg" : "preview")} disabled={disabled}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+          </ToolbarButton>
         </div>
-        {!disabled && !htmlMode && <TailwindBubbleMenu editor={editor} />}
-        {htmlMode ? (
-          <div className="flex flex-col">
-            <textarea
-              value={htmlSource}
-              onChange={(e) => setHtmlSource(e.target.value)}
-              className="w-full min-h-[120px] px-3 py-2 font-mono text-xs text-cyan-300 bg-[#1a1a2e] outline-none resize-y"
-              spellCheck={false}
-            />
-            <div className="border-t border-input px-1.5 py-0.5 bg-muted/30">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Preview</span>
-            </div>
-            <div
-              className="px-3 py-2 min-h-[60px] text-sm"
-              dangerouslySetInnerHTML={{ __html: htmlSource }}
-            />
-          </div>
-        ) : (
+        {!disabled && mode === "wysiwyg" && <TailwindBubbleMenu editor={editor} />}
+        {mode === "html" && (
+          <textarea
+            value={htmlSource}
+            onChange={(e) => setHtmlSource(e.target.value)}
+            className="w-full min-h-[120px] px-3 py-2 font-mono text-xs text-cyan-300 bg-[#1a1a2e] outline-none resize-y"
+            spellCheck={false}
+          />
+        )}
+        {mode === "preview" && (
+          <div
+            className="px-3 py-2 min-h-[120px] text-sm"
+            dangerouslySetInnerHTML={{ __html: tailwindClassesToInlineStyles(htmlSource) }}
+          />
+        )}
+        {mode === "wysiwyg" && (
           <EditorContent
             editor={editor}
             className="prose prose-sm dark:prose-invert max-w-none px-3 py-2 min-h-[120px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[100px] [&_.tiptap_span[class]]:text-inherit"
