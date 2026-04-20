@@ -1358,36 +1358,122 @@ type AutofixConfig = {
   removeUnknownFields: boolean;
 };
 
-function DevelopmentSection({ projectId, localPath, onUpdate }: { projectId: string; localPath: string | null; onUpdate: (path: string | null) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(localPath || "");
+function FolderPickerDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (v: boolean) => void; onSelect: (path: string) => void }) {
+  const [currentPath, setCurrentPath] = useState("");
+  const [dirs, setDirs] = useState<{ name: string; path: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [manualPath, setManualPath] = useState("");
 
-  async function handleSave() {
-    const trimmed = value.trim();
-    const res = await fetch(`/api/projects/${projectId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ localPath: trimmed || null }),
-    });
+  const browse = useCallback(async (path?: string) => {
+    setLoading(true);
+    const url = path ? `/api/admin/browse-dirs?path=${encodeURIComponent(path)}` : "/api/admin/browse-dirs";
+    const res = await fetch(url);
     if (res.ok) {
-      onUpdate(trimmed || null);
-      toast.success(trimmed ? "Local path set" : "Local path cleared");
-      setEditing(false);
+      const data = await res.json();
+      setCurrentPath(data.current);
+      setManualPath(data.current);
+      setDirs(data.dirs);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { if (open) browse(); }, [open, browse]);
+
+  function goUp() {
+    const parent = currentPath.replace(/\/[^/]+$/, "") || "/";
+    browse(parent);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Select Folder</DialogTitle>
+          <DialogDescription>Browse to the local repository folder.</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-2 mb-2">
+          <Input
+            value={manualPath}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManualPath(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") browse(manualPath); }}
+            className="text-sm font-mono"
+          />
+          <Button variant="outline" className="h-9" onClick={() => browse(manualPath)}>Go</Button>
+        </div>
+
+        <div className="rounded-lg border border-border max-h-64 overflow-y-auto">
+          <button
+            onClick={goUp}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 border-b border-border"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            ..
+          </button>
+          {loading ? (
+            <div className="px-3 py-4 text-sm text-muted-foreground text-center">Loading...</div>
+          ) : dirs.length === 0 ? (
+            <div className="px-3 py-4 text-sm text-muted-foreground text-center">No subdirectories</div>
+          ) : (
+            dirs.map((dir) => (
+              <button
+                key={dir.path}
+                onClick={() => browse(dir.path)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50 border-b border-border last:border-b-0"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground shrink-0">
+                  <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                </svg>
+                {dir.name}
+              </button>
+            ))
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => { onSelect(currentPath); onOpenChange(false); }}>
+            Select this folder
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DevelopmentSection({ projectId, localPath, onUpdate }: { projectId: string; localPath: string | null; onUpdate: (path: string | null) => void }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const active = !!localPath;
+
+  async function handleToggle() {
+    if (active) {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ localPath: null }),
+      });
+      if (res.ok) {
+        onUpdate(null);
+        toast.success("Local development disabled");
+      }
     } else {
-      toast.error("Failed to update");
+      setShowPicker(true);
     }
   }
 
-  async function handleClear() {
+  async function handleSelect(path: string) {
     const res = await fetch(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ localPath: null }),
+      body: JSON.stringify({ localPath: path }),
     });
     if (res.ok) {
-      onUpdate(null);
-      setValue("");
-      toast.success("Local path cleared");
+      onUpdate(path);
+      toast.success("Local development enabled");
+    } else {
+      toast.error("Failed to set local path");
     }
   }
 
@@ -1396,51 +1482,48 @@ function DevelopmentSection({ projectId, localPath, onUpdate }: { projectId: str
       <div>
         <h2 className="text-base font-medium">Development</h2>
         <p className="text-sm text-muted-foreground">
-          Override the connected GitHub repo with a local folder path for development.
+          Use a local folder instead of the connected GitHub repo.
         </p>
       </div>
       <Separator />
 
-      <div className="flex flex-col gap-3">
-        <Label>Local Repository Path</Label>
-        {editing ? (
-          <div className="flex gap-2">
-            <Input
-              value={value}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
-              placeholder="/Users/you/projects/my-app"
-              className="text-sm"
-              onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") handleSave(); }}
-            />
-            <Button size="sm" onClick={handleSave}>Save</Button>
-            <Button size="sm" variant="outline" onClick={() => { setEditing(false); setValue(localPath || ""); }}>Cancel</Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setEditing(true); setValue(localPath || ""); }}
-              className="flex-1 text-left rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-colors cursor-pointer"
-            >
-              {localPath || "Set local path..."}
-            </button>
-            {localPath && (
-              <Button size="sm" variant="ghost" onClick={handleClear} className="text-muted-foreground hover:text-destructive text-xs">
-                Clear
-              </Button>
-            )}
-          </div>
-        )}
+      <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">Local Development Mode</p>
+          <p className="text-xs text-muted-foreground">
+            {active ? localPath : "Read and write content from a local folder on the server."}
+          </p>
+        </div>
+        <button
+          onClick={handleToggle}
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${active ? "bg-foreground" : "bg-muted"}`}
+        >
+          <span className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${active ? "translate-x-4" : "translate-x-0"}`} />
+        </button>
       </div>
 
-      <div className="rounded-lg border border-border bg-muted/20 p-4">
-        <h3 className="text-sm font-medium mb-2">How it works</h3>
-        <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside">
-          <li>When a local path is set, the CMS reads and writes content directly from the filesystem.</li>
-          <li>The connected GitHub repo is bypassed while a local path is active.</li>
-          <li>Publishing writes files directly to disk instead of committing to GitHub.</li>
-          <li>Clear the path to switch back to the GitHub repo.</li>
-        </ul>
-      </div>
+      {active && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0 mt-0.5">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+              </svg>
+              <div>
+                <p className="text-xs text-amber-500/80 mb-1">GitHub repo is bypassed</p>
+                <p className="text-sm font-mono text-amber-200/90">{localPath}</p>
+              </div>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setShowPicker(true)} className="text-xs text-amber-500/80 hover:text-amber-400">
+              Change
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <FolderPickerDialog open={showPicker} onOpenChange={setShowPicker} onSelect={handleSelect} />
     </section>
   );
 }

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { user, invitations, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-helpers";
 import { getResendClient, getResendFromAddress } from "@/lib/resend";
 
 export async function POST(request: Request) {
   const session = await requireSession();
-  const currentUser = db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id)).get();
-  if (currentUser?.role !== "admin") {
+  const currentRole = (session.user as { role?: string }).role;
+  if (currentRole !== "admin" && currentRole !== "superadmin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -24,7 +24,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "User already exists" }, { status: 409 });
   }
 
-  const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth`;
+  // Create an invitation record in the first project so the callback-handler allows sign-up
+  const firstProject = db.select({ id: projects.id }).from(projects).limit(1).get();
+  let inviteToken: string | undefined;
+  if (firstProject) {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    try {
+      const [invite] = db.insert(invitations).values({
+        projectId: firstProject.id,
+        email,
+        role: "editor",
+        invitedBy: session.user.id,
+        expiresAt,
+      }).returning().all();
+      inviteToken = invite.token;
+    } catch { /* unique constraint — invitation already exists */ }
+  }
+
+  const signupUrl = inviteToken
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/auth?invite=${inviteToken}`
+    : `${process.env.NEXT_PUBLIC_APP_URL}/auth`;
 
   const { error } = await resend.emails.send({
     from: getResendFromAddress(),

@@ -1235,22 +1235,36 @@ function ChangesDialog({
   changes,
   onDiscard,
   onDiscardFile,
+  projectId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   changes: DraftChange[];
   onDiscard: () => void;
   onDiscardFile: (filename: string) => void;
+  projectId: string;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [diffs, setDiffs] = useState<Record<string, string[]>>({});
+  const [diffLoading, setDiffLoading] = useState<Set<string>>(new Set());
 
-  function toggleExpanded(filename: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(filename)) next.delete(filename);
-      else next.add(filename);
-      return next;
-    });
+  async function toggleExpanded(filename: string) {
+    if (expanded.has(filename)) {
+      setExpanded((prev) => { const next = new Set(prev); next.delete(filename); return next; });
+      return;
+    }
+    setExpanded((prev) => new Set(prev).add(filename));
+    if (diffs[filename]) return;
+    setDiffLoading((prev) => new Set(prev).add(filename));
+    try {
+      const res = await fetch(`/api/projects/${projectId}/kern/draft/diff?path=${encodeURIComponent(filename)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDiffs((prev) => ({ ...prev, [filename]: data.diff }));
+      }
+    } finally {
+      setDiffLoading((prev) => { const next = new Set(prev); next.delete(filename); return next; });
+    }
   }
 
   return (
@@ -1263,28 +1277,27 @@ function ChangesDialog({
         <div className="max-h-96 overflow-y-auto">
           {changes.map((c) => {
             const isExpanded = expanded.has(c.filename);
-            const hasPatch = !!c.patch;
+            const isLoading = diffLoading.has(c.filename);
+            const diff = diffs[c.filename];
             return (
               <div key={c.filename} className="border-b border-border last:border-0">
                 <div
-                  className={`flex items-center gap-3 px-4 py-2 ${hasPatch ? "cursor-pointer hover:bg-muted/30 transition-colors" : ""}`}
-                  onClick={() => hasPatch && toggleExpanded(c.filename)}
+                  className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
+                  onClick={() => toggleExpanded(c.filename)}
                 >
-                  {hasPatch && (
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={`shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  )}
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
                   <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                     c.status === "added" ? "bg-green-500/10 text-green-500" :
                     c.status === "deleted" || c.status === "removed" ? "bg-red-500/10 text-red-500" :
@@ -1293,13 +1306,18 @@ function ChangesDialog({
                     {c.status === "added" ? "A" : c.status === "deleted" || c.status === "removed" ? "D" : "M"}
                   </span>
                   <span className="text-xs font-mono text-muted-foreground flex-1 truncate">{c.filename}</span>
-                  {(c.additions > 0 || c.deletions > 0) && (
-                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-                      {c.additions > 0 && <span className="text-green-500">+{c.additions}</span>}
-                      {c.additions > 0 && c.deletions > 0 && " "}
-                      {c.deletions > 0 && <span className="text-red-500">-{c.deletions}</span>}
-                    </span>
-                  )}
+                  {diff && (() => {
+                    const adds = diff.filter(l => l.startsWith("+")).length;
+                    const dels = diff.filter(l => l.startsWith("-")).length;
+                    if (!adds && !dels) return null;
+                    return (
+                      <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                        {adds > 0 && <span className="text-green-500">+{adds}</span>}
+                        {adds > 0 && dels > 0 && " "}
+                        {dels > 0 && <span className="text-red-500">-{dels}</span>}
+                      </span>
+                    );
+                  })()}
                   <button
                     onClick={(e) => { e.stopPropagation(); onDiscardFile(c.filename); }}
                     className="shrink-0 text-muted-foreground/50 hover:text-destructive transition-colors"
@@ -1311,24 +1329,35 @@ function ChangesDialog({
                     </svg>
                   </button>
                 </div>
-                {isExpanded && c.patch && (
+                {isExpanded && (
                   <div className="px-4 pb-3">
-                    <div className="rounded-md border border-border bg-muted/20 overflow-x-auto">
-                      <pre className="text-[11px] leading-relaxed font-mono p-2">
-                        {c.patch.split("\n").map((line, i) => {
-                          const color =
-                            line.startsWith("+") ? "text-green-500" :
-                            line.startsWith("-") ? "text-red-500" :
-                            line.startsWith("@@") ? "text-blue-400" :
-                            "text-muted-foreground";
-                          return (
-                            <div key={i} className={`${color} ${line.startsWith("+") ? "bg-green-500/5" : line.startsWith("-") ? "bg-red-500/5" : ""}`}>
-                              {line}
-                            </div>
-                          );
-                        })}
-                      </pre>
-                    </div>
+                    {isLoading ? (
+                      <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" className="opacity-25" />
+                          <path d="M4 12a8 8 0 018-8" className="opacity-75" />
+                        </svg>
+                        Loading diff...
+                      </div>
+                    ) : diff ? (
+                      <div className="rounded-md border border-border bg-muted/20 overflow-x-auto">
+                        <pre className="text-[11px] leading-relaxed font-mono p-2">
+                          {diff.map((line, i) => {
+                            const color =
+                              line.startsWith("+") ? "text-green-500" :
+                              line.startsWith("-") ? "text-red-500" :
+                              "text-muted-foreground";
+                            return (
+                              <div key={i} className={`${color} ${line.startsWith("+") ? "bg-green-500/5" : line.startsWith("-") ? "bg-red-500/5" : ""}`}>
+                                {line || "\u00A0"}
+                              </div>
+                            );
+                          })}
+                        </pre>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">Could not load diff</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1546,6 +1575,7 @@ function ErrorPanel({
         changes={draft.changes}
         onDiscard={draft.discard}
         onDiscardFile={draft.discardFile}
+        projectId={projectId}
       />
       <div className="flex flex-col items-center justify-center flex-1 gap-3 px-8">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-destructive">
@@ -1844,6 +1874,7 @@ function SectionEditor({
           changes={draft.changes}
           onDiscard={draft.discard}
           onDiscardFile={draft.discardFile}
+          projectId={projectId}
         />
         <div className="flex flex-col items-center justify-center flex-1 gap-3">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
@@ -2025,6 +2056,7 @@ function SectionEditor({
           changes={draft.changes}
           onDiscard={draft.discard}
           onDiscardFile={draft.discardFile}
+          projectId={projectId}
         />
         <Dialog open={revertConfirmOpen} onOpenChange={setRevertConfirmOpen}>
           <DialogContent className="sm:max-w-sm">
@@ -3315,6 +3347,7 @@ export default function ContentPage() {
               changes={draft.changes}
               onDiscard={draft.discard}
               onDiscardFile={draft.discardFile}
+              projectId={current?.id ?? ""}
             />
           </div>
         ) : generatingTypes ? (

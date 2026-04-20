@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!tree) return NextResponse.json({ error: "GitHub App not configured" }, { status: 503 });
   }
 
-  const base = getKernGlobalsBase(project?.srcDir);
+  const base = getKernGlobalsBase(project?.localPath ? null : project?.srcDir);
   const globals: string[] = [];
 
   for (const entry of tree) {

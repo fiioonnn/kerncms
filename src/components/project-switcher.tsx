@@ -89,6 +89,9 @@ export function ProjectSwitcher() {
             <span className="text-sm font-medium text-foreground">
               {current.name}
             </span>
+            {current.localPath && (
+              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500 leading-none">DEV</span>
+            )}
           </>
         )}
         <svg
@@ -105,8 +108,13 @@ export function ProjectSwitcher() {
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
-      {open && (
-        <div className="absolute top-[calc(100%+4px)] right-0 z-50 w-56 rounded-lg bg-popover shadow-md ring-1 ring-foreground/10">
+      <div
+        className={`absolute top-[calc(100%+4px)] right-0 z-50 w-56 rounded-lg bg-popover shadow-md ring-1 ring-foreground/10 transition-all duration-150 origin-top-right ${
+          open
+            ? "opacity-100 scale-100 backdrop-blur-none pointer-events-auto"
+            : "opacity-0 scale-95 backdrop-blur-sm pointer-events-none"
+        }`}
+      >
           {projects.length > 1 && (
             <div className="p-2">
               <Input
@@ -134,6 +142,9 @@ export function ProjectSwitcher() {
                 >
                   <ProjectIcon name={project.name} color={project.color} />
                   <span className="text-foreground">{project.name}</span>
+                  {project.localPath && (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500 leading-none">DEV</span>
+                  )}
                   {project.id === current?.id && (
                     <svg
                       width="14"
@@ -178,8 +189,7 @@ export function ProjectSwitcher() {
               />
             </div>
           </>)}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -42,19 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   if (project?.localPath) {
     const tree = getLocalTree(project.localPath, project.srcDir);
-    const base = getKernContentBase(project.srcDir);
-
-    if (!project.srcDir) {
-      const contentDir = tree.find((e) => e.type === "tree" && e.path && (e.path === "kern/content" || e.path.endsWith("/kern/content")));
-      if (contentDir?.path) {
-        const detectedSrc = contentDir.path.replace(/\/kern\/content$/, "") || "";
-        if (detectedSrc) {
-          db.update(projects).set({ srcDir: detectedSrc }).where(eq(projects.id, id)).run();
-        }
-      }
-    }
-
-    return NextResponse.json({ pages: buildPageList(tree, getKernContentBase(project.srcDir)) });
+    return NextResponse.json({ pages: buildPageList(tree, getKernContentBase(null)) });
   }
 
   if (!project?.repo || !project?.branch) {
