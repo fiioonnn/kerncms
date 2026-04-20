@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -1681,6 +1681,7 @@ function SectionEditor({
   const originalDataRef = useRef<Record<string, Record<string, unknown>>>({});
 
   useEffect(() => {
+    console.trace("[SectionEditor] useEffect([files]) triggered — files ref changed");
     const data: Record<string, Record<string, unknown>> = {};
     const schemas: Record<string, Record<string, unknown>> = {};
     const order: Record<string, string[]> = {};
@@ -2479,6 +2480,7 @@ export default function ContentPage() {
   const prevProjectIdRef = useRef<string | null>(null);
   const [globals, setGlobals] = useState<string[]>([]);
   const [globalFile, setGlobalFile] = useState<ContentFile | null>(null);
+  const globalFiles = useMemo(() => globalFile ? [globalFile] : [] as ContentFile[], [globalFile]);
   const [globalTypesJson, setGlobalTypesJson] = useState<Record<string, unknown>>({});
   const [globalsLoading, setGlobalsLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -2523,6 +2525,7 @@ export default function ContentPage() {
       ? `${current.id}:globals:${activeGlobal}:${selectedCommit}`
       : `${current.id}:globals:${activeGlobal}`;
     const useCaching = current.editorCaching ?? true;
+    let cancelled = false;
 
     if (useCaching && !selectedCommit) {
       const cached = sectionCache.get(cacheKey);
@@ -2531,12 +2534,11 @@ export default function ContentPage() {
         setGlobalTypesJson(cached.typesJson);
         setGlobalError(cached.error);
         setGlobalsLoading(false);
-      } else {
-        setGlobalsLoading(true);
+        return () => { cancelled = true; };
       }
-    } else {
-      setGlobalsLoading(true);
     }
+
+    setGlobalsLoading(true);
 
     const body: Record<string, string> = { name: activeGlobal };
     if (selectedCommit) body.ref = selectedCommit;
@@ -2548,6 +2550,7 @@ export default function ContentPage() {
     })
       .then((r) => r.ok ? r.json() : { file: null })
       .then((data) => {
+        if (cancelled) return;
         const file = data.file ?? null;
         const err = data.error ?? data.warning ?? null;
         if (useCaching && !selectedCommit) {
@@ -2560,7 +2563,9 @@ export default function ContentPage() {
           setErrorItems((prev) => new Set(prev).add(`global:${activeGlobal}`));
         }
       })
-      .finally(() => setGlobalsLoading(false));
+      .finally(() => { if (!cancelled) setGlobalsLoading(false); });
+
+    return () => { cancelled = true; };
   }, [current?.id, activeGlobal, current?.editorCaching, selectedCommit]);
 
   useEffect(() => {
@@ -3385,7 +3390,7 @@ export default function ContentPage() {
         ) : activeGlobal && (globalFile || globalError) ? (
           <SectionEditor
             key={`global-${activeGlobal}`}
-            files={globalFile ? [globalFile] : []}
+            files={globalFiles}
             loading={globalsLoading}
             page="globals"
             section={activeGlobal}

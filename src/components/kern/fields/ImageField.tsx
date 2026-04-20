@@ -38,6 +38,10 @@ export function ImageField({ value, onChange, label, disabled }: FieldProps) {
         <div
           ref={containerRef}
           className="relative rounded-lg border border-input overflow-hidden aspect-video"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 0.75px, transparent 0.75px)",
+            backgroundSize: "20px 20px",
+          }}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
