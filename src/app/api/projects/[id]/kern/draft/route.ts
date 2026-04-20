@@ -52,6 +52,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = await request.json();
   const { path, action } = body;
 
+  if (!path) {
+    return NextResponse.json({ error: "path is required" }, { status: 400 });
+  }
+
   if (action === "delete") {
     db.insert(pendingChanges)
       .values({ projectId: id, filePath: path, content: DELETE_SENTINEL, updatedAt: new Date() })
@@ -64,8 +68,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { content, original } = body;
+  if (content === undefined || content === null) {
+    return NextResponse.json({ error: "content is required" }, { status: 400 });
+  }
   const contentStr = JSON.stringify(content, null, 2);
-  const originalStr = JSON.stringify(original, null, 2);
+  const originalStr = JSON.stringify(original ?? null, null, 2);
 
   if (contentStr === originalStr) {
     db.delete(pendingChanges)

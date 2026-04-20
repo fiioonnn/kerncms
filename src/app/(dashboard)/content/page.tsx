@@ -222,7 +222,7 @@ function useDraft(projectId: string | undefined) {
   const [publishing, setPublishing] = useState(false);
   const localDirtyRef = useRef(new Map<string, boolean>());
   const [localChangeCount, setLocalChangeCount] = useState(0);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const publishedRef = useRef(false);
   const [discardVersion, setDiscardVersion] = useState(0);
 
@@ -264,8 +264,11 @@ function useDraft(projectId: string | undefined) {
     } catch { /* quota exceeded etc */ }
 
     // Debounced DB save
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
+    const existing = saveTimersRef.current.get(path);
+    if (existing) clearTimeout(existing);
+    saveTimersRef.current.set(path, setTimeout(async () => {
+      saveTimersRef.current.delete(path);
+      if (publishedRef.current) return;
       setSaving(true);
       try {
         await fetch(`/api/projects/${projectId}/kern/draft`, {
@@ -273,21 +276,18 @@ function useDraft(projectId: string | undefined) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ path, content, original }),
         });
-        // Clear localStorage after successful DB save
         try { localStorage.removeItem(`kern-draft:${projectId}:${path}`); } catch { /* */ }
         await refresh();
       } finally {
         setSaving(false);
       }
-    }, 1500);
+    }, 1500));
   }, [projectId, refresh]);
 
   const publish = useCallback(async (targetBranch?: string) => {
     if (!projectId) return;
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
+    for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+    saveTimersRef.current.clear();
     publishedRef.current = true;
     setPublishing(true);
     try {
