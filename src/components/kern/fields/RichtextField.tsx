@@ -296,28 +296,9 @@ const TailwindClass = Mark.create({
   },
 });
 
-function tailwindClassesToInlineStyles(html: string): string {
-  return html.replace(/class="([^"]*)"/g, (_, classes: string) => {
-    const classList = classes.split(/\s+/).filter(Boolean);
-    let style = "";
-    const remaining: string[] = [];
-    for (const cls of classList) {
-      if (COLOR_STYLES[cls]) style += COLOR_STYLES[cls];
-      else if (SIZE_STYLES[cls]) style += SIZE_STYLES[cls];
-      else if (WEIGHT_STYLES[cls]) style += WEIGHT_STYLES[cls];
-      else remaining.push(cls);
-    }
-    const parts: string[] = [];
-    if (remaining.length > 0) parts.push(`class="${remaining.join(" ")}"`);
-    if (style) parts.push(`style="${style}"`);
-    return parts.join(" ") || "";
-  });
-}
-
-type EditorMode = "wysiwyg" | "html" | "preview";
 
 export function RichtextField({ value, onChange, label, disabled }: FieldProps) {
-  const [mode, setMode] = useState<EditorMode>("wysiwyg");
+  const [htmlMode, setHtmlMode] = useState(false);
   const [htmlSource, setHtmlSource] = useState("");
 
   const editor = useEditor({
@@ -344,16 +325,15 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
 
   if (!editor) return null;
 
-  function switchMode(newMode: EditorMode) {
+  function toggleHtmlMode() {
     if (!editor) return;
-    if (mode === "html" && newMode !== "html") {
+    if (htmlMode) {
       editor.commands.setContent(htmlSource);
       onChange(editor.getHTML());
-    }
-    if (newMode === "html" || newMode === "preview") {
+    } else {
       setHtmlSource(editor.getHTML());
     }
-    setMode(newMode);
+    setHtmlMode(!htmlMode);
   }
 
   function handleLink() {
@@ -401,32 +381,22 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16" /><path d="m5 7 1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" /><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>
           </ToolbarButton>
           <div className="w-px h-4 bg-input mx-0.5" />
-          <ToolbarButton active={mode === "html"} onClick={() => switchMode(mode === "html" ? "wysiwyg" : "html")} disabled={disabled}>
+          <ToolbarButton active={htmlMode} onClick={toggleHtmlMode} disabled={disabled}>
             <span className="text-[10px] font-mono">&lt;/&gt;</span>
           </ToolbarButton>
-          <ToolbarButton active={mode === "preview"} onClick={() => switchMode(mode === "preview" ? "wysiwyg" : "preview")} disabled={disabled}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
-          </ToolbarButton>
         </div>
-        {!disabled && mode === "wysiwyg" && <TailwindBubbleMenu editor={editor} />}
-        {mode === "html" && (
+        {!disabled && !htmlMode && <TailwindBubbleMenu editor={editor} />}
+        {htmlMode ? (
           <textarea
             value={htmlSource}
             onChange={(e) => setHtmlSource(e.target.value)}
             className="w-full min-h-[120px] px-3 py-2 font-mono text-xs text-cyan-300 bg-[#1a1a2e] outline-none resize-y"
             spellCheck={false}
           />
-        )}
-        {mode === "preview" && (
-          <div
-            className="px-3 py-2 min-h-[120px] text-sm"
-            dangerouslySetInnerHTML={{ __html: tailwindClassesToInlineStyles(htmlSource) }}
-          />
-        )}
-        {mode === "wysiwyg" && (
+        ) : (
           <EditorContent
             editor={editor}
-            className="prose prose-sm dark:prose-invert max-w-none px-3 py-2 min-h-[120px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[100px] [&_.tiptap_span[class]]:text-inherit"
+            className="prose prose-sm dark:prose-invert max-w-none px-3 py-2 min-h-[120px] focus-within:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[100px]"
           />
         )}
       </div>
