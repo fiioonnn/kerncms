@@ -1,0 +1,1 @@
+ALTER TABLE `user` ADD `oauth_image` text;

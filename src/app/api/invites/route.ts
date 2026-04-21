@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { invitations, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireSession, requireRole } from "@/lib/auth-helpers";
-import { InviteEmail } from "@/emails/invite";
+import InviteEmail from "@/emails/invite";
 import { getResendClient, getResendFromAddress } from "@/lib/resend";
 
 export async function POST(request: Request) {

@@ -5,49 +5,37 @@ import {
   Hr,
   Html,
   Img,
-  Link,
   Preview,
   Section,
   Text,
 } from "@react-email/components";
 
-interface InviteEmailProps {
-  projectName: string;
-  inviterName: string;
-  role: string;
-  inviteUrl: string;
+interface OTPEmailProps {
+  otp: string;
+  email: string;
 }
 
-export default function InviteEmail({
-  projectName = "My Project",
-  inviterName = "John Doe",
-  role = "Editor",
-  inviteUrl = "https://example.com/auth?invite=abc123",
-}: InviteEmailProps) {
+export default function OTPEmail({ otp = "482910", email = "user@example.com" }: OTPEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>You've been invited to {projectName}</Preview>
+      <Preview>Your login code: {otp}</Preview>
       <Body style={body}>
         <Section style={wrapper}>
           <Img src="https://kerncms.com/logo-full.svg" alt="kerncms" height="32" style={{ marginBottom: "48px" }} />
 
-          <Heading style={heading}>You've been invited</Heading>
+          <Heading style={heading}>Your login code</Heading>
 
           <Text style={paragraph}>
-            <strong style={{ color: "#fafafa" }}>{inviterName}</strong> invited you to join{" "}
-            <strong style={{ color: "#fafafa" }}>{projectName}</strong> as a{" "}
-            <strong style={{ color: "#fafafa" }}>{role}</strong>.
+            Enter this code to sign in as {email}.
           </Text>
 
-          <Link href={inviteUrl} style={button}>
-            Accept Invitation
-          </Link>
+          <Text style={code}>{otp}</Text>
 
           <Hr style={divider} />
 
           <Text style={footer}>
-            This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+            This code expires in 5 minutes. If you didn't request this, you can safely ignore this email.
           </Text>
         </Section>
       </Body>
@@ -82,16 +70,14 @@ const paragraph = {
   lineHeight: "1.6",
 };
 
-const button = {
-  display: "inline-block" as const,
-  background: "#fafafa",
-  color: "#0a0a0a",
-  padding: "12px 28px",
-  borderRadius: "8px",
-  fontSize: "14px",
-  fontWeight: "600" as const,
-  textDecoration: "none",
-  marginBottom: "40px",
+const code = {
+  fontSize: "36px",
+  fontWeight: "700" as const,
+  fontFamily: "monospace",
+  color: "#fafafa",
+  letterSpacing: "8px",
+  margin: "0 0 40px",
+  lineHeight: "1",
 };
 
 const divider = {

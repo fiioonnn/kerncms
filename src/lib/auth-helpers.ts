@@ -40,6 +40,11 @@ export async function getMemberRole(projectId: string, userId: string) {
 }
 
 export async function requireRole(projectId: string, userId: string, allowedRoles: string[]) {
+  const session = await getSession();
+  if (session && isAdminRole(session.user.role)) {
+    return "admin";
+  }
+
   const role = await getMemberRole(projectId, userId);
   if (!role || !allowedRoles.includes(role)) {
     throw new Response(JSON.stringify({ error: "Forbidden" }), {

@@ -2838,6 +2838,7 @@ export default function ContentPage() {
                       <path d="M12 9v4" /><path d="M12 17h.01" />
                     </svg>
                   )}
+                  {current?.role !== "viewer" && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setSidebarDeleteTarget({ page: selectedPage.name, section: section.name, type: "section" }); }}
                     className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
@@ -2846,6 +2847,7 @@ export default function ContentPage() {
                       <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                     </svg>
                   </button>
+                  )}
                 </div>
               );
             })}
@@ -2883,6 +2885,7 @@ export default function ContentPage() {
                       <path d="M12 9v4" /><path d="M12 17h.01" />
                     </svg>
                   )}
+                  {current?.role !== "viewer" && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setSidebarDeleteTarget({ page: "globals", section: name, type: "global" }); }}
                     className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
@@ -2891,6 +2894,7 @@ export default function ContentPage() {
                       <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                     </svg>
                   </button>
+                  )}
                 </div>
               );
             })}

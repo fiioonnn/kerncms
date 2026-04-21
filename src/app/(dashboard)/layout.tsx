@@ -3,6 +3,7 @@ import { ProjectProvider } from "@/components/project-context";
 import { PageTransition } from "@/components/page-transition";
 import { GitHubGate } from "@/components/github-gate";
 import { BackgroundValidator } from "@/components/background-validator";
+import { RequireName } from "@/components/require-name";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
         </GitHubGate>
       </main>
       <BackgroundValidator />
+      <RequireName />
     </ProjectProvider>
   );
 }

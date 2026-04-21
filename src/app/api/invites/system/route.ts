@@ -1,9 +1,42 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user, invitations, projects } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, gt, notInArray } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-helpers";
 import { getResendClient, getResendFromAddress } from "@/lib/resend";
+import InviteAppEmail from "@/emails/invite-app";
+
+export async function GET() {
+  const session = await requireSession();
+  const currentRole = (session.user as { role?: string }).role;
+  if (currentRole !== "admin" && currentRole !== "superadmin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const existingEmails = db.select({ email: user.email }).from(user).all().map((u) => u.email);
+
+  const pending = db
+    .select({
+      id: invitations.id,
+      email: invitations.email,
+      role: invitations.systemRole,
+      expiresAt: invitations.expiresAt,
+      createdAt: invitations.createdAt,
+    })
+    .from(invitations)
+    .where(gt(invitations.expiresAt, new Date()))
+    .all()
+    .filter((inv) => inv.role && !existingEmails.includes(inv.email));
+
+  const seen = new Set<string>();
+  const unique = pending.filter((inv) => {
+    if (seen.has(inv.email)) return false;
+    seen.add(inv.email);
+    return true;
+  });
+
+  return NextResponse.json(unique);
+}
 
 export async function POST(request: Request) {
   const session = await requireSession();
@@ -17,7 +50,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email not configured. Set up Resend in Settings > Integrations." }, { status: 503 });
   }
 
-  const { email } = await request.json();
+  const { email, role: appRole = "member" } = await request.json();
+  const validRoles = ["admin", "member"];
+  const systemRole = validRoles.includes(appRole) ? appRole : "member";
 
   const existing = db.select({ id: user.id }).from(user).where(eq(user.email, email)).get();
   if (existing) {
@@ -33,7 +68,8 @@ export async function POST(request: Request) {
       const [invite] = db.insert(invitations).values({
         projectId: firstProject.id,
         email,
-        role: "editor",
+        role: "viewer",
+        systemRole,
         invitedBy: session.user.id,
         expiresAt,
       }).returning().all();
@@ -48,22 +84,11 @@ export async function POST(request: Request) {
   const { error } = await resend.emails.send({
     from: getResendFromAddress(),
     to: email,
-    subject: `You've been invited to kern CMS`,
-    html: `
-      <div style="font-family: -apple-system, sans-serif; background: #0a0a0a; padding: 40px 20px;">
-        <div style="max-width: 460px; margin: 0 auto; background: #141414; border-radius: 12px; border: 1px solid #262626; overflow: hidden;">
-          <div style="padding: 32px;">
-            <h1 style="font-size: 20px; font-weight: 600; color: #fafafa; margin: 0 0 8px;">You've been invited</h1>
-            <p style="font-size: 14px; color: #a1a1aa; margin: 0 0 24px; line-height: 1.6;">
-              ${session.user.name} invited you to join kern CMS. Sign in to get started.
-            </p>
-            <a href="${signupUrl}" style="display: block; text-align: center; background: #fafafa; color: #0a0a0a; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
-              Sign In
-            </a>
-          </div>
-        </div>
-      </div>
-    `,
+    subject: `You've been invited to kerncms`,
+    react: InviteAppEmail({
+      inviterName: session.user.name,
+      inviteUrl: signupUrl,
+    }),
   });
 
   if (error) {

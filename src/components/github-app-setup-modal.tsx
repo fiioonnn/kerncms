@@ -91,7 +91,7 @@ export function GitHubAppSetupModal({
   onComplete: () => void;
 }) {
   const [step, setStep] = useState<Step>(initialStep);
-  const [appName, setAppName] = useState("Kern CMS");
+  const [appName, setAppName] = useState("kerncms");
   const [target, setTarget] = useState<"user" | "org">("user");
   const [orgName, setOrgName] = useState("");
   const [waiting, setWaiting] = useState(false);
@@ -233,7 +233,7 @@ export function GitHubAppSetupModal({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setAppName(e.target.value)
               }
-              placeholder="Kern CMS"
+              placeholder="kerncms"
             />
           </div>
 

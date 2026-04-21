@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,9 @@ import {
 } from "@/components/ui/command";
 import { NestedDialogOverlay } from "@/components/ui/nested-dialog-overlay";
 import { GitHubAppSetupModal } from "@/components/github-app-setup-modal";
-import { useSession, signOut, useIsAdmin, useIsSuperAdmin } from "@/lib/auth-client";
+import { useSession, signOut, useIsAdmin, useIsSuperAdmin, authClient } from "@/lib/auth-client";
+import { AvatarPicker } from "@/components/avatar-picker";
+import { resolveAvatarSrc } from "@/lib/avatar";
 import { useProjects } from "@/components/project-context";
 
 type Role = "admin" | "editor" | "viewer";
@@ -146,6 +150,12 @@ const NAV_ITEMS: { id: string; label: string; category?: string; icon: React.Rea
 
 function ProfileSection() {
   const { data: session } = useSession();
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+
+  async function handleAvatarSelect(dataUri: string | null) {
+    await authClient.updateUser({ image: dataUri ?? "" });
+    toast.success("Avatar updated");
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,25 +165,44 @@ function ProfileSection() {
       </div>
       <Separator />
       <div className="flex items-center gap-4">
-        {session?.user.image ? (
-          <img src={session.user.image} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full" />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-xl font-medium text-muted-foreground">
-            {session?.user.name?.charAt(0).toUpperCase() ?? "?"}
+        <button
+          type="button"
+          onClick={() => setAvatarPickerOpen(true)}
+          className="relative group rounded-full"
+        >
+          {resolveAvatarSrc(session?.user.image) ? (
+            <img src={resolveAvatarSrc(session?.user.image)!} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full" />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-xl font-medium text-muted-foreground">
+              {session?.user.name?.charAt(0).toUpperCase() ?? "?"}
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
           </div>
-        )}
+        </button>
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium">{session?.user.name ?? "Loading..."}</p>
           <p className="text-xs text-muted-foreground">{session?.user.email ?? ""}</p>
         </div>
       </div>
+      <AvatarPicker
+        open={avatarPickerOpen}
+        onOpenChange={setAvatarPickerOpen}
+        onSelect={handleAvatarSelect}
+        currentImage={session?.user.image}
+        oauthImage={(session?.user as { oauthImage?: string } | undefined)?.oauthImage}
+        userName={session?.user.name}
+      />
       <div className="flex flex-col gap-2">
         <Label htmlFor="display-name">Display Name</Label>
-        <Input id="display-name" defaultValue={session?.user.name ?? ""} readOnly className="text-muted-foreground" />
+        <Input id="display-name" value={session?.user.name ?? ""} readOnly className="text-muted-foreground" />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" defaultValue={session?.user.email ?? ""} readOnly className="text-muted-foreground" />
+        <Input id="email" value={session?.user.email ?? ""} readOnly className="text-muted-foreground" />
       </div>
     </div>
   );
@@ -801,12 +830,15 @@ function SystemInviteDialog({
   open,
   onOpenChange,
   existingEmails,
+  onSent,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingEmails: string[];
+  onSent: () => void;
 }) {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"admin" | "member">("member");
   const [sending, setSending] = useState(false);
 
   async function handleSubmit() {
@@ -817,15 +849,19 @@ function SystemInviteDialog({
       onOpenChange(false);
       return;
     }
-    setEmail("");
-    onOpenChange(false);
+    setSending(true);
     const res = await fetch("/api/invites/system", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: trimmed }),
+      body: JSON.stringify({ email: trimmed, role }),
     });
+    setSending(false);
     if (res.ok) {
       toast.success(`Invite sent to ${trimmed}`);
+      setEmail("");
+      setRole("member");
+      onOpenChange(false);
+      onSent();
     } else {
       const text = await res.text();
       let msg = "Failed to send invite";
@@ -837,7 +873,7 @@ function SystemInviteDialog({
   return (
     <>
     <NestedDialogOverlay open={open} onClose={() => onOpenChange(false)} zIndex={55} />
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setEmail(""); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setEmail(""); setRole("member"); } }}>
       <DialogContent hideOverlay className="sm:max-w-sm !z-[56]">
         <div className="flex flex-col gap-2">
           <h3 className="font-heading text-base font-medium">Invite Member</h3>
@@ -854,6 +890,16 @@ function SystemInviteDialog({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") handleSubmit(); }}
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(val) => setRole(val as "admin" | "member")}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent align="start" alignItemWithTrigger={false}>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex justify-end gap-2">
@@ -952,8 +998,8 @@ function MemberDetailDialog({
           ) : (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                {detail.image ? (
-                  <img src={detail.image} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-full" />
+                {resolveAvatarSrc(detail.image) ? (
+                  <img src={resolveAvatarSrc(detail.image)!} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-full" />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-base font-medium text-muted-foreground">
                     {detail.name.charAt(0).toUpperCase()}
@@ -1044,17 +1090,25 @@ function MembersSection() {
   const { data: session } = useSession();
   const isSuperAdmin = useIsSuperAdmin();
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<{ id: string; email: string; role: string | null; expiresAt: string; createdAt: string }[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [search, setSearch] = useState("");
   const [resendReady, setResendReady] = useState<boolean | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<{ id: string; email: string; role: string | null; expiresAt: string; createdAt: string } | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch("/api/users");
     if (res.ok) setUsers(await res.json());
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  const fetchPendingInvites = useCallback(async () => {
+    const res = await fetch("/api/invites/system");
+    if (res.ok) setPendingInvites(await res.json());
+  }, []);
+
+  useEffect(() => { fetchUsers(); fetchPendingInvites(); }, [fetchUsers, fetchPendingInvites]);
 
   useEffect(() => {
     fetch("/api/settings/resend").then((r) => r.json()).then((d) => setResendReady(d.configured)).catch(() => setResendReady(false));
@@ -1097,6 +1151,7 @@ function MembersSection() {
         open={showInvite}
         onOpenChange={setShowInvite}
         existingEmails={users.map((u) => u.email)}
+        onSent={fetchPendingInvites}
       />
 
       <MemberDetailDialog
@@ -1121,8 +1176,8 @@ function MembersSection() {
               className="flex items-center justify-between rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/50"
             >
               <div className="flex items-center gap-3">
-                {u.image ? (
-                  <img src={u.image} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full" />
+                {resolveAvatarSrc(u.image) ? (
+                  <img src={resolveAvatarSrc(u.image)!} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full" />
                 ) : (
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-muted-foreground">
                     {u.name.charAt(0).toUpperCase()}
@@ -1143,6 +1198,101 @@ function MembersSection() {
           );
         })}
       </div>
+
+      {pendingInvites.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Invites</h3>
+          {pendingInvites.map((inv) => (
+            <div
+              key={inv.id}
+              className="flex items-center justify-between rounded-lg border border-dashed border-border p-3 cursor-pointer transition-colors hover:bg-muted/30"
+              onClick={() => { setSelectedInvite(inv); setInviteDialogOpen(true); }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-xs text-muted-foreground">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{inv.email}</p>
+                  <p className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground">{inv.role ? inv.role.charAt(0).toUpperCase() + inv.role.slice(1) : "Member"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <NestedDialogOverlay open={inviteDialogOpen} onClose={() => { setInviteDialogOpen(false); setTimeout(() => setSelectedInvite(null), 300); }} zIndex={55} />
+      <Dialog open={inviteDialogOpen} onOpenChange={(open) => { setInviteDialogOpen(open); if (!open) setTimeout(() => setSelectedInvite(null), 300); }}>
+        <DialogContent hideOverlay className="sm:max-w-sm !z-[56]">
+          {selectedInvite && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Pending Invite</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-3 py-2">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-muted-foreground">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </div>
+                <p className="text-base font-medium">{selectedInvite.email}</p>
+              </div>
+              <Separator />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Role</span>
+                  <Select value={selectedInvite.role || "member"} onValueChange={async (val) => {
+                    const res = await fetch(`/api/invites/${selectedInvite.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ systemRole: val }),
+                    });
+                    if (res.ok) {
+                      setSelectedInvite({ ...selectedInvite, role: val });
+                      setPendingInvites((prev) => prev.map((inv) => inv.id === selectedInvite.id ? { ...inv, role: val } : inv));
+                    }
+                  }}>
+                    <SelectTrigger size="sm" className="h-7 w-28 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Expires</span>
+                  <span className="text-sm">{new Date(selectedInvite.expiresAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <Separator />
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={async () => {
+                  const res = await fetch(`/api/invites/${selectedInvite.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    setPendingInvites((prev) => prev.filter((inv) => inv.id !== selectedInvite.id));
+                    setInviteDialogOpen(false);
+                    setTimeout(() => setSelectedInvite(null), 300);
+                    toast.success("Invite cancelled");
+                  }
+                }}
+              >
+                Cancel Invite
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1769,8 +1919,8 @@ export function ProfileDialog() {
         className="cursor-pointer"
         nativeButton={false}
         render={
-          session?.user.image ? (
-            <img src={session.user.image} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full hover:opacity-80 transition-opacity" />
+          resolveAvatarSrc(session?.user.image) ? (
+            <img src={resolveAvatarSrc(session?.user.image)!} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full hover:opacity-80 transition-opacity" />
           ) : (
             <div className="h-7 w-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-medium text-muted-foreground hover:bg-white/15 transition-colors">
               {session?.user.name?.charAt(0).toUpperCase() ?? "?"}

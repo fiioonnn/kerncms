@@ -87,6 +87,13 @@ export async function GET(request: NextRequest) {
           .run();
       }
 
+      if (invite.systemRole === "admin" || invite.systemRole === "member") {
+        db.update(user)
+          .set({ role: invite.systemRole as "admin" | "member" })
+          .where(eq(user.id, userId))
+          .run();
+      }
+
       db.delete(invitations).where(eq(invitations.id, invite.id)).run();
     }
 

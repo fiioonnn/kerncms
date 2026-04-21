@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useProjects } from "@/components/project-context";
-import { useIsAdmin, useSession } from "@/lib/auth-client";
+import { useIsAdmin, useIsSuperAdmin, useSession } from "@/lib/auth-client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
+import { resolveAvatarSrc } from "@/lib/avatar";
 
 const ALL_COLORS = [
   "#ef4444", "#f97316", "#f59e0b",
@@ -63,6 +64,15 @@ const NAV_ITEMS = [
     ),
   },
   {
+    id: "editor",
+    label: "Preferences",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" x2="4" y1="21" y2="14" /><line x1="4" x2="4" y1="10" y2="3" /><line x1="12" x2="12" y1="21" y2="12" /><line x1="12" x2="12" y1="8" y2="3" /><line x1="20" x2="20" y1="21" y2="16" /><line x1="20" x2="20" y1="12" y2="3" /><line x1="2" x2="6" y1="14" y2="14" /><line x1="10" x2="14" y1="8" y2="8" /><line x1="18" x2="22" y1="16" y2="16" />
+      </svg>
+    ),
+  },
+  {
     id: "permissions",
     label: "Permissions",
     icon: (
@@ -78,16 +88,6 @@ const NAV_ITEMS = [
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="16 18 22 12 16 6" />
         <polyline points="8 6 2 12 8 18" />
-      </svg>
-    ),
-  },
-  {
-    id: "autofix",
-    label: "Auto-fix",
-    comingSoon: true,
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
       </svg>
     ),
   },
@@ -294,6 +294,7 @@ function GeneralSection({
   updateProject,
   deleteProject,
   setKernInstalled,
+  readonly,
 }: {
   current: NonNullable<ReturnType<typeof useProjects>["current"]>;
   name: string;
@@ -303,8 +304,10 @@ function GeneralSection({
   updateProject: ReturnType<typeof useProjects>["updateProject"];
   deleteProject: ReturnType<typeof useProjects>["deleteProject"];
   setKernInstalled: ReturnType<typeof useProjects>["setKernInstalled"];
+  readonly?: boolean;
 }) {
   const router = useRouter();
+  const isAppAdmin = useIsAdmin();
 
   return (
     <>
@@ -315,8 +318,10 @@ function GeneralSection({
             <Label className="text-sm">Name</Label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => { if (name.trim() && name !== current.name) updateProject(current.id, { name: name.trim() }); }}
+              onChange={(e) => !readonly && setName(e.target.value)}
+              onBlur={() => { if (!readonly && name.trim() && name !== current.name) updateProject(current.id, { name: name.trim() }); }}
+              readOnly={readonly}
+              className={readonly ? "opacity-60 cursor-default" : ""}
             />
           </div>
           <div className="grid grid-cols-[140px_1fr] items-center gap-4">
@@ -325,9 +330,11 @@ function GeneralSection({
             </Label>
             <Input
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onBlur={() => updateProject(current.id, { url: url || undefined })}
+              onChange={(e) => !readonly && setUrl(e.target.value)}
+              onBlur={() => !readonly && updateProject(current.id, { url: url || undefined })}
               placeholder="https://example.com"
+              readOnly={readonly}
+              className={readonly ? "opacity-60 cursor-default" : ""}
             />
           </div>
           <div className="grid grid-cols-[140px_1fr] items-start gap-4">
@@ -337,13 +344,14 @@ function GeneralSection({
                 <button
                   key={color}
                   type="button"
-                  onClick={() => updateProject(current.id, { color })}
-                  className="h-7 w-7 rounded-md transition-all hover:scale-110"
+                  onClick={() => !readonly && updateProject(current.id, { color })}
+                  className={`h-7 w-7 rounded-md transition-all ${readonly ? "cursor-default" : "hover:scale-110"}`}
                   style={{
                     backgroundColor: color,
                     outline: current.color === color ? "2px solid white" : "none",
                     outlineOffset: "2px",
                   }}
+                  disabled={readonly}
                 />
               ))}
             </div>
@@ -351,59 +359,43 @@ function GeneralSection({
         </div>
       </section>
 
-      <Separator className="my-8" />
+      {!readonly && (
+        <>
+          {isAppAdmin && (
+            <>
+              <Separator className="my-8" />
 
-      <RepositorySection
-        repo={current.repo ?? ""}
-        branch={current.branch ?? ""}
-        onSave={(repo, branch) => updateProject(current.id, { repo: repo || undefined, branch: branch || undefined })}
-      />
-
-      <Separator className="my-8" />
-
-      <section className="flex flex-col gap-5">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Editor</h2>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <Label className="text-sm">Content Caching</Label>
-              <span className="text-xs text-muted-foreground">
-                {(current.editorCaching ?? true)
-                  ? "Sections load instantly from cache"
-                  : "Sections always fetch from GitHub"}
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={current.editorCaching ?? true}
-              onClick={() => updateProject(current.id, { editorCaching: !(current.editorCaching ?? true) })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                (current.editorCaching ?? true) ? "bg-foreground" : "bg-muted"
-              }`}
-            >
-              <span
-                className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${
-                  (current.editorCaching ?? true) ? "translate-x-4" : "translate-x-0"
-                }`}
+              <RepositorySection
+                repo={current.repo ?? ""}
+                branch={current.branch ?? ""}
+                onSave={(repo, branch) => updateProject(current.id, { repo: repo || undefined, branch: branch || undefined })}
               />
-            </button>
-          </div>
-        </div>
-      </section>
+            </>
+          )}
+
+        </>
+      )}
 
       <Separator className="my-8" />
 
       <DangerZoneSection
         projectId={current.id}
         projectName={current.name}
-        kernInstalled={current.kernInstalled}
+        kernInstalled={readonly ? false : current.kernInstalled}
+        showDelete={!readonly}
         onDelete={() => {
           deleteProject(current.id);
           router.push("/");
         }}
         onUninstall={() => {
           setKernInstalled(current.id, false);
+        }}
+        onLeave={async () => {
+          const res = await fetch(`/api/projects/${current.id}/leave`, { method: "POST" });
+          if (res.ok) {
+            toast.success("You have left the project.");
+            router.push("/");
+          }
         }}
       />
     </>
@@ -737,6 +729,7 @@ type ProjectMember = {
   email: string;
   image?: string | null;
   role: "admin" | "editor" | "viewer";
+  appRole?: string;
   joinedAt: string;
 };
 
@@ -748,8 +741,10 @@ type SystemUser = {
   role: string;
 };
 
-function DangerZoneSection({ projectId, projectName, kernInstalled, onDelete, onUninstall }: { projectId: string; projectName: string; kernInstalled: boolean; onDelete: () => void; onUninstall: () => void }) {
+function DangerZoneSection({ projectId, projectName, kernInstalled, showDelete = true, onDelete, onUninstall, onLeave }: { projectId: string; projectName: string; kernInstalled: boolean; showDelete?: boolean; onDelete: () => void; onUninstall: () => void; onLeave?: () => void }) {
+  const isAppAdmin = useIsAdmin();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [uninstallOpen, setUninstallOpen] = useState(false);
   const [uninstallAfterDeleteOpen, setUninstallAfterDeleteOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
@@ -781,8 +776,8 @@ function DangerZoneSection({ projectId, projectName, kernInstalled, onDelete, on
       <h2 className="text-sm font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 
       <div className="flex flex-col gap-3">
-        {/* Uninstall kern — only shown when installed */}
-        {kernInstalled && (
+        {/* Uninstall kern — only shown when installed, app admins only */}
+        {kernInstalled && isAppAdmin && (
           <div className="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
             <div>
               <p className="text-sm font-medium">Uninstall kern</p>
@@ -796,18 +791,37 @@ function DangerZoneSection({ projectId, projectName, kernInstalled, onDelete, on
           </div>
         )}
 
-        {/* Delete project */}
-        <div className="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
-          <div>
-            <p className="text-sm font-medium">Delete Project</p>
-            <p className="text-xs text-muted-foreground">
-              This action cannot be undone. All data will be permanently deleted.
-            </p>
+        {/* Leave project */}
+        {onLeave && (
+          <div className="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
+            <div>
+              <p className="text-sm font-medium">Leave Project</p>
+              <p className="text-xs text-muted-foreground">
+                {isAppAdmin
+                  ? "Remove yourself as a member. You can still access this project as an app admin."
+                  : "Remove yourself from this project. You will lose access."}
+              </p>
+            </div>
+            <Button variant="destructive" size="sm" onClick={() => setLeaveOpen(true)}>
+              Leave
+            </Button>
           </div>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-            Delete
-          </Button>
-        </div>
+        )}
+
+        {/* Delete project — app admins only */}
+        {showDelete && isAppAdmin && (
+          <div className="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
+            <div>
+              <p className="text-sm font-medium">Delete Project</p>
+              <p className="text-xs text-muted-foreground">
+                This action cannot be undone. All data will be permanently deleted.
+              </p>
+            </div>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+              Delete
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Uninstall confirmation dialog */}
@@ -913,6 +927,26 @@ function DangerZoneSection({ projectId, projectName, kernInstalled, onDelete, on
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Leave project confirmation dialog */}
+      <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Leave Project</DialogTitle>
+            <DialogDescription>
+              {isAppAdmin
+                ? <>Remove yourself as a member of <strong>{projectName}</strong>. You will still be able to access this project as an app admin.</>
+                : <>Remove yourself from <strong>{projectName}</strong>. You will lose access to this project.</>}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { setLeaveOpen(false); onLeave?.(); }}>
+              Leave Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -931,15 +965,18 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
   const [allUsers, setAllUsers] = useState<SystemUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("editor");
+  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("viewer");
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [addRole, setAddRole] = useState<"admin" | "editor" | "viewer">("editor");
+  const [addRole, setAddRole] = useState<"admin" | "editor" | "viewer">("viewer");
   const [search, setSearch] = useState("");
 
   const isAdmin = members.some((m) => m.userId === session?.user.id && m.role === "admin");
+  const isAppAdmin = useIsAdmin();
 
   const fetchMembers = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}/members`);
@@ -1012,7 +1049,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     if (res.ok) {
       toast.success(`Invite sent to ${inviteEmail}`);
       setInviteEmail("");
-      setInviteRole("editor");
+      setInviteRole("viewer");
       setShowInvite(false);
       fetchMembers();
     } else {
@@ -1026,6 +1063,10 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     if (res.ok) {
       setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
       toast.success("Invite cancelled");
+    } else {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error || "Failed to cancel invite");
+      fetchMembers();
     }
   }
 
@@ -1033,43 +1074,47 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     <section className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Members</h2>
-        {isAdmin && (
+        {(isAdmin || isAppAdmin) && (
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                const users = await fetchUsers();
-                setSearch("");
-                const available = users.filter(
-                  (u) => !members.some((m) => m.userId === u.id)
-                );
-                if (available.length === 0) {
-                  toast.info("All users are already members of this project.");
-                  return;
-                }
-                setShowAdd(true);
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <line x1="19" x2="19" y1="8" y2="14" />
-                <line x1="22" x2="16" y1="11" y2="11" />
-              </svg>
-              Add
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setInviteEmail(""); setInviteRole("editor"); setShowInvite(true); }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                <rect width="20" height="16" x="2" y="4" rx="2" />
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
-              Invite
-            </Button>
+            {isAppAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const users = await fetchUsers();
+                  setSearch("");
+                  const available = users.filter(
+                    (u) => !members.some((m) => m.userId === u.id)
+                  );
+                  if (available.length === 0) {
+                    toast.info("All users are already members of this project.");
+                    return;
+                  }
+                  setShowAdd(true);
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" x2="19" y1="8" y2="14" />
+                  <line x1="22" x2="16" y1="11" y2="11" />
+                </svg>
+                Add
+              </Button>
+            )}
+            {(isAdmin || isAppAdmin) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { setInviteEmail(""); setInviteRole("viewer"); setShowInvite(true); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                Invite
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -1097,8 +1142,8 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
                 className="flex items-center gap-2.5 rounded-md px-2 py-2 cursor-pointer transition-colors hover:bg-muted/50"
                 onClick={() => handleAdd(u.id)}
               >
-                {u.image ? (
-                  <img src={u.image} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full" />
+                {resolveAvatarSrc(u.image) ? (
+                  <img src={resolveAvatarSrc(u.image)!} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full" />
                 ) : (
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[10px] font-medium text-muted-foreground">
                     {u.name.charAt(0).toUpperCase()}
@@ -1134,10 +1179,10 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Role</Label>
               <Select value={inviteRole} onValueChange={(val) => setInviteRole(val as "admin" | "editor" | "viewer")}>
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="w-full h-8 text-sm capitalize">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent align="start" alignItemWithTrigger={false}>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="editor">Editor</SelectItem>
                   <SelectItem value="viewer">Viewer</SelectItem>
@@ -1161,11 +1206,11 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
           <div
             key={m.id}
             className="flex items-center justify-between rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-muted/30"
-            onClick={() => setSelectedMember(m)}
+            onClick={() => { setSelectedMember(m); setMemberDialogOpen(true); }}
           >
             <div className="flex items-center gap-3">
-              {m.image ? (
-                <img src={m.image} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full" />
+              {resolveAvatarSrc(m.image) ? (
+                <img src={resolveAvatarSrc(m.image)!} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full" />
               ) : (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-muted-foreground">
                   {m.name.charAt(0).toUpperCase()}
@@ -1192,7 +1237,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
             <div
               key={inv.id}
               className="flex items-center justify-between rounded-lg border border-dashed border-border p-3 cursor-pointer transition-colors hover:bg-muted/30"
-              onClick={() => setSelectedInvite(inv)}
+              onClick={() => { setSelectedInvite(inv); setInviteDialogOpen(true); }}
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-xs text-muted-foreground">
@@ -1212,120 +1257,126 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <Dialog open={!!selectedMember} onOpenChange={(open) => { if (!open) setSelectedMember(null); }}>
-        {selectedMember && (() => {
-          const isSelf = selectedMember.userId === session?.user.id;
-          return (
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Member Details</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col items-center gap-3 py-2">
-              {selectedMember.image ? (
-                <img src={selectedMember.image} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full" />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-lg font-medium text-muted-foreground">
-                  {selectedMember.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="text-center">
-                <p className="text-base font-medium">{selectedMember.name}</p>
-                <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
-              </div>
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Role</span>
-                {isAdmin && !isSelf ? (
-                  <Select value={selectedMember.role} onValueChange={(val) => {
-                    if (!val) return;
-                    handleChangeRole(selectedMember.id, val);
-                    setSelectedMember({ ...selectedMember, role: val as ProjectMember["role"] });
-                  }}>
-                    <SelectTrigger size="sm" className="h-7 w-28 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="editor">Editor</SelectItem>
-                      <SelectItem value="viewer">Viewer</SelectItem>
-                    </SelectContent>
-                  </Select>
+      <Dialog open={memberDialogOpen} onOpenChange={(open) => { setMemberDialogOpen(open); if (!open) setTimeout(() => setSelectedMember(null), 300); }}>
+        <DialogContent className="sm:max-w-sm">
+          {selectedMember && (() => {
+            const isSelf = selectedMember.userId === session?.user.id;
+            return (
+            <>
+              <DialogHeader>
+                <DialogTitle>Member Details</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-3 py-2">
+                {resolveAvatarSrc(selectedMember.image) ? (
+                  <img src={resolveAvatarSrc(selectedMember.image)!} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full" />
                 ) : (
-                  <span className="text-sm">{selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1)}</span>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-lg font-medium text-muted-foreground">
+                    {selectedMember.name.charAt(0).toUpperCase()}
+                  </div>
                 )}
+                <div className="text-center">
+                  <p className="text-base font-medium">{selectedMember.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Joined</span>
-                <span className="text-sm">{new Date(selectedMember.joinedAt).toLocaleDateString()}</span>
+              <Separator />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Role</span>
+                  {(isAdmin || isAppAdmin) && !isSelf && (isAppAdmin || (selectedMember.appRole !== "admin" && selectedMember.appRole !== "superadmin")) ? (
+                    <Select value={selectedMember.role} onValueChange={(val) => {
+                      if (!val) return;
+                      handleChangeRole(selectedMember.id, val);
+                      setSelectedMember({ ...selectedMember, role: val as ProjectMember["role"] });
+                    }}>
+                      <SelectTrigger size="sm" className="h-7 w-28 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-sm">{selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1)}</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Joined</span>
+                  <span className="text-sm">{new Date(selectedMember.joinedAt).toLocaleDateString()}</span>
+                </div>
               </div>
-            </div>
-            {isAdmin && !isSelf && (
-              <>
-                <Separator />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    handleRemove(selectedMember.id);
-                    setSelectedMember(null);
-                  }}
-                >
-                  Remove from project
-                </Button>
-              </>
-            )}
-          </DialogContent>
-          );
-        })()}
+              {(isAdmin || isAppAdmin) && !isSelf && (isAppAdmin || (selectedMember.appRole !== "admin" && selectedMember.appRole !== "superadmin")) && (
+                <>
+                  <Separator />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      handleRemove(selectedMember.id);
+                      setMemberDialogOpen(false);
+                      setTimeout(() => setSelectedMember(null), 300);
+                    }}
+                  >
+                    Remove from project
+                  </Button>
+                </>
+              )}
+            </>
+            );
+          })()}
+        </DialogContent>
       </Dialog>
 
-      <Dialog open={!!selectedInvite} onOpenChange={(open) => { if (!open) setSelectedInvite(null); }}>
-        {selectedInvite && (
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Pending Invite</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-muted-foreground">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="20" height="16" x="2" y="4" rx="2" />
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                </svg>
+      <Dialog open={inviteDialogOpen} onOpenChange={(open) => { setInviteDialogOpen(open); if (!open) setTimeout(() => setSelectedInvite(null), 300); }}>
+        <DialogContent className="sm:max-w-sm">
+          {selectedInvite && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Pending Invite</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-3 py-2">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-muted-foreground">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </div>
+                <p className="text-base font-medium">{selectedInvite.email}</p>
               </div>
-              <p className="text-base font-medium">{selectedInvite.email}</p>
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Role</span>
-                <span className="text-sm">{selectedInvite.role.charAt(0).toUpperCase() + selectedInvite.role.slice(1)}</span>
+              <Separator />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Role</span>
+                  <span className="text-sm">{selectedInvite.role.charAt(0).toUpperCase() + selectedInvite.role.slice(1)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Expires</span>
+                  <span className="text-sm">{new Date(selectedInvite.expiresAt).toLocaleDateString()}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Expires</span>
-                <span className="text-sm">{new Date(selectedInvite.expiresAt).toLocaleDateString()}</span>
-              </div>
-            </div>
-            {isAdmin && (
-              <>
-                <Separator />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    handleCancelInvite(selectedInvite.id);
-                    setSelectedInvite(null);
-                  }}
-                >
-                  Cancel Invite
-                </Button>
-              </>
-            )}
-          </DialogContent>
-        )}
+              {(isAdmin || isAppAdmin) && (
+                <>
+                  <Separator />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      handleCancelInvite(selectedInvite.id);
+                      setInviteDialogOpen(false);
+                      setTimeout(() => setSelectedInvite(null), 300);
+                    }}
+                  >
+                    Cancel Invite
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+        </DialogContent>
       </Dialog>
     </section>
   );
@@ -1507,32 +1558,30 @@ function MediaSection({ projectId }: { projectId: string }) {
 function PermissionsSection({ current }: { current: NonNullable<ReturnType<typeof useProjects>["current"]> }) {
   const permissionRows = [
     { action: "View dashboard", admin: true, editor: true, viewer: true },
+    { action: "View content", admin: true, editor: true, viewer: true },
+    { action: "View media", admin: true, editor: true, viewer: true },
     { action: "Edit content", admin: true, editor: true, viewer: false },
     { action: "Manage media", admin: true, editor: true, viewer: false },
     { action: "Edit project settings", admin: true, editor: false, viewer: false },
     { action: "Invite users", admin: true, editor: false, viewer: false },
     { action: "Change roles", admin: true, editor: false, viewer: false },
     { action: "Remove users", admin: true, editor: false, viewer: false },
-    { action: "Delete project", admin: true, editor: false, viewer: false },
   ];
 
   return (
     <section className="flex flex-col gap-5">
       <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Permissions</h2>
 
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Your role in this project</span>
-        <span className="rounded-md border border-border px-2.5 py-1 text-xs font-medium">{current.role.charAt(0).toUpperCase() + current.role.slice(1)}</span>
-      </div>
-
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Action</th>
-              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">Admin</th>
-              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">Editor</th>
-              <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-16">Viewer</th>
+              {(["admin", "editor", "viewer"] as const).map((role) => (
+                <th key={role} className={`text-center px-3 py-2 text-xs font-medium w-16 ${current.role === role ? "text-foreground" : "text-muted-foreground"}`}>
+                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -1911,6 +1960,7 @@ function AutofixSection({ projectId }: { projectId: string }) {
 export default function SettingsPage() {
   const { current, updateProject, deleteProject, setKernInstalled } = useProjects();
   const isSystemAdmin = useIsAdmin();
+  const isSuperAdmin = useIsSuperAdmin();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [section, setSectionState] = useState(searchParams.get("section") ?? "general");
@@ -1934,20 +1984,13 @@ export default function SettingsPage() {
       .catch(() => {});
   }, [current?.id, current?.repo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canAccessSettings = isSystemAdmin || current?.role === "admin";
+  const isProjectAdmin = current?.role === "admin";
+  const canManageProject = isSystemAdmin || isProjectAdmin;
 
   if (!current) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <p className="text-sm text-muted-foreground">Select a project to view settings.</p>
-      </div>
-    );
-  }
-
-  if (!canAccessSettings) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">You don't have permission to access project settings.</p>
       </div>
     );
   }
@@ -1964,7 +2007,11 @@ export default function SettingsPage() {
       <div className="flex gap-10">
         <aside className="w-44 shrink-0">
           <nav className="sticky top-20 flex flex-col gap-0.5">
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter((item) => {
+              if (item.id === "development") return isSuperAdmin;
+              if (item.id !== "general" && item.id !== "permissions" && !canManageProject) return false;
+              return true;
+            }).map((item) => (
               <button
                 key={item.id}
                 onClick={() => !("comingSoon" in item && item.comingSoon) && setSection(item.id)}
@@ -1997,28 +2044,50 @@ export default function SettingsPage() {
               updateProject={updateProject}
               deleteProject={deleteProject}
               setKernInstalled={setKernInstalled}
+              readonly={!canManageProject}
             />
+          )}
+          {section === "editor" && (
+            <section className="flex flex-col gap-5">
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Editor</h2>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm">Content Caching</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {(current.editorCaching ?? true)
+                        ? "Sections load instantly from cache"
+                        : "Sections always fetch from GitHub"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={current.editorCaching ?? true}
+                    onClick={() => updateProject(current.id, { editorCaching: !(current.editorCaching ?? true) })}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      (current.editorCaching ?? true) ? "bg-foreground" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${
+                        (current.editorCaching ?? true) ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </section>
           )}
           {section === "members" && <ProjectMembersSection projectId={current.id} />}
           {section === "media" && <MediaSection projectId={current.id} />}
           {section === "permissions" && <PermissionsSection current={current} />}
-          {section === "development" && (
+          {section === "development" && isSuperAdmin && (
             <DevelopmentSection
               projectId={current.id}
               localPath={current.localPath ?? null}
               onUpdate={(path) => updateProject(current.id, { localPath: path })}
             />
-          )}
-          {section === "autofix" && (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="rounded-full bg-muted p-3 mb-4">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-medium mb-1">Auto-fix is coming soon</h3>
-              <p className="text-xs text-muted-foreground max-w-xs">Automatic JSON validation and fixing for your content files via GitHub webhooks.</p>
-            </div>
           )}
         </div>
       </div>

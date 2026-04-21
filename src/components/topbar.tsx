@@ -22,7 +22,7 @@ export function Topbar() {
   const { current } = useProjects();
   const isSystemAdmin = useIsAdmin();
   const pathname = usePathname();
-  const canSeeSettings = isSystemAdmin || current?.role === "admin";
+  const canSeeSettings = isSystemAdmin || !!current?.role;
 
   useEffect(() => {
     document.title = current ? `kerncms — ${current.name}` : "kerncms";
@@ -43,10 +43,7 @@ export function Topbar() {
         <div className="flex items-center">
           <motion.div {...fade} transition={{ duration: 0.4, delay: idx++ * 0.06 }}>
             <Link href="/" className="flex items-center gap-1.5">
-              <img src="/logo.svg" alt="kern" className="h-5 w-5" />
-              <span className="text-xl font-bold font-[family-name:var(--font-averia)]">
-                <span className="text-foreground">kern</span><span className="text-muted-foreground/40">cms</span>
-              </span>
+              <img src="/logo.png" alt="kerncms" className="h-6" />
             </Link>
           </motion.div>
 

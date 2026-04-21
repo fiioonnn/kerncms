@@ -1,13 +1,18 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { signIn } from "@/lib/auth-client";
 import {
   Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import {
+  InputOTP, InputOTPGroup, InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 function GoogleIcon() {
   return (
@@ -32,6 +37,10 @@ export default function AuthPage() {
   const params = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const otpRef = useRef<HTMLInputElement>(null);
   const inviteToken = params.get("invite");
   const isSetup = params.get("setup") === "1";
   const returnDomain = params.get("returnDomain");
@@ -68,8 +77,48 @@ export default function AuthPage() {
     }
   }, [inviteToken, isSetup]);
 
+  async function handleSendOTP(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading("email");
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), type: "sign-in" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to send code");
+        setLoading(null);
+        return;
+      }
+    } catch {
+      toast.error("Failed to send code");
+      setLoading(null);
+      return;
+    }
+    setLoading(null);
+    setOtpSent(true);
+  }
 
-  async function handleLogin(provider: "google" | "github") {
+  async function handleVerifyOTP(code: string) {
+    if (code.length !== 6) return;
+    setLoading("otp");
+    const { error } = await signIn.emailOtp({
+      email: email.trim(),
+      otp: code,
+    });
+    setLoading(null);
+    if (error) {
+      toast.error(error.message ?? "Invalid code");
+      setOtp("");
+      return;
+    }
+    router.push("/api/auth/callback-handler");
+  }
+
+  async function handleSocialLogin(provider: "google" | "github") {
     setLoading(provider);
     await signIn.social({
       provider,
@@ -79,11 +128,8 @@ export default function AuthPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-4">
-      <div className="mb-8 flex flex-col items-center gap-2">
-        <img src="/logo.svg" alt="kern" className="h-8 w-8" />
-        <span className="text-3xl font-bold font-[family-name:var(--font-averia)]">
-          <span className="text-foreground">kern</span><span className="text-muted-foreground">cms</span>
-        </span>
+      <div className="mb-8">
+        <img src="/logo.png" alt="kerncms" className="h-8" />
       </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
@@ -94,25 +140,94 @@ export default function AuthPage() {
             {inviteToken
               ? "Sign in to accept your invitation"
               : isSetup
-                ? "Sign in with Google or GitHub to create the first admin account"
+                ? "Sign in to create the first admin account"
                 : "Sign in to continue"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-col gap-4">
           {authError === "not_invited" && (
             <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive text-center">
               You need an invitation to sign in. Please contact an administrator.
             </div>
           )}
-          <Button
-            variant="outline"
-            className="w-full justify-center gap-3 h-10"
-            onClick={() => handleLogin("google")}
-            disabled={loading !== null}
-          >
-            <GoogleIcon />
-            {loading === "google" ? "Redirecting..." : "Continue with Google"}
-          </Button>
+
+          {!otpSent ? (
+            <form onSubmit={handleSendOTP} className="flex flex-col gap-3">
+              <Input
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading !== null}
+                autoFocus
+                className="h-10"
+              />
+              <Button
+                type="submit"
+                className="w-full h-10"
+                disabled={loading !== null || !email.trim()}
+              >
+                {loading === "email" ? "Sending..." : "Continue with Email"}
+              </Button>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Enter the code sent to <span className="font-medium text-foreground">{email}</span>
+              </p>
+              <InputOTP
+                ref={otpRef}
+                maxLength={6}
+                value={otp}
+                onChange={(val) => {
+                  setOtp(val);
+                  if (val.length === 6) handleVerifyOTP(val);
+                }}
+                disabled={loading === "otp"}
+                autoFocus
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                containerClassName="justify-center"
+              >
+                <InputOTPGroup className="w-full">
+                  <InputOTPSlot index={0} className="h-12 flex-1 text-lg" />
+                  <InputOTPSlot index={1} className="h-12 flex-1 text-lg" />
+                  <InputOTPSlot index={2} className="h-12 flex-1 text-lg" />
+                  <InputOTPSlot index={3} className="h-12 flex-1 text-lg" />
+                  <InputOTPSlot index={4} className="h-12 flex-1 text-lg" />
+                  <InputOTPSlot index={5} className="h-12 flex-1 text-lg" />
+                </InputOTPGroup>
+              </InputOTP>
+              {loading === "otp" && (
+                <p className="text-sm text-muted-foreground text-center">Verifying...</p>
+              )}
+              <div className="flex justify-center gap-1">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => { setOtpSent(false); setOtp(""); }}
+                  disabled={loading !== null}
+                >
+                  Change email
+                </Button>
+                <span className="text-muted-foreground/50 text-xs leading-8">·</span>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => { setOtp(""); handleSendOTP({ preventDefault: () => {} } as React.FormEvent); }}
+                  disabled={loading !== null}
+                >
+                  Resend code
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <Separator className="flex-1" />
@@ -120,15 +235,26 @@ export default function AuthPage() {
             <Separator className="flex-1" />
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full justify-center gap-3 h-10"
-            onClick={() => handleLogin("github")}
-            disabled={loading !== null}
-          >
-            <GithubIcon />
-            {loading === "github" ? "Redirecting..." : "Continue with GitHub"}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              className="w-full justify-center gap-3 h-10"
+              onClick={() => handleSocialLogin("google")}
+              disabled={loading !== null}
+            >
+              <GoogleIcon />
+              {loading === "google" ? "Redirecting..." : "Continue with Google"}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-center gap-3 h-10"
+              onClick={() => handleSocialLogin("github")}
+              disabled={loading !== null}
+            >
+              <GithubIcon />
+              {loading === "github" ? "Redirecting..." : "Continue with GitHub"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import { emailOTPClient } from "better-auth/client/plugins";
 
 export const mainDomain = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
@@ -6,9 +7,10 @@ export const authClient = createAuthClient({
   baseURL: typeof window === "undefined"
     ? "http://localhost:3000"
     : window.location.origin,
+  plugins: [emailOTPClient()],
 });
 
-export const { signIn, signOut, useSession } = authClient;
+export const { signIn, signOut, useSession, emailOtp } = authClient;
 
 export function useIsAdmin() {
   const { data: session } = useSession();

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const name = searchParams.get("name") || "Kern CMS";
+  const name = searchParams.get("name") || "kerncms";
   const target = searchParams.get("target") || "user";
   const org = searchParams.get("org") || "";
 

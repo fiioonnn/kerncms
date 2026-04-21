@@ -1,4 +1,4 @@
-// AI system prompts for Kern CMS operations
+// AI system prompts for kerncms operations
 // Used by Phase 3 (Analyze) and Phase 4 (Generate)
 
 export const EXTRACT_SYSTEM_PROMPT = `You extract CMS-managed content from a single source file (HTML, Astro, React/TSX, Vue, Svelte, etc.) for migration into a file-based CMS.

@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { emailOTP } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { isDiceBearConfig } from "@/lib/avatar";
 import { getEnabledDomains, getMainOrigin } from "@/lib/domains";
 
 function buildTrustedOrigins(): string[] {
@@ -30,6 +33,24 @@ export const auth = betterAuth({
         defaultValue: "member",
         input: false,
       },
+      oauthImage: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          if (user.image && !isDiceBearConfig(user.image)) {
+            await db.update(schema.user).set({ oauthImage: user.image }).where(
+              eq(schema.user.id, user.id)
+            );
+          }
+        },
+      },
     },
   },
   socialProviders: {
@@ -42,6 +63,13 @@ export const auth = betterAuth({
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     },
   },
+  plugins: [
+    emailOTP({
+      async sendVerificationOTP() {
+        // Email sending is handled by /api/auth/send-otp for proper error reporting
+      },
+    }),
+  ],
   advanced: {
     useSecureCookies: process.env.BETTER_AUTH_URL?.startsWith("https"),
   },

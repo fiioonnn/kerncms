@@ -23,5 +23,5 @@ export function getResendClient(): Resend | null {
 export function getResendFromAddress(): string {
   const row = db.select({ fromDomain: resendConfig.fromDomain }).from(resendConfig).where(eq(resendConfig.id, "default")).get();
   const domain = row?.fromDomain || process.env.RESEND_FROM_DOMAIN || "resend.dev";
-  return `kern CMS <noreply@${domain}>`;
+  return `kerncms <noreply@${domain}>`;
 }

@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaBuckets, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, requireRole, getMemberRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, getMemberRole, isAdminRole } from "@/lib/auth-helpers";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
   const role = await getMemberRole(id, session.user.id);
-  if (!role) {
+  if (!role && !isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

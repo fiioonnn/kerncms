@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectMembers, user, invitations } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, getMemberRole, requireRole } from "@/lib/auth-helpers";
+import { requireSession, getMemberRole, requireRole, isAdminRole } from "@/lib/auth-helpers";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
   const role = await getMemberRole(id, session.user.id);
-  if (!role) {
+  if (!role && !isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -22,6 +22,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       name: user.name,
       email: user.email,
       image: user.image,
+      appRole: user.role,
     })
     .from(projectMembers)
     .innerJoin(user, eq(projectMembers.userId, user.id))
@@ -59,6 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "User is already a member" }, { status: 409 });
   }
 
-  db.insert(projectMembers).values({ projectId: id, userId, role: role ?? "editor" }).run();
+  const isSelfAdd = userId === session.user.id;
+  const assignedRole = isSelfAdd && isAdminRole(session.user.role) ? "admin" : (role ?? "viewer");
+  db.insert(projectMembers).values({ projectId: id, userId, role: assignedRole }).run();
   return NextResponse.json({ success: true });
 }
