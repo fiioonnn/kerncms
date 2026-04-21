@@ -916,11 +916,23 @@ function DangerZoneSection({ projectId, projectName, kernInstalled, onDelete, on
   );
 }
 
+interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+}
+
 function ProjectMembersSection({ projectId }: { projectId: string }) {
   const { data: session } = useSession();
   const [members, setMembers] = useState<ProjectMember[]>([])
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [allUsers, setAllUsers] = useState<SystemUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("editor");
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [addRole, setAddRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [search, setSearch] = useState("");
 
@@ -929,6 +941,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     if (res.ok) {
       const data = await res.json();
       setMembers(data.members);
+      setPendingInvites(data.invitations ?? []);
     }
   }, [projectId]);
 
@@ -982,34 +995,76 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     }
   }
 
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return;
+    setInviteLoading(true);
+    const res = await fetch("/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId, email: inviteEmail.trim(), role: inviteRole }),
+    });
+    setInviteLoading(false);
+    if (res.ok) {
+      toast.success(`Invite sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteRole("editor");
+      setShowInvite(false);
+      fetchMembers();
+    } else {
+      const data = await res.json();
+      toast.error(data.error || "Failed to send invite");
+    }
+  }
+
+  async function handleCancelInvite(inviteId: string) {
+    const res = await fetch(`/api/invites/${inviteId}`, { method: "DELETE" });
+    if (res.ok) {
+      setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      toast.success("Invite cancelled");
+    }
+  }
+
   return (
     <section className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Members</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={async () => {
-            const users = await fetchUsers();
-            setSearch("");
-            const available = users.filter(
-              (u) => !members.some((m) => m.userId === u.id)
-            );
-            if (available.length === 0) {
-              toast.info("All users are already members of this project.");
-              return;
-            }
-            setShowAdd(true);
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" x2="19" y1="8" y2="14" />
-            <line x1="22" x2="16" y1="11" y2="11" />
-          </svg>
-          Add
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              const users = await fetchUsers();
+              setSearch("");
+              const available = users.filter(
+                (u) => !members.some((m) => m.userId === u.id)
+              );
+              if (available.length === 0) {
+                toast.info("All users are already members of this project.");
+                return;
+              }
+              setShowAdd(true);
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" x2="19" y1="8" y2="14" />
+              <line x1="22" x2="16" y1="11" y2="11" />
+            </svg>
+            Add
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setInviteEmail(""); setInviteRole("editor"); setShowInvite(true); }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+              <rect width="20" height="16" x="2" y="4" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+            Invite
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
@@ -1049,6 +1104,46 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showInvite} onOpenChange={setShowInvite}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Invite Member</DialogTitle>
+            <DialogDescription>Send an email invitation to join this project.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">Email</Label>
+              <Input
+                type="email"
+                placeholder="name@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">Role</Label>
+              <Select value={inviteRole} onValueChange={(val) => setInviteRole(val as "admin" | "editor" | "viewer")}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setShowInvite(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleInvite} disabled={inviteLoading || !inviteEmail.trim()}>
+              {inviteLoading ? "Sending..." : "Send Invite"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1104,6 +1199,42 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
           );
         })}
       </div>
+
+      {pendingInvites.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Invites</h3>
+          {pendingInvites.map((inv) => (
+            <div key={inv.id} className="flex items-center justify-between rounded-lg border border-dashed border-border p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-xs text-muted-foreground">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{inv.email}</p>
+                  <p className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{inv.role.charAt(0).toUpperCase() + inv.role.slice(1)}</span>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => handleCancelInvite(inv.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" x2="6" y1="6" y2="18" />
+                    <line x1="6" x2="18" y1="6" y2="18" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
