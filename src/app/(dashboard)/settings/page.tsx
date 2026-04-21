@@ -737,6 +737,7 @@ type ProjectMember = {
   email: string;
   image?: string | null;
   role: "admin" | "editor" | "viewer";
+  joinedAt: string;
 };
 
 type SystemUser = {
@@ -930,11 +931,14 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
   const [allUsers, setAllUsers] = useState<SystemUser[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [addRole, setAddRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [search, setSearch] = useState("");
+
+  const isAdmin = members.some((m) => m.userId === session?.user.id && m.role === "admin");
 
   const fetchMembers = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}/members`);
@@ -1028,43 +1032,45 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
     <section className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Members</h2>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              const users = await fetchUsers();
-              setSearch("");
-              const available = users.filter(
-                (u) => !members.some((m) => m.userId === u.id)
-              );
-              if (available.length === 0) {
-                toast.info("All users are already members of this project.");
-                return;
-              }
-              setShowAdd(true);
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <line x1="19" x2="19" y1="8" y2="14" />
-              <line x1="22" x2="16" y1="11" y2="11" />
-            </svg>
-            Add
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => { setInviteEmail(""); setInviteRole("editor"); setShowInvite(true); }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-              <rect width="20" height="16" x="2" y="4" rx="2" />
-              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-            </svg>
-            Invite
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                const users = await fetchUsers();
+                setSearch("");
+                const available = users.filter(
+                  (u) => !members.some((m) => m.userId === u.id)
+                );
+                if (available.length === 0) {
+                  toast.info("All users are already members of this project.");
+                  return;
+                }
+                setShowAdd(true);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="19" x2="19" y1="8" y2="14" />
+                <line x1="22" x2="16" y1="11" y2="11" />
+              </svg>
+              Add
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setInviteEmail(""); setInviteRole("editor"); setShowInvite(true); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              Invite
+            </Button>
+          </div>
+        )}
       </div>
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
@@ -1151,7 +1157,11 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
         {members.map((m) => {
           const isSelf = m.userId === session?.user.id;
           return (
-          <div key={m.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+          <div
+            key={m.id}
+            className="flex items-center justify-between rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-muted/30"
+            onClick={() => setSelectedMember(m)}
+          >
             <div className="flex items-center gap-3">
               {m.image ? (
                 <img src={m.image} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full" />
@@ -1168,33 +1178,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
                 <p className="text-xs text-muted-foreground">{m.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {isSelf ? (
-                <span className="text-xs text-muted-foreground pr-1">{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</span>
-              ) : (<>
-              <Select value={m.role} onValueChange={(val) => val && handleChangeRole(m.id, val)}>
-                <SelectTrigger size="sm" className="h-7 text-xs">
-                  <SelectValue>{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent side="bottom" alignItemWithTrigger={false}>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => handleRemove(m.id)}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" x2="6" y1="6" y2="18" />
-                  <line x1="6" x2="18" y1="6" y2="18" />
-                </svg>
-              </Button>
-              </>)}
-            </div>
+            <span className="text-xs text-muted-foreground">{m.role.charAt(0).toUpperCase() + m.role.slice(1)}</span>
           </div>
           );
         })}
@@ -1219,22 +1203,94 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{inv.role.charAt(0).toUpperCase() + inv.role.slice(1)}</span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => handleCancelInvite(inv.id)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" x2="6" y1="6" y2="18" />
-                    <line x1="6" x2="18" y1="6" y2="18" />
-                  </svg>
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => handleCancelInvite(inv.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" x2="6" y1="6" y2="18" />
+                      <line x1="6" x2="18" y1="6" y2="18" />
+                    </svg>
+                  </Button>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Dialog open={!!selectedMember} onOpenChange={(open) => { if (!open) setSelectedMember(null); }}>
+        {selectedMember && (() => {
+          const isSelf = selectedMember.userId === session?.user.id;
+          return (
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Member Details</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              {selectedMember.image ? (
+                <img src={selectedMember.image} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-lg font-medium text-muted-foreground">
+                  {selectedMember.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="text-center">
+                <p className="text-base font-medium">{selectedMember.name}</p>
+                <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
+              </div>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Role</span>
+                {isAdmin && !isSelf ? (
+                  <Select value={selectedMember.role} onValueChange={(val) => {
+                    if (!val) return;
+                    handleChangeRole(selectedMember.id, val);
+                    setSelectedMember({ ...selectedMember, role: val as ProjectMember["role"] });
+                  }}>
+                    <SelectTrigger size="sm" className="h-7 w-28 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="editor">Editor</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-sm">{selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1)}</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Joined</span>
+                <span className="text-sm">{new Date(selectedMember.joinedAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            {isAdmin && !isSelf && (
+              <>
+                <Separator />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    handleRemove(selectedMember.id);
+                    setSelectedMember(null);
+                  }}
+                >
+                  Remove from project
+                </Button>
+              </>
+            )}
+          </DialogContent>
+          );
+        })()}
+      </Dialog>
     </section>
   );
 }
