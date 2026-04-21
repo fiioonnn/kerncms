@@ -932,6 +932,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ProjectMember | null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -1188,7 +1189,11 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
         <div className="flex flex-col gap-2">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Invites</h3>
           {pendingInvites.map((inv) => (
-            <div key={inv.id} className="flex items-center justify-between rounded-lg border border-dashed border-border p-3">
+            <div
+              key={inv.id}
+              className="flex items-center justify-between rounded-lg border border-dashed border-border p-3 cursor-pointer transition-colors hover:bg-muted/30"
+              onClick={() => setSelectedInvite(inv)}
+            >
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-xs text-muted-foreground">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1201,22 +1206,7 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
                   <p className="text-xs text-muted-foreground">Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{inv.role.charAt(0).toUpperCase() + inv.role.slice(1)}</span>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleCancelInvite(inv.id)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" x2="6" y1="6" y2="18" />
-                      <line x1="6" x2="18" y1="6" y2="18" />
-                    </svg>
-                  </Button>
-                )}
-              </div>
+              <span className="text-xs text-muted-foreground">{inv.role.charAt(0).toUpperCase() + inv.role.slice(1)}</span>
             </div>
           ))}
         </div>
@@ -1290,6 +1280,52 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
           </DialogContent>
           );
         })()}
+      </Dialog>
+
+      <Dialog open={!!selectedInvite} onOpenChange={(open) => { if (!open) setSelectedInvite(null); }}>
+        {selectedInvite && (
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Pending Invite</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/5 text-muted-foreground">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </div>
+              <p className="text-base font-medium">{selectedInvite.email}</p>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Role</span>
+                <span className="text-sm">{selectedInvite.role.charAt(0).toUpperCase() + selectedInvite.role.slice(1)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Expires</span>
+                <span className="text-sm">{new Date(selectedInvite.expiresAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            {isAdmin && (
+              <>
+                <Separator />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    handleCancelInvite(selectedInvite.id);
+                    setSelectedInvite(null);
+                  }}
+                >
+                  Cancel Invite
+                </Button>
+              </>
+            )}
+          </DialogContent>
+        )}
       </Dialog>
     </section>
   );
