@@ -106,28 +106,4 @@
   .zoom-out-90 {
     --tw-exit-scale: .9;
   }
-  .blur-in {
-    animation: blur-in 200ms ease-out forwards;
-  }
-  .blur-out {
-    animation: blur-out 150ms ease-in forwards;
-  }
-}
-
-@keyframes blur-in {
-  from {
-    filter: blur(8px);
-  }
-  to {
-    filter: blur(0px);
-  }
-}
-
-@keyframes blur-out {
-  from {
-    filter: blur(0px);
-  }
-  to {
-    filter: blur(8px);
-  }
 }
