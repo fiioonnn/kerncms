@@ -28,7 +28,7 @@ export async function GET() {
       .leftJoin(projectMembers, eq(projectMembers.projectId, projects.id))
       .where(eq(projectMembers.userId, session.user.id))
       .all()
-      .map((row) => ({ ...row, role: row.role ?? "admin" }));
+      .map((row) => ({ ...row, role: row.role ?? "admin", isMember: row.role !== null }));
 
     const memberProjectIds = new Set(rows.map((r) => r.id));
 
@@ -49,7 +49,7 @@ export async function GET() {
 
     for (const p of allProjects) {
       if (!memberProjectIds.has(p.id)) {
-        rows.push({ ...p, role: "admin" });
+        rows.push({ ...p, role: "admin", isMember: false });
       }
     }
 

@@ -12,6 +12,7 @@ type Project = {
   srcDir?: string;
   publicDir?: string;
   role: "admin" | "editor" | "viewer";
+  isMember?: boolean;
   onboardingComplete: boolean;
   kernInstalled: boolean;
   editorCaching: boolean;

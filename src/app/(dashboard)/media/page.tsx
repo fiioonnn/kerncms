@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { useProjects } from "@/components/project-context";
+import { useIsAdmin } from "@/lib/auth-client";
 import { BucketSelector } from "@/components/bucket-selector";
 
 const PAGE_SIZE = 40;
@@ -986,7 +987,7 @@ function Breadcrumbs({ path, onNavigate, onDrop, onDragMove, dropTarget }: {
 
 type ContextMenuState = { x: number; y: number; file: MediaFile } | null;
 
-function ContextMenu({ state, currentFolder, selectedCount, onClose, onOpen, onRename, onCopyUrl, onDownload, onMoveUp, onDelete, onDeleteSelected, onMoveUpSelected, readOnly }: {
+function ContextMenu({ state, currentFolder, selectedCount, onClose, onOpen, onRename, onCopyUrl, onDownload, onMoveUp, onDelete, onDeleteSelected, onMoveUpSelected, onSelect, readOnly }: {
   state: ContextMenuState;
   currentFolder: string;
   selectedCount: number;
@@ -999,6 +1000,7 @@ function ContextMenu({ state, currentFolder, selectedCount, onClose, onOpen, onR
   onDelete: (file: MediaFile) => void;
   onDeleteSelected: () => void;
   onMoveUpSelected: () => void;
+  onSelect: (file: MediaFile) => void;
   readOnly?: boolean;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1053,6 +1055,11 @@ function ContextMenu({ state, currentFolder, selectedCount, onClose, onOpen, onR
       label: state.file.isFolder ? "Open folder" : "Open",
       icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>,
       action: () => onOpen(state.file),
+    },
+    {
+      label: "Select",
+      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11 3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>,
+      action: () => onSelect(state.file),
     },
     ...(!readOnly ? [{
       label: "Rename",
@@ -1161,7 +1168,9 @@ export default function MediaPage() {
     if (current && !current.onboardingComplete) router.replace("/");
   }, [current, router]);
 
+  const isAppAdmin = useIsAdmin();
   const readOnly = current?.role === "viewer";
+  const canSeeSettings = isAppAdmin || current?.role === "admin";
 
   const [view, setViewState] = useState<"grid" | "list">("grid");
   useEffect(() => {
@@ -1692,7 +1701,7 @@ export default function MediaPage() {
               buckets={buckets}
               activeBucketId={activeBucketId}
               onChange={(id) => { setActiveBucketId(id); setCurrentFolder(""); }}
-              onSettings={() => router.push("/settings?section=media")}
+              onSettings={canSeeSettings ? () => router.push("/settings?section=media") : undefined}
             />
           )}
           <div className="flex items-center rounded-md border border-border">
@@ -1979,6 +1988,10 @@ export default function MediaPage() {
           const parent = parts.slice(0, -1).join("/");
           await handleMove(Array.from(selectedIds), parent);
           { setSelectedIds(new Set()); setSelectMode("none"); };
+        }}
+        onSelect={(file) => {
+          setSelectedIds((prev) => { const next = new Set(prev); next.add(file.id); return next; });
+          setSelectMode("checkbox");
         }}
         readOnly={readOnly}
       />

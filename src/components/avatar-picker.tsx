@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { NestedDialogOverlay } from "@/components/ui/nested-dialog-overlay";
 import {
   type AvatarConfig,
-  type StyleId,
-  STYLES,
   STYLE_PARTS,
   parseDiceBearConfig,
   serializeDiceBearConfig,
@@ -25,6 +23,8 @@ function generateSeeds(count: number): string[] {
   return Array.from({ length: count }, () => Math.random().toString(36).substring(2, 10));
 }
 
+const STYLE = "notionistsNeutral" as const;
+
 interface AvatarPickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,32 +36,29 @@ interface AvatarPickerProps {
 
 export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauthImage, userName }: AvatarPickerProps) {
   const [tab, setTab] = useState<"gallery" | "editor">("gallery");
-  const [styleId, setStyleId] = useState<StyleId>("notionistsNeutral");
   const [seeds, setSeeds] = useState(() => generateSeeds(24));
   const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
   const [useDefault, setUseDefault] = useState(false);
-  const [config, setConfig] = useState<AvatarConfig>(() => randomConfig("notionistsNeutral"));
+  const [config, setConfig] = useState<AvatarConfig>(() => randomConfig(STYLE));
   const [activePart, setActivePart] = useState(0);
-  const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (open && currentImage) {
       const parsed = parseDiceBearConfig(currentImage);
       if (parsed) {
         setConfig(parsed);
-        setStyleId(parsed.style);
         setTab("editor");
         setActivePart(0);
       }
     }
   }, [open, currentImage]);
 
-  const parts = STYLE_PARTS[styleId];
+  const parts = STYLE_PARTS[STYLE];
 
   const galleryAvatars = useMemo(() => seeds.map((seed) => ({
     seed,
-    uri: seedAvatar(styleId, seed),
-  })), [seeds, styleId]);
+    uri: seedAvatar(STYLE, seed),
+  })), [seeds]);
 
   const editorPreview = useMemo(() => renderDiceBearAvatar(config, 256), [config]);
 
@@ -75,18 +72,6 @@ export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauth
     }));
   }, [config, activePart, parts]);
 
-  function handleStyleChange(newStyle: StyleId) {
-    setStyleId(newStyle);
-    setStyleDropdownOpen(false);
-    if (tab === "gallery") {
-      setSeeds(generateSeeds(24));
-      setSelectedSeed(null);
-    } else {
-      setConfig(randomConfig(newStyle));
-      setActivePart(0);
-    }
-  }
-
   function handleShuffle() {
     setSeeds(generateSeeds(24));
     setSelectedSeed(null);
@@ -97,7 +82,7 @@ export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauth
     if (useDefault) {
       onSelect(oauthImage ?? null);
     } else if (tab === "gallery" && selectedSeed) {
-      onSelect(seedAvatar(styleId, selectedSeed));
+      onSelect(seedAvatar(STYLE, selectedSeed));
     } else if (tab === "editor") {
       onSelect(serializeDiceBearConfig(config));
     }
@@ -116,7 +101,6 @@ export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauth
 
   const canSave = tab === "editor" || useDefault || (tab === "gallery" && selectedSeed);
   const initials = userName?.charAt(0).toUpperCase() ?? "?";
-  const currentStyleLabel = STYLES.find((s) => s.id === styleId)?.label ?? styleId;
 
   return (
     <>
@@ -129,8 +113,8 @@ export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauth
             </DialogHeader>
           </div>
 
-          <div className="px-5 flex items-center gap-2">
-            <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5 flex-1">
+          <div className="px-5">
+            <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
               <button
                 type="button"
                 onClick={() => setTab("gallery")}
@@ -149,36 +133,6 @@ export function AvatarPicker({ open, onOpenChange, onSelect, currentImage, oauth
               >
                 Editor
               </button>
-            </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setStyleDropdownOpen(!styleDropdownOpen)}
-                className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
-              >
-                {currentStyleLabel}
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {styleDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 z-10 w-40 rounded-md border border-border bg-popover p-1 shadow-md">
-                  {STYLES.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => handleStyleChange(s.id)}
-                      className={`w-full rounded px-2.5 py-1.5 text-left text-xs transition-colors ${
-                        styleId === s.id
-                          ? "bg-muted text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 

@@ -2273,6 +2273,7 @@ export default function ContentPage() {
   const [activeGlobal, setActiveGlobal] = useState<string | null>(null);
   const [activeScan, setActiveScan] = useState(false);
   const [scanStep, setScanStep] = useState<"intro" | "confirm" | "running">("intro");
+  const [showScanWarning, setShowScanWarning] = useState(false);
   const [scanPhase, setScanPhase] = useState<"visible" | "out" | "in">("visible");
   const [scanFiles, setScanFiles] = useState<string[]>([]);
   const [scanFilesLoading, setScanFilesLoading] = useState(false);
@@ -3041,7 +3042,7 @@ export default function ContentPage() {
 
                       <div className="flex items-center gap-2 justify-end">
                         <Button variant="secondary" size="sm" onClick={() => transitionScanStep("intro")}>Cancel</Button>
-                        <Button size="sm" className="gap-2" disabled={scanSelectedFiles.length === 0} onClick={() => transitionScanStep("running")}>
+                        <Button size="sm" className="gap-2" disabled={scanSelectedFiles.length === 0} onClick={() => setShowScanWarning(true)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
                             <line x1="7" x2="17" y1="12" y2="12" />
@@ -3049,6 +3050,23 @@ export default function ContentPage() {
                           Start
                         </Button>
                       </div>
+
+                      <Dialog open={showScanWarning} onOpenChange={setShowScanWarning}>
+                        <DialogContent className="sm:max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Are you sure?</DialogTitle>
+                            <DialogDescription>
+                              Smart Scan may modify your source code in ways that cannot be undone automatically. Make sure you have committed or backed up your changes before proceeding.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button variant="secondary" size="sm" onClick={() => setShowScanWarning(false)}>Cancel</Button>
+                            <Button variant="destructive" size="sm" onClick={() => { setShowScanWarning(false); transitionScanStep("running"); }}>
+                              Continue
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   ) : (() => {
                     const taskDefs = [

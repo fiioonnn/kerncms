@@ -390,13 +390,13 @@ function GeneralSection({
         onUninstall={() => {
           setKernInstalled(current.id, false);
         }}
-        onLeave={async () => {
+        onLeave={current.isMember !== false ? async () => {
           const res = await fetch(`/api/projects/${current.id}/leave`, { method: "POST" });
           if (res.ok) {
             toast.success("You have left the project.");
             router.push("/");
           }
-        }}
+        } : undefined}
       />
     </>
   );
@@ -1200,6 +1200,20 @@ function ProjectMembersSection({ projectId }: { projectId: string }) {
       </Dialog>
 
       <div className="flex flex-col gap-2">
+        {members.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-muted p-3 mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="19" x2="19" y1="8" y2="14" />
+                <line x1="22" x2="16" y1="11" y2="11" />
+              </svg>
+            </div>
+            <p className="text-sm text-muted-foreground">No members yet</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Add or invite users to this project.</p>
+          </div>
+        )}
         {members.map((m) => {
           const isSelf = m.userId === session?.user.id;
           return (
@@ -2014,20 +2028,15 @@ export default function SettingsPage() {
             }).map((item) => (
               <button
                 key={item.id}
-                onClick={() => !("comingSoon" in item && item.comingSoon) && setSection(item.id)}
+                onClick={() => setSection(item.id)}
                 className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
-                  "comingSoon" in item && item.comingSoon
-                    ? "text-muted-foreground/50 cursor-default"
-                    : section === item.id
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  section === item.id
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
               >
                 {item.icon}
                 {item.label}
-                {"comingSoon" in item && item.comingSoon && (
-                  <span className="text-[10px] text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-full ml-auto">Soon</span>
-                )}
               </button>
             ))}
           </nav>
