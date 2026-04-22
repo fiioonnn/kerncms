@@ -827,7 +827,7 @@ function DraggableFieldType({ type, label, desc, onClick }: {
   );
 }
 
-function AddFieldDrawer({
+function AddFieldModal({
   open,
   onOpenChange,
   onAdd,
@@ -838,6 +838,16 @@ function AddFieldDrawer({
   onAdd: (key: string, type: string) => void;
   existingKeys: string[];
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (open) setMounted(true);
+  }, [open]);
+
+  function handleAnimationEnd() {
+    if (!open) setMounted(false);
+  }
+
   function generateKey(type: string) {
     let base = `new_${type}`;
     if (!existingKeys.includes(base)) return base;
@@ -846,30 +856,42 @@ function AddFieldDrawer({
     return `${base}_${i}`;
   }
 
+  if (!open && !mounted) return null;
+
   return (
-    <div
-      className="fixed top-0 right-0 h-full w-72 bg-background border-l border-border z-50"
-      style={{ display: open ? undefined : "none" }}
-    >
-      <div className="flex items-center justify-between px-4 h-10 border-b border-border">
-        <span className="text-sm font-medium">Add Field</span>
-        <button onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" />
-          </svg>
-        </button>
-      </div>
-      <div className="p-2 flex flex-col gap-0.5 overflow-y-auto h-[calc(100%-40px)]">
-        <p className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Click or drag to add</p>
-        {FIELD_TYPES.map((ft) => (
-          <DraggableFieldType
-            key={ft.type}
-            type={ft.type}
-            label={ft.label}
-            desc={ft.desc}
-            onClick={() => onAdd(generateKey(ft.type), ft.type)}
-          />
-        ))}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className={`fixed inset-0 bg-black/10 supports-backdrop-filter:backdrop-blur-xs duration-200 ${
+          open ? "animate-in fade-in-0" : "animate-out fade-out-0"
+        }`}
+        onClick={() => onOpenChange(false)}
+      />
+      <div
+        className={`relative z-10 w-80 rounded-xl bg-popover text-popover-foreground ring-1 ring-foreground/10 shadow-2xl overflow-hidden duration-200 ${
+          open ? "animate-in fade-in-0 zoom-in-90 blur-in-8" : "animate-out fade-out-0 zoom-out-90 blur-out-8"
+        }`}
+        onAnimationEnd={handleAnimationEnd}
+      >
+        <div className="flex items-center justify-between px-4 h-10 border-b border-border">
+          <span className="text-sm font-medium">Add Field</span>
+          <button onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-2 flex flex-col gap-0.5">
+          <p className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Click or drag to add</p>
+          {FIELD_TYPES.map((ft) => (
+            <DraggableFieldType
+              key={ft.type}
+              type={ft.type}
+              label={ft.label}
+              desc={ft.desc}
+              onClick={() => onAdd(generateKey(ft.type), ft.type)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1380,6 +1402,10 @@ function ChangesDialog({
   const [diffs, setDiffs] = useState<Record<string, string[]>>({});
   const [diffLoading, setDiffLoading] = useState<Set<string>>(new Set());
 
+  useEffect(() => {
+    if (open && changes.length === 0) onOpenChange(false);
+  }, [open, changes.length, onOpenChange]);
+
   async function toggleExpanded(filename: string) {
     if (expanded.has(filename)) {
       setExpanded((prev) => { const next = new Set(prev); next.delete(filename); return next; });
@@ -1881,6 +1907,7 @@ function SectionEditor({
 
   function handleDragStart(event: DragStartEvent) {
     setActiveDragId(event.active.id as string);
+    if (addFieldOpen) onAddFieldOpenChange(false);
     // Freeze all scroll
     if (scrollRef.current) scrollRef.current.style.overflow = "hidden";
     // Prevent native drag auto-scroll globally
@@ -2482,11 +2509,7 @@ function SectionEditor({
           </div>
         )}
 
-        {/* Add Field Drawer */}
-        {!readOnly && addFieldOpen && (
-          <div className="fixed inset-0 z-40" onClick={() => onAddFieldOpenChange(false)} />
-        )}
-        {!readOnly && <AddFieldDrawer open={addFieldOpen} onOpenChange={onAddFieldOpenChange} onAdd={handleAddField} existingKeys={allKeys} />}
+        {!readOnly && !activeDragId && <AddFieldModal open={addFieldOpen} onOpenChange={onAddFieldOpenChange} onAdd={handleAddField} existingKeys={allKeys} />}
       </div>
       <DragOverlay dropAnimation={null}>
         {activeDragId && (() => {
