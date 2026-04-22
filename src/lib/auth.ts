@@ -51,6 +51,15 @@ export const auth = betterAuth({
           }
         },
       },
+      update: {
+        after: async (user) => {
+          if (user.image && !isDiceBearConfig(user.image)) {
+            await db.update(schema.user).set({ oauthImage: user.image }).where(
+              eq(schema.user.id, user.id)
+            );
+          }
+        },
+      },
     },
   },
   socialProviders: {

@@ -253,12 +253,12 @@ function AddBucketDialog({
           )}
 
           <div className="flex flex-col gap-2">
-            <Label className="text-sm">Access Key</Label>
+            <Label className="text-sm">{provider === "cloudflare" ? "Access Key ID" : "Access Key"}</Label>
             <Input value={accessKey} onChange={(e) => setAccessKey(e.target.value)} placeholder="AKIA..." type="password" />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label className="text-sm">Secret Key</Label>
+            <Label className="text-sm">{provider === "cloudflare" ? "Secret Access Key" : "Secret Key"}</Label>
             <Input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder="••••••••" type="password" />
           </div>
         </div>
@@ -646,12 +646,12 @@ function BucketDetailDialog({
                 </>
               )}
               <div className="flex flex-col gap-2">
-                <Label className="text-sm">Access Key</Label>
+                <Label className="text-sm">{bucket.provider === "cloudflare" ? "Access Key ID" : "Access Key"}</Label>
                 <Input value={accessKey} onChange={(e) => setAccessKey(e.target.value)} placeholder="••••••••" type="password" />
                 <p className="text-[11px] text-muted-foreground">Leave empty to keep current key</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Label className="text-sm">Secret Key</Label>
+                <Label className="text-sm">{bucket.provider === "cloudflare" ? "Secret Access Key" : "Secret Key"}</Label>
                 <Input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder="••••••••" type="password" />
                 <p className="text-[11px] text-muted-foreground">Leave empty to keep current key</p>
               </div>

@@ -5,6 +5,7 @@ import { systemConfig, invitations, projectMembers, user, session as sessionTabl
 import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { createTransferToken, isDomainRegistered } from "@/lib/domains";
+import { isDiceBearConfig } from "@/lib/avatar";
 
 function getRequestOrigin(request: NextRequest): string {
   const h = request.headers;
@@ -39,6 +40,12 @@ export async function GET(request: NextRequest) {
   const setupRow = db.select().from(systemConfig).where(eq(systemConfig.key, "setup_complete")).get();
   if (setupRow?.value !== "true") {
     return NextResponse.redirect(appUrl("/setup", request));
+  }
+
+  // ── Capture OAuth image for avatar picker ──
+  const dbUserAvatar = db.select({ image: user.image, oauthImage: user.oauthImage }).from(user).where(eq(user.id, userId)).get();
+  if (dbUserAvatar?.image && !isDiceBearConfig(dbUserAvatar.image) && !dbUserAvatar.oauthImage) {
+    db.update(user).set({ oauthImage: dbUserAvatar.image }).where(eq(user.id, userId)).run();
   }
 
   // ── Block uninvited users ──

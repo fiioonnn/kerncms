@@ -18,6 +18,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { NestedDialogOverlay } from "@/components/ui/nested-dialog-overlay";
 import {
   DndContext,
   closestCenter,
@@ -775,6 +776,8 @@ const FIELD_TYPES = [
   { type: "repeater", label: "Repeater", desc: "Repeating group" },
 ];
 
+const REPEATER_SUB_FIELD_TYPES = FIELD_TYPES.filter((ft) => ft.type !== "repeater");
+
 function getDefaultValue(type: string): unknown {
   switch (type) {
     case "text": case "textarea": case "richtext": case "image": case "date": return "";
@@ -972,6 +975,123 @@ function schemaValueToTypeName(sv: unknown): string {
   return "text";
 }
 
+function RepeaterSchemaDialog({
+  open,
+  onOpenChange,
+  schemaValue,
+  onAddSubField,
+  onRemoveSubField,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  schemaValue: Record<string, unknown>[];
+  onAddSubField?: (subKey: string, subType: string) => void;
+  onRemoveSubField?: (subKey: string) => void;
+}) {
+  const [pendingType, setPendingType] = useState<string | null>(null);
+  const [fieldName, setFieldName] = useState("");
+  const [nameError, setNameError] = useState("");
+
+  const subSchema = (schemaValue[0] ?? {}) as Record<string, unknown>;
+  const subFields = Object.entries(subSchema);
+  const existingKeys = subFields.map(([k]) => k);
+
+  const pendingLabel = FIELD_TYPES.find((ft) => ft.type === pendingType)?.label ?? "";
+
+  function handleConfirmAdd() {
+    if (!pendingType) return;
+    const raw = fieldName.trim().toLowerCase().replace(/\s+/g, "_");
+    if (!raw) { setNameError("Name is required"); return; }
+    if (existingKeys.includes(raw)) { setNameError("Name already exists"); return; }
+    onAddSubField?.(raw, pendingType);
+    closeNaming();
+  }
+
+  function closeNaming() {
+    setPendingType(null);
+    setFieldName("");
+    setNameError("");
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Repeater Fields</DialogTitle>
+            <DialogDescription>Define the fields for each repeater entry.</DialogDescription>
+          </DialogHeader>
+
+          {subFields.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {subFields.map(([key, typeVal]) => {
+                const typeName = schemaValueToTypeName(typeVal);
+                return (
+                  <div key={key} className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">
+                    <span className="text-muted-foreground">{FIELD_TYPE_ICONS[typeName]}</span>
+                    <span className="font-medium">{key}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveSubField?.(key)}
+                      className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-1">
+            {REPEATER_SUB_FIELD_TYPES.map((ft) => (
+              <button
+                key={ft.type}
+                type="button"
+                onClick={() => setPendingType(ft.type)}
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+              >
+                {FIELD_TYPE_ICONS[ft.type]}
+                <span>{ft.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => onOpenChange(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <NestedDialogOverlay open={!!pendingType} onClose={closeNaming} zIndex={55} />
+      <Dialog open={!!pendingType} onOpenChange={(v) => { if (!v) closeNaming(); }}>
+        <DialogContent hideOverlay className="sm:max-w-sm !z-[56]">
+          <DialogHeader>
+            <DialogTitle>Add {pendingLabel} Field</DialogTitle>
+            <DialogDescription>Choose a name for this field.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              autoFocus
+              placeholder="e.g. title, description, price"
+              value={fieldName}
+              onChange={(e) => { setFieldName(e.target.value); setNameError(""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleConfirmAdd(); } }}
+            />
+            {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={closeNaming}>Cancel</Button>
+            <Button size="sm" onClick={handleConfirmAdd}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function SortableField({
   id,
   fieldKey,
@@ -981,6 +1101,8 @@ function SortableField({
   onRemove,
   onRename,
   onChangeType,
+  onAddSubField,
+  onRemoveSubField,
   existingKeys,
   isDirty,
   readOnly,
@@ -993,6 +1115,8 @@ function SortableField({
   onRemove: () => void;
   onRename: (oldKey: string, newKey: string) => void;
   onChangeType: (newType: string) => void;
+  onAddSubField?: (subKey: string, subType: string) => void;
+  onRemoveSubField?: (subKey: string) => void;
   existingKeys: string[];
   isDirty?: boolean;
   readOnly?: boolean;
@@ -1000,6 +1124,8 @@ function SortableField({
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [schemaOpen, setSchemaOpen] = useState(false);
+  const isRepeater = Array.isArray(schemaValue) && typeof (schemaValue as unknown[])[0] === "object";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: readOnly });
 
   return (
@@ -1037,6 +1163,18 @@ function SortableField({
                   <path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v16" />
                 </svg>
               </button>
+              {isRepeater && (
+                <button
+                  type="button"
+                  onClick={() => setSchemaOpen(true)}
+                  className="text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                  title="Configure repeater fields"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" x2="21" y1="6" y2="6" /><line x1="8" x2="21" y1="12" y2="12" /><line x1="8" x2="21" y1="18" y2="18" /><line x1="3" x2="3.01" y1="6" y2="6" /><line x1="3" x2="3.01" y1="12" y2="12" /><line x1="3" x2="3.01" y1="18" y2="18" />
+                  </svg>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setRenameOpen(true)}
@@ -1060,6 +1198,15 @@ function SortableField({
         </div>
         <FieldRenderer fieldKey={fieldKey} value={value} schemaValue={schemaValue} onChange={onChange} hideLabel disabled={readOnly} />
       </div>
+      {isRepeater && onAddSubField && (
+        <RepeaterSchemaDialog
+          open={schemaOpen}
+          onOpenChange={setSchemaOpen}
+          schemaValue={schemaValue as Record<string, unknown>[]}
+          onAddSubField={onAddSubField}
+          onRemoveSubField={onRemoveSubField}
+        />
+      )}
       <RenameFieldDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
@@ -1156,9 +1303,6 @@ function CodePanel({
 function ContentTopbar({
   page,
   section,
-  codeOpen,
-  onCodeToggle,
-  onAddField,
   onDeleteSection,
   changeCount,
   saving,
@@ -1170,9 +1314,6 @@ function ContentTopbar({
 }: {
   page: string;
   section: string;
-  codeOpen: boolean;
-  onCodeToggle: () => void;
-  onAddField: () => void;
   onDeleteSection: () => void;
   changeCount: number;
   saving: boolean;
@@ -1193,41 +1334,6 @@ function ContentTopbar({
         )}
       </div>
       <div className="flex items-center gap-1.5">
-        {!readOnly && (
-          <>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button variant="secondary" size="xs" onClick={onAddField} className="gap-1.5" />
-                }
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" />
-                </svg>
-                <span className="text-xs">Add Field</span>
-              </TooltipTrigger>
-              <TooltipContent>Add Field</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="secondary"
-                    size="icon-xs"
-                    onClick={onCodeToggle}
-                    className={codeOpen ? "!bg-foreground/20" : ""}
-                  />
-                }
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="16 18 22 12 16 6" />
-                  <polyline points="8 6 2 12 8 18" />
-                </svg>
-              </TooltipTrigger>
-              <TooltipContent>Code</TooltipContent>
-            </Tooltip>
-          </>
-        )}
         {!readOnly && changeCount > 0 && (
           <>
             <div className="w-px h-4 bg-border mx-0.5" />
@@ -1583,9 +1689,6 @@ function ErrorPanel({
       <ContentTopbar
         page={page}
         section={section}
-        codeOpen={false}
-        onCodeToggle={() => {}}
-        onAddField={() => {}}
         onDeleteSection={() => {}}
         changeCount={draft.changeCount}
         saving={draft.saving}
@@ -1654,6 +1757,10 @@ function SectionEditor({
   onCommitSelect,
   onSectionDeleted,
   readOnly,
+  codeOpen,
+  onCodeToggle,
+  addFieldOpen,
+  onAddFieldOpenChange,
 }: {
   files: ContentFile[];
   loading: boolean;
@@ -1669,12 +1776,14 @@ function SectionEditor({
   onCommitSelect: (sha: string | null) => void;
   onSectionDeleted?: () => void;
   readOnly?: boolean;
+  codeOpen: boolean;
+  onCodeToggle: () => void;
+  addFieldOpen: boolean;
+  onAddFieldOpenChange: (open: boolean) => void;
 }) {
   const [fileData, setFileData] = useState<Record<string, Record<string, unknown>>>({});
   const [fileSchemas, setFileSchemas] = useState<Record<string, Record<string, unknown>>>({});
   const [fieldOrder, setFieldOrder] = useState<Record<string, string[]>>({});
-  const [codeOpen, setCodeOpen] = useState(false);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
   const [changesOpen, setChangesOpen] = useState(false);
   const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
   const [deleteSectionOpen, setDeleteSectionOpen] = useState(false);
@@ -1828,8 +1937,146 @@ function SectionEditor({
       ...prev,
       [targetFile]: [...(prev[targetFile] ?? []), key],
     }));
-    setAddFieldOpen(false);
+    onAddFieldOpenChange(false);
     saveToDraft(targetFile, updatedData);
+  }
+
+  function handleAddRepeaterSubField(filename: string, repeaterKey: string, subKey: string, subType: string) {
+    const currentSchema = fileSchemas[filename] ?? {};
+    const repeaterSchema = currentSchema[repeaterKey];
+    if (!Array.isArray(repeaterSchema)) return;
+
+    const newSubSchema = {
+      ...((repeaterSchema[0] as Record<string, unknown>) ?? {}),
+      [subKey]: getSchemaValue(subType),
+    };
+    const newRepeaterSchema = [newSubSchema];
+
+    setFileSchemas((prev) => ({
+      ...prev,
+      [filename]: { ...prev[filename], [repeaterKey]: newRepeaterSchema },
+    }));
+
+    const currentData = fileData[filename] ?? {};
+    const entries = currentData[repeaterKey] as Record<string, unknown>[] | undefined;
+    if (entries && entries.length > 0) {
+      const updatedEntries = entries.map((entry) => ({ ...entry, [subKey]: getDefaultValue(subType) }));
+      const updatedData = { ...currentData, [repeaterKey]: updatedEntries };
+      setFileData((prev) => ({ ...prev, [filename]: updatedData }));
+      saveToDraft(filename, updatedData);
+    }
+
+    const base = srcDir ? `${srcDir}/kern` : "kern";
+    const typesPath = `${base}/types.json`;
+    const updated = JSON.parse(JSON.stringify(typesJson));
+    if (page === "globals") {
+      if (!updated.globals) updated.globals = {};
+      if (!updated.globals[filename]) updated.globals[filename] = {};
+      updated.globals[filename][repeaterKey] = newRepeaterSchema;
+    } else {
+      if (!updated.content) updated.content = {};
+      if (!updated.content[page]) updated.content[page] = {};
+      if (!updated.content[page][filename]) updated.content[page][filename] = {};
+      updated.content[page][filename][repeaterKey] = newRepeaterSchema;
+    }
+    draft.save(typesPath, updated, typesJson);
+  }
+
+  function handleRemoveRepeaterSubField(filename: string, repeaterKey: string, subKey: string) {
+    const currentSchema = fileSchemas[filename] ?? {};
+    const repeaterSchema = currentSchema[repeaterKey];
+    if (!Array.isArray(repeaterSchema)) return;
+
+    const newSubSchema = { ...((repeaterSchema[0] as Record<string, unknown>) ?? {}) };
+    delete newSubSchema[subKey];
+    const newRepeaterSchema = [newSubSchema];
+
+    setFileSchemas((prev) => ({
+      ...prev,
+      [filename]: { ...prev[filename], [repeaterKey]: newRepeaterSchema },
+    }));
+
+    const currentData = fileData[filename] ?? {};
+    const entries = currentData[repeaterKey] as Record<string, unknown>[] | undefined;
+    if (entries && entries.length > 0) {
+      const updatedEntries = entries.map((entry) => {
+        const { [subKey]: _, ...rest } = entry;
+        return rest;
+      });
+      const updatedData = { ...currentData, [repeaterKey]: updatedEntries };
+      setFileData((prev) => ({ ...prev, [filename]: updatedData }));
+      saveToDraft(filename, updatedData);
+    }
+
+    const base = srcDir ? `${srcDir}/kern` : "kern";
+    const typesPath = `${base}/types.json`;
+    const updated = JSON.parse(JSON.stringify(typesJson));
+    if (page === "globals") {
+      if (!updated.globals) updated.globals = {};
+      if (!updated.globals[filename]) updated.globals[filename] = {};
+      updated.globals[filename][repeaterKey] = newRepeaterSchema;
+    } else {
+      if (!updated.content) updated.content = {};
+      if (!updated.content[page]) updated.content[page] = {};
+      if (!updated.content[page][filename]) updated.content[page][filename] = {};
+      updated.content[page][filename][repeaterKey] = newRepeaterSchema;
+    }
+    draft.save(typesPath, updated, typesJson);
+  }
+
+  function handleMoveFieldToRepeater(filename: string, repeaterKey: string, fieldKey: string) {
+    const currentSchema = fileSchemas[filename] ?? {};
+    const repeaterSchema = currentSchema[repeaterKey];
+    const fieldSchemaValue = currentSchema[fieldKey];
+    if (!Array.isArray(repeaterSchema) || !fieldSchemaValue) return;
+
+    const currentSubSchema = (repeaterSchema[0] as Record<string, unknown>) ?? {};
+    let subKey = fieldKey;
+    if (subKey in currentSubSchema) {
+      let i = 2;
+      while (`${subKey}_${i}` in currentSubSchema) i++;
+      subKey = `${subKey}_${i}`;
+    }
+
+    const newSubSchema = { ...currentSubSchema, [subKey]: fieldSchemaValue };
+    const newRepeaterSchema = [newSubSchema];
+
+    const updatedSchemas = { ...currentSchema, [repeaterKey]: newRepeaterSchema };
+    delete updatedSchemas[fieldKey];
+    setFileSchemas((prev) => ({ ...prev, [filename]: updatedSchemas }));
+
+    const currentData = fileData[filename] ?? {};
+    const entries = currentData[repeaterKey] as Record<string, unknown>[] | undefined;
+    const typeName = schemaValueToTypeName(fieldSchemaValue);
+    const updatedEntries = (entries ?? []).map((entry) => ({ ...entry, [subKey]: getDefaultValue(typeName) }));
+
+    const updatedData = { ...currentData, [repeaterKey]: updatedEntries };
+    delete updatedData[fieldKey];
+    setFileData((prev) => ({ ...prev, [filename]: updatedData }));
+
+    setFieldOrder((prev) => ({
+      ...prev,
+      [filename]: (prev[filename] ?? []).filter((k) => k !== fieldKey),
+    }));
+
+    saveToDraft(filename, updatedData);
+
+    const base = srcDir ? `${srcDir}/kern` : "kern";
+    const typesPath = `${base}/types.json`;
+    const updated = JSON.parse(JSON.stringify(typesJson));
+    if (page === "globals") {
+      if (!updated.globals) updated.globals = {};
+      if (!updated.globals[filename]) updated.globals[filename] = {};
+      updated.globals[filename][repeaterKey] = newRepeaterSchema;
+      delete updated.globals[filename][fieldKey];
+    } else {
+      if (!updated.content) updated.content = {};
+      if (!updated.content[page]) updated.content[page] = {};
+      if (!updated.content[page][filename]) updated.content[page][filename] = {};
+      updated.content[page][filename][repeaterKey] = newRepeaterSchema;
+      delete updated.content[page][filename][fieldKey];
+    }
+    draft.save(typesPath, updated, typesJson);
   }
 
   if (loading) {
@@ -1883,9 +2130,6 @@ function SectionEditor({
         <ContentTopbar
           page={page}
           section={section}
-          codeOpen={false}
-          onCodeToggle={() => {}}
-          onAddField={() => {}}
           onDeleteSection={() => setDeleteSectionOpen(true)}
           changeCount={draft.changeCount}
           saving={draft.saving}
@@ -1951,6 +2195,35 @@ function SectionEditor({
     const targetFile = files[0]?.filename;
     if (!targetFile) return;
 
+    // Drop on repeater sub-field zone
+    if (overId.startsWith("_repeater_sub:")) {
+      const repeaterKey = overId.slice("_repeater_sub:".length);
+
+      if (activeId.startsWith("_new:")) {
+        const fieldType = activeId.slice(5);
+        const currentSchema = fileSchemas[targetFile] ?? {};
+        const repeaterSchema = currentSchema[repeaterKey];
+        if (!Array.isArray(repeaterSchema)) return;
+
+        const existingSubKeys = Object.keys((repeaterSchema[0] as Record<string, unknown>) ?? {});
+        let subKey = `new_${fieldType}`;
+        if (existingSubKeys.includes(subKey)) {
+          let i = 2;
+          while (existingSubKeys.includes(`${subKey}_${i}`)) i++;
+          subKey = `${subKey}_${i}`;
+        }
+
+        handleAddRepeaterSubField(targetFile, repeaterKey, subKey, fieldType);
+        onAddFieldOpenChange(false);
+        return;
+      }
+
+      if (!activeId.startsWith("_")) {
+        handleMoveFieldToRepeater(targetFile, repeaterKey, activeId);
+        return;
+      }
+    }
+
     // Dragging a new field type from the drawer
     if (activeId.startsWith("_new:")) {
       const fieldType = activeId.slice(5);
@@ -1977,7 +2250,7 @@ function SectionEditor({
         keys.splice(insertAt, 0, newKey);
         return { ...prev, [targetFile]: keys };
       });
-      setAddFieldOpen(false);
+      onAddFieldOpenChange(false);
       saveToDraft(targetFile, updatedData);
       return;
     }
@@ -2059,9 +2332,6 @@ function SectionEditor({
         <ContentTopbar
           page={page}
           section={section}
-          codeOpen={codeOpen}
-          onCodeToggle={() => setCodeOpen(!codeOpen)}
-          onAddField={() => setAddFieldOpen(true)}
           onDeleteSection={() => setDeleteSectionOpen(true)}
           changeCount={draft.changeCount}
           saving={draft.saving}
@@ -2174,6 +2444,8 @@ function SectionEditor({
                                 onRemove={() => handleRemoveField(file.filename, key)}
                                 onRename={(oldKey, newKey) => handleRenameField(file.filename, oldKey, newKey)}
                                 onChangeType={(newType) => handleChangeFieldType(file.filename, key, newType)}
+                                onAddSubField={(subKey, subType) => handleAddRepeaterSubField(file.filename, key, subKey, subType)}
+                                onRemoveSubField={(subKey) => handleRemoveRepeaterSubField(file.filename, key, subKey)}
                                 existingKeys={keys}
                                 isDirty={JSON.stringify((fileData[file.filename] ?? {})[key]) !== JSON.stringify((originalDataRef.current[file.filename] ?? {})[key])}
                                 readOnly={readOnly}
@@ -2212,9 +2484,9 @@ function SectionEditor({
 
         {/* Add Field Drawer */}
         {!readOnly && addFieldOpen && (
-          <div className="fixed inset-0 z-40" onClick={() => setAddFieldOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={() => onAddFieldOpenChange(false)} />
         )}
-        {!readOnly && <AddFieldDrawer open={addFieldOpen} onOpenChange={setAddFieldOpen} onAdd={handleAddField} existingKeys={allKeys} />}
+        {!readOnly && <AddFieldDrawer open={addFieldOpen} onOpenChange={onAddFieldOpenChange} onAdd={handleAddField} existingKeys={allKeys} />}
       </div>
       <DragOverlay dropAnimation={null}>
         {activeDragId && (() => {
@@ -2272,6 +2544,9 @@ export default function ContentPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [activeGlobal, setActiveGlobal] = useState<string | null>(null);
   const [activeScan, setActiveScan] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  useEffect(() => { setCodeOpen(false); setAddFieldOpen(false); }, [activeSection, activeGlobal, activeScan]);
   const [scanStep, setScanStep] = useState<"intro" | "confirm" | "running">("intro");
   const [showScanWarning, setShowScanWarning] = useState(false);
   const [scanPhase, setScanPhase] = useState<"visible" | "out" | "in">("visible");
@@ -2903,22 +3178,43 @@ export default function ContentPage() {
           );
         })()}
 
-        {isAdmin && (
         <nav className="flex flex-col gap-0.5 px-3 pb-3">
           <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Features</p>
+          {current?.role !== "viewer" && (
+            <button
+              onClick={() => { if (activeSection || activeGlobal) setAddFieldOpen(true); }}
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${!(activeSection || activeGlobal) ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" />
+              </svg>
+              <span className="flex-1 text-left">Add Field</span>
+            </button>
+          )}
           <button
-            onClick={() => { setActiveScan(true); setActiveSection(null); setActiveGlobal(null); if (scanStatus === "running" || scanStatus === "review") setScanStep("running"); }}
-            className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${activeScan ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+            onClick={() => { if (activeSection || activeGlobal) setCodeOpen((v) => !v); }}
+            className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${codeOpen && (activeSection || activeGlobal) ? "bg-muted text-foreground" : !(activeSection || activeGlobal) ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-              <line x1="7" x2="17" y1="12" y2="12" />
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
             </svg>
-            <span className="flex-1 text-left">Smart Scan</span>
-            <span className="text-[8px] font-medium uppercase tracking-wider rounded-full bg-foreground/10 px-1.5 py-0.5 text-muted-foreground">Beta</span>
+            <span className="flex-1 text-left">Code Panel</span>
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => { setActiveScan(true); setActiveSection(null); setActiveGlobal(null); if (scanStatus === "running" || scanStatus === "review") setScanStep("running"); }}
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${activeScan ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <line x1="7" x2="17" y1="12" y2="12" />
+              </svg>
+              <span className="flex-1 text-left">Smart Scan</span>
+              <span className="text-[8px] font-medium uppercase tracking-wider rounded-full bg-foreground/10 px-1.5 py-0.5 text-muted-foreground">Beta</span>
+            </button>
+          )}
         </nav>
-        )}
       </aside>
 
       {/* Content Area */}
@@ -3433,6 +3729,10 @@ export default function ContentPage() {
               }
             }}
             readOnly={current?.role === "viewer"}
+            codeOpen={codeOpen}
+            onCodeToggle={() => setCodeOpen(!codeOpen)}
+            addFieldOpen={addFieldOpen}
+            onAddFieldOpenChange={setAddFieldOpen}
           />
         ) : selectedPage && activeSection ? (
           <SectionEditor
@@ -3458,6 +3758,10 @@ export default function ContentPage() {
               }
             }}
             readOnly={current?.role === "viewer"}
+            codeOpen={codeOpen}
+            onCodeToggle={() => setCodeOpen(!codeOpen)}
+            addFieldOpen={addFieldOpen}
+            onAddFieldOpenChange={setAddFieldOpen}
           />
         ) : activeGlobal && globalsLoading ? (
           <div className="flex items-center justify-center h-full">
