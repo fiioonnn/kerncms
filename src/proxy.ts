@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isDomainRegistered } from "@/lib/domains";
 
-const publicPaths = ["/auth", "/api/auth", "/api/setup"];
+const publicPaths = ["/auth", "/api/auth", "/api/setup", "/events", "/api/script"];
 
 function isPublic(pathname: string) {
   return publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));

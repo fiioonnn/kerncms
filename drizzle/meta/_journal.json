@@ -36,6 +36,34 @@
       "when": 1776808103286,
       "tag": "0004_needy_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1777397322336,
+      "tag": "0005_dry_millenium_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777413771130,
+      "tag": "0006_lame_microbe",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1777414349646,
+      "tag": "0007_friendly_lily_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1778083424742,
+      "tag": "0008_typical_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,15 +23,37 @@ export function Topbar() {
   const isSystemAdmin = useIsAdmin();
   const pathname = usePathname();
   const canSeeSettings = isSystemAdmin || !!current?.role;
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
 
   useEffect(() => {
     document.title = current ? `kerncms — ${current.name}` : "kerncms";
   }, [current]);
 
+  useEffect(() => {
+    if (!current?.id) return;
+    let cancelled = false;
+    function load() {
+      fetch(`/api/projects/${current!.id}/analytics`)
+        .then((r) => r.json())
+        .then((data: { enabled?: boolean }) => {
+          if (!cancelled) setAnalyticsEnabled(data.enabled !== false);
+        })
+        .catch(() => {});
+    }
+    load();
+    const handler = () => load();
+    window.addEventListener("analytics-changed", handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("analytics-changed", handler);
+    };
+  }, [current?.id]);
+
   const navItems = [
     { href: "/", label: "Dashboard", show: true, needsOnboarding: false },
     { href: "/content", label: "Content", show: true, needsOnboarding: true },
     { href: "/media", label: "Media", show: true, needsOnboarding: true },
+    { href: "/analytics", label: "Analytics", show: analyticsEnabled, needsOnboarding: true },
     { href: "/settings", label: "Settings", show: canSeeSettings, needsOnboarding: false },
   ].filter((item) => item.show);
 

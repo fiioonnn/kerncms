@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { getAIResponse } from "@/lib/ai/provider";
 import { UNINSTALL_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { removeTrackerScript } from "@/lib/analytics-tracker";
 
 const SOURCE_EXTS = new Set(["ts", "tsx", "js", "jsx", "mjs", "cjs", "astro", "vue", "svelte"]);
 
@@ -45,6 +46,8 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   if (!octokit) {
     return NextResponse.json({ error: "GitHub App not configured" }, { status: 503 });
   }
+
+  await removeTrackerScript(id).catch(() => {});
 
   const [owner, repo] = project.repo.split("/");
   const branch = project.branch;

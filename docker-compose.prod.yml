@@ -1,0 +1,19 @@
+services:
+  kern:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "1212:3000"
+    volumes:
+      - kern-data:/app/data
+      - kern-media:/app/public/kern/media
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+
+volumes:
+  kern-data:
+  kern-media:

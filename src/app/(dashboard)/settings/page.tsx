@@ -82,6 +82,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    id: "analytics",
+    label: "Analytics",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" />
+        <path d="m19 9-5 5-4-4-3 3" />
+      </svg>
+    ),
+  },
+  {
     id: "development",
     label: "Development",
     icon: (
@@ -1729,6 +1739,284 @@ function FolderPickerDialog({ open, onOpenChange, onSelect }: { open: boolean; o
   );
 }
 
+function AnalyticsSection({ projectId }: { projectId: string }) {
+  type Settings = {
+    enabled: boolean;
+    siteId: string;
+    eventsUrl: string | null;
+    layoutFile: string | null;
+  };
+
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"delete-data" | "uninstall" | null>(null);
+  const [deleteDataOpen, setDeleteDataOpen] = useState(false);
+  const [uninstallOpen, setUninstallOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ detected: boolean; received?: boolean; total?: number } | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/projects/${projectId}/analytics`)
+      .then((r) => r.json())
+      .then((data: Settings) => setSettings(data))
+      .catch(() => toast.error("Failed to load analytics settings"))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  async function setEnabled(next: boolean) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/analytics`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data: Settings = await res.json();
+      setSettings(data);
+      window.dispatchEvent(new Event("analytics-changed"));
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function copy(key: string, value: string) {
+    navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+  }
+
+  async function deleteData() {
+    setBusy("delete-data");
+    try {
+      const res = await fetch(`/api/projects/${projectId}/analytics/data`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to delete data");
+        return;
+      }
+      toast.success("Analytics data deleted");
+      setDeleteDataOpen(false);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function uninstall() {
+    setBusy("uninstall");
+    try {
+      const res = await fetch(`/api/projects/${projectId}/analytics/uninstall`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to uninstall");
+        return;
+      }
+      const data: Settings = await fetch(`/api/projects/${projectId}/analytics`).then((r) => r.json());
+      setSettings(data);
+      window.dispatchEvent(new Event("analytics-changed"));
+      toast.success("Tracker uninstalled");
+      setUninstallOpen(false);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loading || !settings) {
+    return (
+      <section className="flex flex-col gap-5">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Analytics</h2>
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </section>
+    );
+  }
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const snippet = `<script defer src="${origin}/api/script/${settings.siteId}"></script>`;
+  const eventsUrl = settings.eventsUrl ?? `${origin}/events`;
+
+  return (
+    <section className="flex flex-col gap-6">
+      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Analytics</h2>
+
+      <div className="flex items-center justify-between gap-4">
+        <Label className="text-sm">Tracking enabled</Label>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={settings.enabled}
+          disabled={saving}
+          onClick={() => setEnabled(!settings.enabled)}
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+            settings.enabled ? "bg-foreground" : "bg-muted"
+          }`}
+        >
+          <span
+            className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${
+              settings.enabled ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm">Layout file</Label>
+        <Input
+          value={settings.layoutFile ?? ""}
+          readOnly
+          placeholder="Not set"
+          className="font-mono text-xs"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm">Embed script</Label>
+        <div className="flex gap-2">
+          <Input value={snippet} readOnly className="font-mono text-xs" />
+          <Button variant="secondary" onClick={() => copy("snippet", snippet)}>
+            {copiedKey === "snippet" ? "Copied" : "Copy"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm">Events URL</Label>
+        <div className="flex gap-2">
+          <Input value={eventsUrl} readOnly className="font-mono text-xs" />
+          <Button variant="secondary" onClick={() => copy("events", eventsUrl)}>
+            {copiedKey === "events" ? "Copied" : "Copy"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">Verify installation</p>
+          <p className="text-xs text-muted-foreground">
+            {verifyResult
+              ? !verifyResult.detected
+                ? "Script not found in repository"
+                : verifyResult.received
+                  ? `Receiving events (${verifyResult.total} in last hour)`
+                  : "Script installed but no events received in the last hour"
+              : "Check if the tracker script is installed and sending events."}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={verifying}
+          onClick={async () => {
+            setVerifying(true);
+            setVerifyResult(null);
+            try {
+              const detectRes = await fetch(`/api/projects/${projectId}/analytics/detect?fresh=1`);
+              const detectData = await detectRes.json();
+              if (!detectData.detected) {
+                await fetch(`/api/projects/${projectId}/analytics`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ enabled: false }),
+                });
+                setSettings((s) => s ? { ...s, enabled: false } : s);
+                setVerifyResult({ detected: false });
+                window.dispatchEvent(new Event("analytics-changed"));
+                return;
+              }
+              const verifyRes = await fetch(`/api/projects/${projectId}/analytics/verify`);
+              const verifyData = await verifyRes.json();
+              setVerifyResult({ detected: true, received: verifyData.received, total: verifyData.total });
+            } catch {
+              toast.error("Verification failed");
+            } finally {
+              setVerifying(false);
+            }
+          }}
+        >
+          {verifying ? "Checking…" : "Verify"}
+        </Button>
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium text-destructive uppercase tracking-wider">Danger zone</h3>
+
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/20 p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Delete all data</p>
+            <p className="text-xs text-muted-foreground">Wipes all tracked events. Screenshots are kept.</p>
+          </div>
+          <Button variant="destructive" size="sm" disabled={busy !== null} onClick={() => setDeleteDataOpen(true)}>
+            Delete data
+          </Button>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-destructive/20 p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Uninstall tracking</p>
+            <p className="text-xs text-muted-foreground">Removes the script tag from your repo and disables tracking.</p>
+          </div>
+          <Button variant="destructive" size="sm" disabled={busy !== null || !settings.layoutFile} onClick={() => setUninstallOpen(true)}>
+            Uninstall
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={deleteDataOpen} onOpenChange={(v) => { if (busy !== "delete-data") setDeleteDataOpen(v); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete all analytics data?</DialogTitle>
+            <DialogDescription>
+              This wipes all tracked events for this project. Screenshots are kept. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDataOpen(false)} disabled={busy === "delete-data"}>Cancel</Button>
+            <Button variant="destructive" onClick={deleteData} disabled={busy === "delete-data"}>
+              {busy === "delete-data" ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" className="opacity-25" /><path d="M4 12a8 8 0 018-8" className="opacity-75" /></svg>
+                  Deleting…
+                </>
+              ) : (
+                "Delete data"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={uninstallOpen} onOpenChange={(v) => { if (busy !== "uninstall") setUninstallOpen(v); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Uninstall tracking?</DialogTitle>
+            <DialogDescription>
+              This will remove the script tag from <code className="rounded bg-muted px-1 py-0.5 text-xs">{settings.layoutFile}</code> and disable analytics tracking.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUninstallOpen(false)} disabled={busy === "uninstall"}>Cancel</Button>
+            <Button variant="destructive" onClick={uninstall} disabled={busy === "uninstall"}>
+              {busy === "uninstall" ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" className="opacity-25" /><path d="M4 12a8 8 0 018-8" className="opacity-75" /></svg>
+                  Uninstalling…
+                </>
+              ) : (
+                "Uninstall"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
+
 function DevelopmentSection({ projectId, localPath, onUpdate }: { projectId: string; localPath: string | null; onUpdate: (path: string | null) => void }) {
   const [showPicker, setShowPicker] = useState(false);
   const active = !!localPath;
@@ -2091,6 +2379,7 @@ export default function SettingsPage() {
           {section === "members" && <ProjectMembersSection projectId={current.id} />}
           {section === "media" && <MediaSection projectId={current.id} />}
           {section === "permissions" && <PermissionsSection current={current} />}
+          {section === "analytics" && <AnalyticsSection projectId={current.id} />}
           {section === "development" && isSuperAdmin && (
             <DevelopmentSection
               projectId={current.id}

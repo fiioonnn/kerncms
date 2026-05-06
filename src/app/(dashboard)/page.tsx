@@ -152,7 +152,7 @@ export default function Home() {
   const hasDrafts = draftChanges.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
+    <div className="mx-auto w-full max-w-4xl px-6 py-10">
       {/* Greeting */}
       <h1 className="text-2xl font-bold font-[family-name:var(--font-averia)] mb-10">
         {greeting}{firstName ? `, ${firstName}` : ""}

@@ -1675,7 +1675,7 @@ export default function MediaPage() {
   const folderCount = files.filter((f) => f.isFolder).length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-10 relative">
+    <div className="mx-auto w-full max-w-4xl px-6 py-10 relative">
       {isDragging && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none">
           <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 px-16 py-12 pointer-events-none">

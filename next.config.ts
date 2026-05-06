@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
   output: 'standalone',
+  serverExternalPackages: ['geoip-lite'],
   experimental: {
     proxyClientMaxBodySize: '50mb',
   },

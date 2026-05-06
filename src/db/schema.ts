@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { randomBytes } from "node:crypto";
 
 // ── Better Auth managed tables ──────────────────────────────
 
@@ -213,6 +214,47 @@ export const scanJobs = sqliteTable("scan_jobs", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+export const projectAnalytics = sqliteTable("project_analytics", {
+  projectId: text("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  siteId: text("site_id").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  eventsUrl: text("events_url"),
+  layoutFile: text("layout_file"),
+  dailySalt: text("daily_salt").notNull().$defaultFn(() => randomBytes(32).toString("hex")),
+  saltRotatedAt: integer("salt_rotated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  trackPageviews: integer("track_pageviews", { mode: "boolean" }).notNull().default(true),
+  trackUnique: integer("track_unique", { mode: "boolean" }).notNull().default(true),
+  trackClicks: integer("track_clicks", { mode: "boolean" }).notNull().default(true),
+  trackScroll: integer("track_scroll", { mode: "boolean" }).notNull().default(true),
+  trackEvents: integer("track_events", { mode: "boolean" }).notNull().default(true),
+  trackErrors: integer("track_errors", { mode: "boolean" }).notNull().default(true),
+  customEvents: text("custom_events").notNull().default("[]"),
+  verifiedAt: integer("verified_at", { mode: "timestamp" }),
+  screenshotUpdatedAt: integer("screenshot_updated_at", { mode: "timestamp" }),
+  screenshotWidth: integer("screenshot_width"),
+  screenshotHeight: integer("screenshot_height"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const projectScreenshots = sqliteTable(
+  "project_screenshots",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    path: text("path").notNull(),
+    pathHash: text("path_hash").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    status: text("status", { enum: ["pending", "ready", "failed"] }).notNull().default("pending"),
+    error: text("error"),
+    capturedAt: integer("captured_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (t) => [uniqueIndex("project_screenshots_project_hash").on(t.projectId, t.pathHash)],
+);
 
 // ── Content tables (existing) ───────────────────────────────
 

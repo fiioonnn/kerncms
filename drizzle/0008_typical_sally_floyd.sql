@@ -1,0 +1,1 @@
+ALTER TABLE `project_analytics` ADD `verified_at` integer;
