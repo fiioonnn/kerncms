@@ -38,11 +38,11 @@ COPY --from=builder /app/node_modules/prebuild-install ./node_modules/prebuild-i
 COPY --from=builder /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
 COPY --from=builder /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 
-RUN mkdir -p data public/kern/media && chown -R kern:kern data public/kern/media
+RUN apk add --no-cache su-exec && \
+    mkdir -p data public/kern/media
 
-USER kern
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-CMD sh -c "node -e \"require('drizzle-orm/better-sqlite3/migrator').migrate(require('drizzle-orm/better-sqlite3').drizzle(require('better-sqlite3')('data/cms.db')),{migrationsFolder:'drizzle'})\" && node server.js"
+CMD sh -c "chown -R kern:kern data public/kern/media && exec su-exec kern sh -c 'node -e \"require(\\\"drizzle-orm/better-sqlite3/migrator\\\").migrate(require(\\\"drizzle-orm/better-sqlite3\\\").drizzle(require(\\\"better-sqlite3\\\")(\\\"data/cms.db\\\")),{migrationsFolder:\\\"drizzle\\\"})\" && node server.js'"
