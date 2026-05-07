@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Pie, PieChart, Cell, Area, AreaChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 import { useProjects } from "@/components/project-context";
@@ -287,6 +288,7 @@ function formatMetricValue(label: string, raw: number): string {
 }
 
 export default function AnalyticsPage() {
+  const router = useRouter();
   const { current } = useProjects();
   const [installed, setInstalled] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -295,7 +297,9 @@ export default function AnalyticsPage() {
   const [layoutFiles, setLayoutFiles] = useState<string[]>([]);
   const [layoutFilesLoading, setLayoutFilesLoading] = useState(false);
   const [layoutSelected, setLayoutSelected] = useState<string[]>([]);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const [storedAppUrl, setStoredAppUrl] = useState<string | null>(null);
+  const appUrl = storedAppUrl || process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const isValidAppUrl = !!appUrl && (() => { try { new URL(appUrl); return true; } catch { return false; } })();
   const [installTaskIdx, setInstallTaskIdx] = useState(0);
   const [verifyAttempts, setVerifyAttempts] = useState(0);
   const [selectedMetricIdx, setSelectedMetricIdx] = useState(0);
@@ -391,6 +395,7 @@ export default function AnalyticsPage() {
         setVerified(!!data.verified);
         setWasConfigured(!!data.wasConfigured);
         setLayoutSelected(data.layoutFile ? [data.layoutFile] : []);
+        setStoredAppUrl(data.appUrl || null);
       })
       .catch(() => {})
       .finally(() => setSettingsLoading(false));
@@ -581,19 +586,25 @@ export default function AnalyticsPage() {
                         App URL
                       </label>
                       <InfoHint>
-                        Used as the script src. To change it, update the{" "}
-                        <code className="font-mono">NEXT_PUBLIC_APP_URL</code> environment variable
-                        and redeploy.
+                        Used as the script src. Change it in project settings.
                       </InfoHint>
                     </div>
-                    <Input
-                      id="analytics-app-url"
-                      type="url"
-                      value={appUrl}
-                      readOnly
-                      tabIndex={-1}
-                      className="cursor-default text-muted-foreground"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="analytics-app-url"
+                        type="url"
+                        value={appUrl}
+                        readOnly
+                        tabIndex={-1}
+                        className="cursor-default text-muted-foreground"
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={() => router.push("/settings")}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -601,7 +612,7 @@ export default function AnalyticsPage() {
                   <Button variant="secondary" size="sm" onClick={() => transitionStep("intro")}>Back</Button>
                   <Button
                     size="sm"
-                    disabled={layoutSelected.length === 0}
+                    disabled={layoutSelected.length === 0 || !isValidAppUrl}
                     onClick={startInstall}
                   >
                     Install

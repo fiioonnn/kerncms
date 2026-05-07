@@ -12,15 +12,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ siteId:
     .where(eq(projectAnalytics.siteId, siteId))
     .get();
 
-  if (!settings || !settings.enabled) {
-    return new Response("// site not found or analytics disabled", {
+  if (!settings) {
+    return new Response("// site not found", {
       status: 404,
       headers: { "Content-Type": "application/javascript; charset=utf-8" },
     });
   }
 
+  if (!settings.enabled) {
+    return new Response("// analytics disabled", {
+      status: 200,
+      headers: {
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Cache-Control": "public, max-age=60",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+
   const defaultUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "";
+    settings.appUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "";
   const eventsUrl = (settings.eventsUrl ?? `${defaultUrl}/events`) || "/events";
 
   const customEvents = JSON.parse(settings.customEvents) as string[];

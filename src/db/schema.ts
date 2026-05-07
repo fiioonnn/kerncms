@@ -219,6 +219,7 @@ export const projectAnalytics = sqliteTable("project_analytics", {
   projectId: text("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
   siteId: text("site_id").notNull().unique().$defaultFn(() => crypto.randomUUID()),
+  appUrl: text("app_url"),
   eventsUrl: text("events_url"),
   layoutFile: text("layout_file"),
   dailySalt: text("daily_salt").notNull().$defaultFn(() => randomBytes(32).toString("hex")),

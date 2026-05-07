@@ -54,28 +54,70 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const [owner, repo] = project.repo.split("/");
 
   try {
+    // If we know the layout file, check it directly for data-kerncms or legacy siteId
+    if (settings.layoutFile) {
+      try {
+        const { data } = await octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: settings.layoutFile,
+          ref: project.branch ?? undefined,
+        });
+        if (!Array.isArray(data) && data.type === "file") {
+          const content = Buffer.from(data.content, "base64").toString("utf-8");
+          const hasKerncms = /data-kerncms/.test(content);
+          const hasLegacy = content.includes(`/api/script/${settings.siteId}`);
+          if (hasKerncms || hasLegacy) {
+            const result: DetectResult = { detected: true, files: [settings.layoutFile] };
+            cache.set(cacheKey, { ts: Date.now(), result });
+            autoEnable(settings, id, result);
+            return NextResponse.json({ ...result, cached: false });
+          }
+        }
+      } catch {
+        // layout file not found, fall through to search
+      }
+    }
+
+    // Fallback: search repo for siteId or data-kerncms
     const { data } = await octokit.rest.search.code({
-      q: `"${settings.siteId}" repo:${owner}/${repo}`,
+      q: `"data-kerncms" repo:${owner}/${repo}`,
       per_page: 5,
     });
-    const files = (data.items ?? []).map((i) => i.path).filter(Boolean);
+    let files = (data.items ?? []).map((i) => i.path).filter(Boolean);
+
+    if (files.length === 0) {
+      const { data: legacy } = await octokit.rest.search.code({
+        q: `"${settings.siteId}" repo:${owner}/${repo}`,
+        per_page: 5,
+      });
+      files = (legacy.items ?? []).map((i) => i.path).filter(Boolean);
+    }
+
     const result: DetectResult = { detected: files.length > 0, files };
     cache.set(cacheKey, { ts: Date.now(), result });
-
-    const wasConfigured = settings.updatedAt.getTime() - settings.createdAt.getTime() > 5000;
-    if (result.detected && !settings.enabled && !wasConfigured) {
-      db.update(projectAnalytics)
-        .set({
-          enabled: true,
-          layoutFile: settings.layoutFile ?? files[0] ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(projectAnalytics.projectId, id))
-        .run();
-    }
+    autoEnable(settings, id, result);
 
     return NextResponse.json({ ...result, cached: false });
   } catch {
     return NextResponse.json({ detected: false, files: [], reason: "search-failed" });
+  }
+}
+
+function autoEnable(
+  settings: typeof projectAnalytics.$inferSelect,
+  projectId: string,
+  result: DetectResult,
+) {
+  const wasConfigured = settings.updatedAt.getTime() - settings.createdAt.getTime() > 5000;
+  if (result.detected && !settings.enabled && !wasConfigured) {
+    db.update(projectAnalytics)
+      .set({
+        enabled: true,
+        layoutFile: settings.layoutFile ?? result.files[0] ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(projectAnalytics.projectId, projectId))
+      .run();
   }
 }

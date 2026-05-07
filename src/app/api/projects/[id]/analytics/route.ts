@@ -9,6 +9,7 @@ type SettingsResponse = {
   wasConfigured: boolean;
   verified: boolean;
   siteId: string;
+  appUrl: string | null;
   eventsUrl: string | null;
   layoutFile: string | null;
   trackPageviews: boolean;
@@ -26,6 +27,7 @@ function rowToResponse(row: typeof projectAnalytics.$inferSelect): SettingsRespo
     wasConfigured: row.updatedAt.getTime() - row.createdAt.getTime() > 5000,
     verified: !!row.verifiedAt,
     siteId: row.siteId,
+    appUrl: row.appUrl,
     eventsUrl: row.eventsUrl,
     layoutFile: row.layoutFile,
     trackPageviews: row.trackPageviews,
@@ -58,6 +60,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 type UpdateBody = Partial<{
   enabled: boolean;
+  appUrl: string | null;
   eventsUrl: string | null;
   layoutFile: string | null;
   trackClicks: boolean;
@@ -77,7 +80,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const update: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof body.enabled === "boolean") update.enabled = body.enabled;
-  if ("eventsUrl" in body) update.eventsUrl = body.eventsUrl ?? null;
+  if ("appUrl" in body) {
+    const val = body.appUrl?.trim() || null;
+    if (val) {
+      try { new URL(val); } catch {
+        return NextResponse.json({ error: "Invalid App URL" }, { status: 400 });
+      }
+    }
+    update.appUrl = val;
+  }
+  if ("eventsUrl" in body) {
+    const val = body.eventsUrl?.trim() || null;
+    if (val) {
+      try { new URL(val); } catch {
+        return NextResponse.json({ error: "Invalid Events URL" }, { status: 400 });
+      }
+    }
+    update.eventsUrl = val;
+  }
   if ("layoutFile" in body) update.layoutFile = body.layoutFile ?? null;
   if (typeof body.trackClicks === "boolean") update.trackClicks = body.trackClicks;
   if (typeof body.trackScroll === "boolean") update.trackScroll = body.trackScroll;

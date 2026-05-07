@@ -7,7 +7,9 @@ type RemoveResult =
   | { ok: true; removed: boolean }
   | { ok: false; error: string };
 
-const SCRIPT_TAG_RE_GLOBAL = (siteId: string) =>
+const KERNCMS_TAG_RE = /\s*<script[^>]+data-kerncms[^>]*>[^<]*<\/script>\s*/g;
+
+const LEGACY_SCRIPT_TAG_RE = (siteId: string) =>
   new RegExp(
     `\\s*<script\\b[^>]*src=["'][^"']*\\/api\\/script\\/${siteId.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}["'][^>]*>\\s*<\\/script>\\s*`,
     "g",
@@ -58,7 +60,9 @@ export async function removeTrackerScript(projectId: string): Promise<RemoveResu
   }
 
   const content = Buffer.from(existing.data.content, "base64").toString("utf-8");
-  const stripped = content.replace(SCRIPT_TAG_RE_GLOBAL(settings.siteId), "\n  ");
+  KERNCMS_TAG_RE.lastIndex = 0;
+  let stripped = content.replace(KERNCMS_TAG_RE, "\n  ");
+  stripped = stripped.replace(LEGACY_SCRIPT_TAG_RE(settings.siteId), "\n  ");
   const changed = stripped !== content;
 
   if (changed) {

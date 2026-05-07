@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { resolveAvatarSrc } from "@/lib/avatar";
 
@@ -1743,6 +1744,7 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
   type Settings = {
     enabled: boolean;
     siteId: string;
+    appUrl: string | null;
     eventsUrl: string | null;
     layoutFile: string | null;
   };
@@ -1755,7 +1757,8 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
   const [deleteDataOpen, setDeleteDataOpen] = useState(false);
   const [uninstallOpen, setUninstallOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [verifyResult, setVerifyResult] = useState<{ detected: boolean; received?: boolean; total?: number } | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{ detected: boolean; received?: boolean; total?: number; scriptFixed?: boolean } | null>(null);
+  const [editedAppUrl, setEditedAppUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -1835,8 +1838,12 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
   }
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const snippet = `<script defer src="${origin}/api/script/${settings.siteId}"></script>`;
-  const eventsUrl = settings.eventsUrl ?? `${origin}/events`;
+  const resolvedAppUrl = settings.appUrl || origin;
+  const snippet = `<script defer data-kerncms src="${resolvedAppUrl}/api/script/${settings.siteId}"></script>`;
+
+  function isValidUrl(s: string): boolean {
+    try { new URL(s); return true; } catch { return false; }
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -1873,21 +1880,72 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
       </div>
 
       <div className="flex flex-col gap-2">
+        <Label className="text-sm">App URL</Label>
+        <div className="flex gap-2">
+          <Input
+            value={editedAppUrl ?? (settings.appUrl || "")}
+            onChange={(e) => setEditedAppUrl(e.target.value)}
+            placeholder={origin}
+            className={`font-mono text-xs ${editedAppUrl !== null && editedAppUrl !== (settings.appUrl || "") && editedAppUrl && !isValidUrl(editedAppUrl) ? "border-destructive" : ""}`}
+          />
+          {editedAppUrl !== null && editedAppUrl !== (settings.appUrl || "") ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={<Button
+                  variant="secondary"
+                  disabled={saving || (!!editedAppUrl && !isValidUrl(editedAppUrl))}
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      const res = await fetch(`/api/projects/${projectId}/analytics`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ appUrl: editedAppUrl || null }),
+                      });
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        toast.error(data.error || "Failed to save");
+                        return;
+                      }
+                      const data: Settings = await res.json();
+                      setSettings(data);
+                      setEditedAppUrl(null);
+                      toast.success("App URL saved");
+                    } catch {
+                      toast.error("Failed to save");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                />}
+              >
+                {saving ? "Saving…" : "Save"}
+              </TooltipTrigger>
+              <TooltipContent>
+                {editedAppUrl && !isValidUrl(editedAppUrl)
+                  ? "Enter a valid URL"
+                  : "URL has been modified — save to apply"}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button variant="secondary" onClick={() => copy("appUrl", resolvedAppUrl)}>
+              {copiedKey === "appUrl" ? "Copied" : "Copy"}
+            </Button>
+          )}
+        </div>
+        {!settings.appUrl && (
+          <p className="text-xs text-muted-foreground">
+            Defaults to <code className="font-mono">{origin}</code>. Set an explicit URL for production.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
         <Label className="text-sm">Embed script</Label>
         <div className="flex gap-2">
           <Input value={snippet} readOnly className="font-mono text-xs" />
           <Button variant="secondary" onClick={() => copy("snippet", snippet)}>
             {copiedKey === "snippet" ? "Copied" : "Copy"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label className="text-sm">Events URL</Label>
-        <div className="flex gap-2">
-          <Input value={eventsUrl} readOnly className="font-mono text-xs" />
-          <Button variant="secondary" onClick={() => copy("events", eventsUrl)}>
-            {copiedKey === "events" ? "Copied" : "Copy"}
           </Button>
         </div>
       </div>
@@ -1900,8 +1958,8 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
               ? !verifyResult.detected
                 ? "Script not found in repository"
                 : verifyResult.received
-                  ? `Receiving events (${verifyResult.total} in last hour)`
-                  : "Script installed but no events received in the last hour"
+                  ? `Receiving events (${verifyResult.total} in last hour)${verifyResult.scriptFixed ? " — script URL was corrected" : ""}`
+                  : `Script installed but no events received in the last hour${verifyResult.scriptFixed ? " — script URL was corrected" : ""}`
               : "Check if the tracker script is installed and sending events."}
           </p>
         </div>
@@ -1913,22 +1971,23 @@ function AnalyticsSection({ projectId }: { projectId: string }) {
             setVerifying(true);
             setVerifyResult(null);
             try {
+              const checkRes = await fetch(`/api/projects/${projectId}/analytics/check-script`, { method: "POST" });
+              const checkData = await checkRes.json();
               const detectRes = await fetch(`/api/projects/${projectId}/analytics/detect?fresh=1`);
               const detectData = await detectRes.json();
               if (!detectData.detected) {
-                await fetch(`/api/projects/${projectId}/analytics`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ enabled: false }),
-                });
-                setSettings((s) => s ? { ...s, enabled: false } : s);
                 setVerifyResult({ detected: false });
-                window.dispatchEvent(new Event("analytics-changed"));
+                toast.error("Script not found in repository");
                 return;
               }
               const verifyRes = await fetch(`/api/projects/${projectId}/analytics/verify`);
               const verifyData = await verifyRes.json();
-              setVerifyResult({ detected: true, received: verifyData.received, total: verifyData.total });
+              setVerifyResult({ detected: true, received: verifyData.received, total: verifyData.total, scriptFixed: checkData.fixed });
+              if (verifyData.received) {
+                toast.success(checkData.fixed ? `Receiving events (${verifyData.total} in last hour) — script URL was corrected` : `Receiving events (${verifyData.total} in last hour)`);
+              } else {
+                toast.warning(checkData.fixed ? "Script installed but no events received — script URL was corrected" : "Script installed but no events received in the last hour");
+              }
             } catch {
               toast.error("Verification failed");
             } finally {

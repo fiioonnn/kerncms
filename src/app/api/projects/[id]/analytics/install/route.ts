@@ -14,6 +14,8 @@ function ensureRow(projectId: string) {
   return row!;
 }
 
+export const KERNCMS_SCRIPT_RE = /<script[^>]+data-kerncms[^>]*>[^<]*<\/script>/g;
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
@@ -23,7 +25,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const file = body.file?.trim();
   if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "";
+  const settings = ensureRow(id);
+
+  const appUrl = settings.appUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "";
   if (!appUrl) return NextResponse.json({ error: "App URL not configured" }, { status: 400 });
 
   const project = db.select().from(projects).where(eq(projects.id, id)).get();
@@ -34,7 +38,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const octokit = await getOctokit();
   if (!octokit) return NextResponse.json({ error: "GitHub App not configured" }, { status: 503 });
 
-  const settings = ensureRow(id);
   const [owner, repo] = project.repo.split("/");
 
   let existing;
@@ -62,17 +65,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     );
   }
 
-  const snippet = `<script defer src="${appUrl}/api/script/${settings.siteId}"></script>`;
+  const snippet = `<script defer data-kerncms src="${appUrl}/api/script/${settings.siteId}"></script>`;
 
-  if (content.includes(`/api/script/${settings.siteId}`)) {
-    db.update(projectAnalytics)
-      .set({ enabled: true, layoutFile: file, updatedAt: new Date() })
-      .where(eq(projectAnalytics.projectId, id))
-      .run();
-    return NextResponse.json({ ok: true, alreadyInstalled: true });
+  let newContent: string;
+  if (KERNCMS_SCRIPT_RE.test(content)) {
+    KERNCMS_SCRIPT_RE.lastIndex = 0;
+    const replaced = content.replace(KERNCMS_SCRIPT_RE, snippet);
+    if (replaced === content) {
+      db.update(projectAnalytics)
+        .set({ enabled: true, layoutFile: file, updatedAt: new Date() })
+        .where(eq(projectAnalytics.projectId, id))
+        .run();
+      return NextResponse.json({ ok: true, alreadyInstalled: true });
+    }
+    newContent = replaced;
+  } else {
+    newContent = content.replace("</head>", `    ${snippet}\n  </head>`);
   }
-
-  const newContent = content.replace("</head>", `    ${snippet}\n  </head>`);
 
   await octokit.rest.repos.createOrUpdateFileContents({
     owner,
