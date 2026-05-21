@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 
-export const PATCH = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
@@ -30,9 +30,9 @@ export const PATCH = withApi(async (request: Request, { params }: { params: Prom
   }
 
   return NextResponse.json({ success: true });
-})
+}
 
-export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
@@ -46,4 +46,4 @@ export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{
   db.delete(invitations).where(eq(invitations.id, id)).run();
 
   return NextResponse.json({ success: true });
-})
+}

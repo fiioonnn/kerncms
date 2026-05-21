@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { customDomains, user } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, isSuperAdminRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, isSuperAdminRole } from "@/lib/auth-helpers";
 
 async function requireSuperAdmin() {
   const session = await requireSession();
@@ -16,7 +16,7 @@ async function requireSuperAdmin() {
   return session;
 }
 
-export const PATCH = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSuperAdmin();
   const { id } = await params;
   const body = await request.json();
@@ -36,9 +36,9 @@ export const PATCH = withApi(async (request: Request, { params }: { params: Prom
   }
 
   return NextResponse.json(updated);
-})
+}
 
-export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSuperAdmin();
   const { id } = await params;
 
@@ -49,4 +49,4 @@ export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{
 
   db.delete(customDomains).where(eq(customDomains.id, id)).run();
   return NextResponse.json({ success: true });
-})
+}

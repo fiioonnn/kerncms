@@ -116,13 +116,11 @@ function useCommits(repo: string | undefined, branch: string) {
 function useKernPages(projectId: string | undefined, commitRef?: string | null) {
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [loadedForProject, setLoadedForProject] = useState<string | undefined>();
 
   const load = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
-    setError(null);
     try {
       const url = commitRef
         ? `/api/projects/${projectId}/kern/content?ref=${encodeURIComponent(commitRef)}`
@@ -132,11 +130,7 @@ function useKernPages(projectId: string | undefined, commitRef?: string | null) 
         const data = await res.json();
         setPages(data.pages);
         setLoadedForProject(projectId);
-      } else {
-        setError(res.status === 401 ? "Session expired — please reload the page." : `Failed to load content (HTTP ${res.status})`);
       }
-    } catch {
-      setError("Network error — could not reach the server.");
     } finally {
       setLoading(false);
     }
@@ -144,7 +138,7 @@ function useKernPages(projectId: string | undefined, commitRef?: string | null) 
 
   useEffect(() => { load(); }, [load]);
 
-  return { pages, loading, error, reload: load, loadedForProject };
+  return { pages, loading, reload: load, loadedForProject };
 }
 
 type SectionCacheEntry = {
@@ -2453,7 +2447,7 @@ export default function ContentPage() {
   const [scanChangesOpen, setScanChangesOpen] = useState(false);
   const [sidebarDeleteTarget, setSidebarDeleteTarget] = useState<{ page: string; section: string; type: "section" | "global" } | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
-  const { pages, loading: pagesLoading, error: pagesError, loadedForProject, reload: reloadPages } = useKernPages(current?.id, selectedCommit);
+  const { pages, loading: pagesLoading, loadedForProject, reload: reloadPages } = useKernPages(current?.id, selectedCommit);
   const [selectedPage, setSelectedPage] = useState<PageInfo | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [activeGlobal, setActiveGlobal] = useState<string | null>(null);
@@ -3713,15 +3707,11 @@ export default function ContentPage() {
               <path d="M14 2v4a2 2 0 0 0 2 2h4" />
             </svg>
             <p className="text-sm text-muted-foreground">
-              {pagesError ? pagesError : pages.length === 0 ? "No kern/content/ directory found in this repo." : "Select a page to start editing."}
+              {pages.length === 0 ? "No kern/content/ directory found in this repo." : "Select a page to start editing."}
             </p>
-            {pagesError ? (
-              <Button variant="outline" size="sm" onClick={() => pagesError.includes("Session expired") ? window.location.reload() : reloadPages()}>
-                {pagesError.includes("Session expired") ? "Reload Page" : "Retry"}
-              </Button>
-            ) : pages.length === 0 && (
-              <Button variant="outline" size="sm" onClick={() => { if (current) { router.push(`/projects/${current.id}/settings`); } }}>
-                Go to Settings
+            {pages.length === 0 && (
+              <Button variant="outline" size="sm" onClick={() => router.push("/")}>
+                Go to Setup
               </Button>
             )}
           </div>

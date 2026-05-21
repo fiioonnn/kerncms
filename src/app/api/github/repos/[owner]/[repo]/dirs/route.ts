@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 
-export const GET = withApi(async (request: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) => {
+export async function GET(request: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) {
   await requireSession();
   const { owner, repo } = await params;
   const branch = new URL(request.url).searchParams.get("branch") || "main";
@@ -25,4 +25,4 @@ export const GET = withApi(async (request: Request, { params }: { params: Promis
   } catch {
     return NextResponse.json([]);
   }
-})
+}

@@ -3,7 +3,7 @@ import { getOctokit } from "@/lib/github";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { getAIResponse } from "@/lib/ai/provider";
 import { UNINSTALL_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { removeTrackerScript } from "@/lib/analytics-tracker";
@@ -32,7 +32,7 @@ function referencesKern(content: string): boolean {
   );
 }
 
-export const POST = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -194,4 +194,4 @@ export const POST = withApi(async (_: Request, { params }: { params: Promise<{ i
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Uninstall failed" }, { status: 500 });
   }
-})
+}

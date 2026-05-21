@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { customDomains, user } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, isSuperAdminRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, isSuperAdminRole } from "@/lib/auth-helpers";
 
 async function requireSuperAdmin() {
   const session = await requireSession();
@@ -16,13 +16,13 @@ async function requireSuperAdmin() {
   return session;
 }
 
-export const GET = withApi(async () => {
+export async function GET() {
   await requireSuperAdmin();
   const domains = db.select().from(customDomains).all();
   return NextResponse.json({ domains });
-})
+}
 
-export const POST = withApi(async (request: Request) => {
+export async function POST(request: Request) {
   await requireSuperAdmin();
   const { domain } = await request.json();
 
@@ -51,4 +51,4 @@ export const POST = withApi(async (request: Request) => {
     .get();
 
   return NextResponse.json(row, { status: 201 });
-})
+}

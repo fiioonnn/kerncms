@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaBuckets, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, requireRole, getMemberRole, isAdminRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole, getMemberRole, isAdminRole } from "@/lib/auth-helpers";
 
-export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
@@ -65,9 +65,9 @@ export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ buckets });
-})
+}
 
-export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -103,4 +103,4 @@ export const POST = withApi(async (request: Request, { params }: { params: Promi
     .run();
 
   return NextResponse.json({ success: true }, { status: 201 });
-})
+}

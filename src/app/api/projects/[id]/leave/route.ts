@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole } from "@/lib/auth-helpers";
 
-export const POST = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
@@ -29,4 +29,4 @@ export const POST = withApi(async (_: Request, { params }: { params: Promise<{ i
     .run();
 
   return NextResponse.json({ success: true });
-})
+}

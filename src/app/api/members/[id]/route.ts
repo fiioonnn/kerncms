@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectMembers, user } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, isAdminRole, getSession, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole, isAdminRole, getSession } from "@/lib/auth-helpers";
 
 function isAppLevelAdmin(role: string | null | undefined): boolean {
   return role === "admin" || role === "superadmin";
@@ -19,7 +19,7 @@ async function guardAgainstAppAdmin(targetUserId: string, sessionUserRole: strin
   }
 }
 
-export const PATCH = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   const { role } = await request.json();
@@ -35,9 +35,9 @@ export const PATCH = withApi(async (request: Request, { params }: { params: Prom
   db.update(projectMembers).set({ role }).where(eq(projectMembers.id, id)).run();
 
   return NextResponse.json({ success: true });
-})
+}
 
-export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
 
@@ -55,4 +55,4 @@ export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{
   db.delete(projectMembers).where(eq(projectMembers.id, id)).run();
 
   return NextResponse.json({ success: true });
-})
+}

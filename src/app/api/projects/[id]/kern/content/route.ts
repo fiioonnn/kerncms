@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects, pendingChanges } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernContentBase, getKernTypesPath } from "@/lib/github-content";
 import { getLocalTree, getLocalFileContent } from "@/lib/local-content";
 
@@ -32,7 +32,7 @@ function buildPageList(tree: TreeEntry[], base: string) {
 }
 
 // GET — discover pages + sections from repo tree
-export const GET = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
   const { searchParams } = new URL(request.url);
@@ -69,10 +69,10 @@ export const GET = withApi(async (request: Request, { params }: { params: Promis
   }
 
   return NextResponse.json({ pages: buildPageList(tree as TreeEntry[], base) });
-})
+}
 
 // POST — load a section's data + schema from types.json
-export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
   const { page, section, ref: commitRef } = await request.json();
@@ -162,4 +162,4 @@ export const POST = withApi(async (request: Request, { params }: { params: Promi
     typesJson,
     warning,
   });
-})
+}

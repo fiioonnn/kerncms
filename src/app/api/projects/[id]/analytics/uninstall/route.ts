@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { removeTrackerScript } from "@/lib/analytics-tracker";
 import { clearDetectCache } from "../detect/route";
 
-export const POST = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -14,4 +14,4 @@ export const POST = withApi(async (_req: Request, { params }: { params: Promise<
   }
   clearDetectCache(id);
   return NextResponse.json({ ok: true, removed: result.removed });
-})
+}

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
-export const POST = withApi(async (
+export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
-) => {
+) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -73,4 +73,4 @@ export const POST = withApi(async (
   }
 
   return NextResponse.json({ ok: true });
-})
+}

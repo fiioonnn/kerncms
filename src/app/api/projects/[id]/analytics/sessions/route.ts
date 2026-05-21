@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { chJson } from "@/db/clickhouse";
 
 function chDateTime(d: Date): string {
@@ -12,7 +12,7 @@ function parseDate(s: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-export const GET = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -102,4 +102,4 @@ export const GET = withApi(async (req: Request, { params }: { params: Promise<{ 
       paths: r.paths ?? [],
     })),
   });
-})
+}

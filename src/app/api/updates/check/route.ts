@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession, isSuperAdminRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, isSuperAdminRole } from "@/lib/auth-helpers";
 
 const REPO = "fiioonnn/kerncms";
 const CACHE_TTL = 60 * 60 * 1000;
@@ -38,7 +38,7 @@ async function fetchLatestVersion(): Promise<string | null> {
   return null;
 }
 
-export const GET = withApi(async () => {
+export async function GET() {
   const session = await requireSession();
   if (!isSuperAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -62,4 +62,4 @@ export const GET = withApi(async () => {
     latestVersion,
     updateAvailable: latestVersion ? isNewer(latestVersion, currentVersion) : false,
   });
-})
+}

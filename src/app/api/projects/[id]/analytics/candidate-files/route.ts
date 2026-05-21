@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 
 const cache = new Map<string, { ts: number; files: string[] }>();
 const CACHE_TTL = 5 * 60 * 1000;
 
-export const GET = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -36,4 +36,4 @@ export const GET = withApi(async (_req: Request, { params }: { params: Promise<{
   } catch {
     return NextResponse.json([]);
   }
-})
+}

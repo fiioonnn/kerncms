@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { resolveAdapter } from "@/lib/resolve-adapter";
 
-export const GET = withApi(async (request: Request) => {
+export async function GET(request: Request) {
   await requireSession();
   const { searchParams } = new URL(request.url);
   const filePath = searchParams.get("path");
@@ -24,4 +24,4 @@ export const GET = withApi(async (request: Request) => {
   if (!response) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return response;
-})
+}

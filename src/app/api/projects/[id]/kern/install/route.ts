@@ -3,7 +3,7 @@ import { getOctokit } from "@/lib/github";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { HELPERS_TS } from "@/lib/kern-helpers-template";
 
 const EXAMPLE_CONTENT = JSON.stringify(
@@ -51,7 +51,7 @@ const EXAMPLE_TYPES = JSON.stringify(
   2,
 );
 
-export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -147,4 +147,4 @@ export const POST = withApi(async (request: Request, { params }: { params: Promi
     .run();
 
   return NextResponse.json({ success: true, commitSha: newCommit.sha });
-})
+}

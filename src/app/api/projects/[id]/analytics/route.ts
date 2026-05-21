@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 
 type SettingsResponse = {
   enabled: boolean;
@@ -49,14 +49,14 @@ function ensureRow(projectId: string) {
   return row!;
 }
 
-export const GET = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
 
   const row = ensureRow(id);
   return NextResponse.json(rowToResponse(row));
-})
+}
 
 type UpdateBody = Partial<{
   enabled: boolean;
@@ -70,7 +70,7 @@ type UpdateBody = Partial<{
   customEvents: string[];
 }>;
 
-export const PUT = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -112,4 +112,4 @@ export const PUT = withApi(async (req: Request, { params }: { params: Promise<{ 
 
   const row = db.select().from(projectAnalytics).where(eq(projectAnalytics.projectId, id)).get()!;
   return NextResponse.json(rowToResponse(row));
-})
+}

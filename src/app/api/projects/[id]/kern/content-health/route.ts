@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernTypesPath } from "@/lib/github-content";
 import { getOctokit } from "@/lib/github";
 import { parseTypesFile, inferSchema } from "@/lib/ai/types-merger";
@@ -11,7 +11,7 @@ function getKernBase(srcDir?: string | null) {
   return (srcDir ? `${srcDir}/kern` : "kern").replace(/^\//, "");
 }
 
-export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
 
@@ -100,10 +100,10 @@ export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ errors });
-})
+}
 
 // POST — auto-generate missing types and commit to repo
-export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
 
@@ -215,4 +215,4 @@ export const POST = withApi(async (request: Request, { params }: { params: Promi
   });
 
   return NextResponse.json({ success: true, added, commitSha: commit.sha });
-})
+}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernTypesPath } from "@/lib/github-content";
 import { getLocalTree, getLocalFileContent } from "@/lib/local-content";
 import { pendingChanges } from "@/db/schema";
@@ -14,7 +14,7 @@ function getKernGlobalsBase(srcDir?: string | null) {
 }
 
 // GET — list global files
-export const GET = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
   const { searchParams } = new URL(request.url);
@@ -50,10 +50,10 @@ export const GET = withApi(async (request: Request, { params }: { params: Promis
   }
 
   return NextResponse.json({ globals: globals.sort() });
-})
+}
 
 // POST — load a specific global file + schema from types.json
-export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireSession();
   const { id } = await params;
   const { name, ref: commitRef } = await request.json();
@@ -135,4 +135,4 @@ export const POST = withApi(async (request: Request, { params }: { params: Promi
     typesJson,
     warning,
   });
-})
+}

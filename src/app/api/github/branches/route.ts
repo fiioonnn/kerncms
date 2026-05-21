@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getOctokit } from "@/lib/github";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 
-export const POST = withApi(async (request: Request) => {
+export async function POST(request: Request) {
   await requireSession();
 
   const octokit = await getOctokit();
@@ -23,4 +23,4 @@ export const POST = withApi(async (request: Request) => {
   });
 
   return NextResponse.json({ success: true });
-})
+}

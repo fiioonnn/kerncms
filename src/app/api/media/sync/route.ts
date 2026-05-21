@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { db } from "@/db";
 import { projects, mediaSyncQueue } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, withApi } from "@/lib/auth-helpers";
+import { requireSession } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 import { parseRepoString } from "@/lib/github-content";
 import { mediaRoot, mediaDirForProject } from "@/lib/media-local";
@@ -28,7 +28,7 @@ function walkDir(dir: string, base: string): string[] {
 }
 
 // GET — return pending sync count
-export const GET = withApi(async (request: Request) => {
+export async function GET(request: Request) {
   await requireSession();
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("projectId");
@@ -42,10 +42,10 @@ export const GET = withApi(async (request: Request) => {
     .all().length;
 
   return NextResponse.json({ pending: count });
-})
+}
 
 // POST — execute sync: diff local vs GitHub and push one commit
-export const POST = withApi(async (request: Request) => {
+export async function POST(request: Request) {
   await requireSession();
   const { projectId } = await request.json();
 
@@ -165,4 +165,4 @@ export const POST = withApi(async (request: Request) => {
     console.error("[media-sync] push error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
-})
+}

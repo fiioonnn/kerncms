@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
+import { requireSession, requireRole } from "@/lib/auth-helpers";
 import { chJson } from "@/db/clickhouse";
 
-export const GET = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -42,4 +42,4 @@ export const GET = withApi(async (_req: Request, { params }: { params: Promise<{
   } catch {
     return NextResponse.json({ received: false, lastEventAt: null });
   }
-})
+}
