@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user, invitations, projects } from "@/db/schema";
 import { eq, gt, notInArray } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getResendClient, getResendFromAddress } from "@/lib/resend";
 import InviteAppEmail from "@/emails/invite-app";
 
-export async function GET() {
+export const GET = withApi(async () => {
   const session = await requireSession();
   const currentRole = (session.user as { role?: string }).role;
   if (currentRole !== "admin" && currentRole !== "superadmin") {
@@ -36,9 +36,9 @@ export async function GET() {
   });
 
   return NextResponse.json(unique);
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   const currentRole = (session.user as { role?: string }).role;
   if (currentRole !== "admin" && currentRole !== "superadmin") {
@@ -96,4 +96,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true });
-}
+})

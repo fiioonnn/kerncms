@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 
-export async function GET() {
+export const GET = withApi(async () => {
   const session = await requireSession();
   const row = db
     .select({ advancedView: user.advancedView })
@@ -13,9 +13,9 @@ export async function GET() {
     .get();
 
   return NextResponse.json({ advancedView: row?.advancedView ?? false });
-}
+})
 
-export async function PATCH(request: Request) {
+export const PATCH = withApi(async (request: Request) => {
   const session = await requireSession();
   const body = await request.json();
 
@@ -28,4 +28,4 @@ export async function PATCH(request: Request) {
 
   db.update(user).set(updates).where(eq(user.id, session.user.id)).run();
   return NextResponse.json({ success: true });
-}
+})

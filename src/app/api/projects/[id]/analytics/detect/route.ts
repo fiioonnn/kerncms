@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 
 type DetectResult = { detected: boolean; files: string[] };
@@ -16,7 +16,7 @@ export function clearDetectCache(projectId: string) {
   }
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -102,7 +102,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   } catch {
     return NextResponse.json({ detected: false, files: [], reason: "search-failed" });
   }
-}
+})
 
 function autoEnable(
   settings: typeof projectAnalytics.$inferSelect,

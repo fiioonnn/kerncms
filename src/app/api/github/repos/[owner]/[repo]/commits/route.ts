@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getOctokit } from "@/lib/github";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 
-export async function GET(request: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) {
+export const GET = withApi(async (request: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) => {
   await requireSession();
 
   const octokit = await getOctokit();
@@ -31,4 +31,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ owne
   }));
 
   return NextResponse.json(result);
-}
+})

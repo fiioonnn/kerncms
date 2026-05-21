@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 import { clearDetectCache } from "../detect/route";
 import { KERNCMS_SCRIPT_RE } from "../install/route";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -100,4 +100,4 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     previousSnippet: match[0].trim(),
     newSnippet: expectedSnippet,
   });
-}
+})

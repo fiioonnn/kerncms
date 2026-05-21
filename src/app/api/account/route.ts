@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user, projectMembers } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 
-export async function DELETE() {
+export const DELETE = withApi(async () => {
   const session = await requireSession();
   const userId = session.user.id;
 
@@ -37,4 +37,4 @@ export async function DELETE() {
   db.delete(user).where(eq(user.id, userId)).run();
 
   return NextResponse.json({ success: true });
-}
+})

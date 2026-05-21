@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 import { db } from "@/db";
 import { resendConfig } from "@/db/schema";
 import { encrypt, decrypt, maskKey } from "@/lib/crypto";
 
-export async function GET() {
+export const GET = withApi(async () => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -38,9 +38,9 @@ export async function GET() {
     has_key: !!row.apiKey,
     from_domain: row.fromDomain,
   });
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -67,4 +67,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true });
-}
+})

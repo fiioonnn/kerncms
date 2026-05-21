@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user, projectMembers, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, isAdminRole, isSuperAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, isSuperAdminRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -33,9 +33,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .all();
 
   return NextResponse.json({ ...u, projects: memberships });
-}
+})
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const currentUser = db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id)).get();
   if (!isAdminRole(currentUser?.role)) {
@@ -65,9 +65,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   db.update(user).set({ role }).where(eq(user.id, id)).run();
   return NextResponse.json({ success: true });
-}
+})
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const currentUser = db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id)).get();
   if (!isAdminRole(currentUser?.role)) {
@@ -92,4 +92,4 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   db.delete(projectMembers).where(eq(projectMembers.userId, id)).run();
   db.delete(user).where(eq(user.id, id)).run();
   return NextResponse.json({ success: true });
-}
+})

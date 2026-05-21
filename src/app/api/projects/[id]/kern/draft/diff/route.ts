@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects, pendingChanges } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { parseRepoString, getFileContent } from "@/lib/github-content";
 import { readFileSync } from "fs";
 import { join } from "path";
 
 const DELETE_SENTINEL = "__KERN_DELETE__";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const url = new URL(request.url);
@@ -43,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const diff = computeLineDiff(oldLines, newLines);
 
   return NextResponse.json({ diff });
-}
+})
 
 function computeLineDiff(oldLines: string[], newLines: string[]): string[] {
   const result: string[] = [];

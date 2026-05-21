@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { db } from "@/db";
 import { projects, mediaSyncQueue } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 import { parseRepoString } from "@/lib/github-content";
 import { mediaRoot, mediaDirForProject } from "@/lib/media-local";
@@ -41,7 +41,7 @@ function pruneEmptyDirs(dir: string) {
 }
 
 // POST — pull latest media from GitHub, make local match remote exactly
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   await requireSession();
   const { projectId } = await request.json();
 
@@ -145,4 +145,4 @@ export async function POST(request: Request) {
   fs.mkdirSync(projectRoot, { recursive: true });
 
   return NextResponse.json({ pulled, deleted, remoteTotal: remoteFiles.size });
-}
+})

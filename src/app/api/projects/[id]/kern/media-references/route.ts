@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects, pendingChanges } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernContentBase } from "@/lib/github-content";
 
 type Usage = { url: string; file: string; field: string };
@@ -52,7 +52,7 @@ function getGlobalsBase(srcDir?: string | null) {
 // POST — check which content files reference given media URLs
 // body: { urls: string[] }
 // response: { usages: Usage[] }
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const { urls, cleanup } = await request.json();
@@ -141,4 +141,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   return NextResponse.json({ usages, cleaned: cleanup ? affectedFiles.size : 0 });
-}
+})

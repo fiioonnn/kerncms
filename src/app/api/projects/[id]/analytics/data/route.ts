@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { chQuery } from "@/db/clickhouse";
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -21,4 +21,4 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({ ok: true });
-}
+})

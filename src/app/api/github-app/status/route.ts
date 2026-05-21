@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { githubAppConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET() {
+export const GET = withApi(async () => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -33,4 +33,4 @@ export async function GET() {
     installed_on: row.installedOn,
     installation_id: row.installationId,
   });
-}
+})

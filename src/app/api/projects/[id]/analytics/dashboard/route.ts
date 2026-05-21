@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { chJson } from "@/db/clickhouse";
 
 type Bucket = "hour" | "day" | "week";
@@ -97,7 +97,7 @@ function parseDate(s: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -342,4 +342,4 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       visitors: Number(r.visitors ?? 0),
     })),
   });
-}
+})

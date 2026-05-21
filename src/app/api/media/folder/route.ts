@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { resolveAdapter } from "@/lib/resolve-adapter";
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   await requireSession();
   const { name, parent, projectId, bucketId = null } = await request.json();
 
@@ -19,4 +19,4 @@ export async function POST(request: Request) {
 
   await adapter.mkdir(parent ?? "", sanitized);
   return NextResponse.json({ success: true, name: sanitized });
-}
+})

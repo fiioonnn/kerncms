@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 import { db } from "@/db";
 import { aiSettings } from "@/db/schema";
 import { decrypt } from "@/lib/crypto";
@@ -44,7 +44,7 @@ async function fetchModels(provider: string, apiKey: string): Promise<{ id: stri
   return [];
 }
 
-export async function GET(request: Request) {
+export const GET = withApi(async (request: Request) => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -72,9 +72,9 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ models: [] });
   }
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -92,4 +92,4 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ models: [] });
   }
-}
+})

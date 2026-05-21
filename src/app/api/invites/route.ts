@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { invitations, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import InviteEmail from "@/emails/invite";
 import { getResendClient, getResendFromAddress } from "@/lib/resend";
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   const { projectId, email, role } = await request.json();
 
@@ -60,4 +60,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ id: invite.id });
-}
+})

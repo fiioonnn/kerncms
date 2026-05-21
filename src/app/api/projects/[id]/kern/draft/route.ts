@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects, pendingChanges } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { parseRepoString, getFileContent } from "@/lib/github-content";
 import { getOctokit } from "@/lib/github";
 import { writeLocalFile, deleteLocalFile } from "@/lib/local-content";
@@ -22,7 +22,7 @@ function getRawProject(id: string) {
 const DELETE_SENTINEL = "__KERN_DELETE__";
 
 // GET — list pending changes for this project
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -40,13 +40,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     })),
     totalChanges: changes.length,
   });
-}
+})
 
 // POST — save or remove a pending change
 // If content matches original → remove the pending change
 // If content differs → upsert pending change
 // If action === "delete" → mark file for deletion
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const body = await request.json();
@@ -90,10 +90,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .run();
 
   return NextResponse.json({ action: "saved" });
-}
+})
 
 // PUT — publish all pending changes (commit to GitHub, or write to local filesystem)
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
@@ -197,10 +197,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   db.delete(pendingChanges).where(eq(pendingChanges.projectId, id)).run();
 
   return NextResponse.json({ success: true, commitSha: newCommit.sha });
-}
+})
 
 // DELETE — discard pending changes (all, or single file via ?path=...)
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const { searchParams } = new URL(req.url);
@@ -213,4 +213,4 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   }
 
   return NextResponse.json({ success: true });
-}
+})

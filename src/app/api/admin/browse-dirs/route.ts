@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { homedir } from "os";
 
-export async function GET(request: Request) {
+export const GET = withApi(async (request: Request) => {
   await requireSession();
   const { searchParams } = new URL(request.url);
   const rawPath = searchParams.get("path") || homedir();
@@ -22,4 +22,4 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ current: safePath, dirs: [], error: "Cannot read directory" });
   }
-}
+})

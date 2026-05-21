@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getFileContent, parseRepoString } from "@/lib/github-content";
 import { getOctokit } from "@/lib/github";
 import { getAIResponse } from "@/lib/ai/provider";
@@ -11,7 +11,7 @@ function getKernBase(srcDir?: string | null) {
   return (srcDir ? `${srcDir}/kern` : "kern").replace(/^\//, "");
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const { filePath, error } = await request.json();
@@ -81,4 +81,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json({ success: true, commitSha: commit.sha });
-}
+})

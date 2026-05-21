@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { autofixSettings, webhookLogs } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -35,9 +35,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       errorsFixed: JSON.parse(l.errorsFixed),
     })),
   });
-}
+})
 
-export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const body = await request.json();
@@ -71,4 +71,4 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({ success: true });
-}
+})

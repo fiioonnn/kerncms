@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectMembers, user, invitations } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, getMemberRole, requireRole, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, getMemberRole, requireRole, isAdminRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
 
@@ -36,9 +36,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .all();
 
   return NextResponse.json({ members, invitations: pending });
-}
+})
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -64,4 +64,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const assignedRole = isSelfAdd && isAdminRole(session.user.role) ? "admin" : (role ?? "viewer");
   db.insert(projectMembers).values({ projectId: id, userId, role: assignedRole }).run();
   return NextResponse.json({ success: true });
-}
+})

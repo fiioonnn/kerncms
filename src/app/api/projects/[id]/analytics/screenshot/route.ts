@@ -3,10 +3,10 @@ import { promises as fs } from "node:fs";
 import { db } from "@/db";
 import { projectScreenshots } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { captureForPath, fileFor, hashPath } from "@/lib/screenshots";
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -36,9 +36,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   } catch {
     return new Response("Not found", { status: 404 });
   }
-}
+})
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor"]);
@@ -60,4 +60,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   return NextResponse.json({ ok: true, width: row?.width, height: row?.height });
-}
+})

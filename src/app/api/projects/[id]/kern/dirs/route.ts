@@ -3,9 +3,9 @@ import { getOctokit } from "@/lib/github";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -62,4 +62,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .sort();
 
   return NextResponse.json(dirs);
-}
+})

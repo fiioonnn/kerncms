@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { resolveAdapter } from "@/lib/resolve-adapter";
 
 // GET — list files: ?folder=...&projectId=...&bucketId=...
-export async function GET(request: Request) {
+export const GET = withApi(async (request: Request) => {
   await requireSession();
   const { searchParams } = new URL(request.url);
   const folder = searchParams.get("folder") ?? "";
@@ -22,10 +22,10 @@ export async function GET(request: Request) {
     console.error("Media list error:", e instanceof Error ? e.message : e);
     return NextResponse.json({ files: [], folder, rootExists: false });
   }
-}
+})
 
 // POST — upload files: FormData with projectId, bucketId, folder, files
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   await requireSession();
   const formData = await request.formData();
   const projectId = formData.get("projectId") as string;
@@ -49,10 +49,10 @@ export async function POST(request: Request) {
     console.error("Media upload error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+})
 
 // PUT — replace file in-place: FormData with projectId, bucketId, path (existing), file
-export async function PUT(request: Request) {
+export const PUT = withApi(async (request: Request) => {
   await requireSession();
   const formData = await request.formData();
   const projectId = formData.get("projectId") as string;
@@ -75,10 +75,10 @@ export async function PUT(request: Request) {
     console.error("Media replace error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+})
 
 // PATCH — rename or move: body with projectId, bucketId, and rename or move payload
-export async function PATCH(request: Request) {
+export const PATCH = withApi(async (request: Request) => {
   await requireSession();
   const body = await request.json();
   const { projectId, bucketId = null } = body;
@@ -101,10 +101,10 @@ export async function PATCH(request: Request) {
   }
   await adapter.move(items, destination ?? "");
   return NextResponse.json({ success: true });
-}
+})
 
 // DELETE — delete files: body with { paths, projectId, bucketId }
-export async function DELETE(request: Request) {
+export const DELETE = withApi(async (request: Request) => {
   await requireSession();
   const { paths, projectId, bucketId = null } = await request.json();
 
@@ -118,4 +118,4 @@ export async function DELETE(request: Request) {
 
   await adapter.delete(paths);
   return NextResponse.json({ success: true });
-}
+})

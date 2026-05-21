@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 
-export async function GET() {
+export const GET = withApi(async () => {
   await requireSession();
 
   const users = db
@@ -19,4 +19,4 @@ export async function GET() {
     .all();
 
   return NextResponse.json(users);
-}
+})

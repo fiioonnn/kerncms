@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects, projectMembers } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET() {
+export const GET = withApi(async () => {
   const session = await requireSession();
 
   if (isAdminRole(session.user.role)) {
@@ -78,9 +78,9 @@ export async function GET() {
     .all();
 
   return NextResponse.json(rows);
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   const { name, color, url, repo, branch } = await request.json();
 
@@ -100,4 +100,4 @@ export async function POST(request: Request) {
   }).run();
 
   return NextResponse.json(project);
-}
+})

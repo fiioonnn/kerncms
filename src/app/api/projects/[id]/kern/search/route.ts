@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernContentBase, getKernTypesPath } from "@/lib/github-content";
 
 function getKernGlobalsBase(srcDir?: string | null) {
@@ -23,7 +23,7 @@ type IndexItem = {
 const indexCache = new Map<string, { items: IndexItem[]; ts: number }>();
 const CACHE_TTL = 60_000;
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -126,4 +126,4 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   indexCache.set(cacheKey, { items, ts: Date.now() });
 
   return NextResponse.json({ items });
-}
+})

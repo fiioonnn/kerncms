@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 import { getResendClient } from "@/lib/resend";
 
-export async function POST(request: Request) {
+export const POST = withApi(async (request: Request) => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -29,4 +29,4 @@ export async function POST(request: Request) {
     const msg = e instanceof Error ? e.message : "Invalid API key";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
-}
+})

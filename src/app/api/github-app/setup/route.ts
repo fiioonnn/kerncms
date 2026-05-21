@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireSession, isAdminRole } from "@/lib/auth-helpers";
+import { requireSession, isAdminRole, withApi } from "@/lib/auth-helpers";
 
-export async function GET(request: Request) {
+export const GET = withApi(async (request: Request) => {
   const session = await requireSession();
   if (!isAdminRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -70,4 +70,4 @@ export async function GET(request: Request) {
   });
 
   return response;
-}
+})

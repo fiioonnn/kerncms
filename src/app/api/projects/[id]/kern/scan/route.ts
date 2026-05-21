@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { scanJobs, projects } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { requireSession } from "@/lib/auth-helpers";
+import { requireSession, withApi } from "@/lib/auth-helpers";
 import { getRepoTree, getFileContent, parseRepoString, getKernContentBase, getKernTypesPath } from "@/lib/github-content";
 import { getAIResponse } from "@/lib/ai/provider";
 import { getOctokit } from "@/lib/github";
@@ -497,7 +497,7 @@ Return ONLY the modified source file content. No markdown code blocks, no explan
 }
 
 // GET — poll scan status
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -518,10 +518,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     options: JSON.parse(job.options),
     error: job.error,
   }, { headers: { "Cache-Control": "no-store" } });
-}
+})
 
 // POST — start new scan
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const body = await req.json();
@@ -554,10 +554,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   runScan(jobId, id);
 
   return NextResponse.json({ id: jobId, status: "running" });
-}
+})
 
 // DELETE — cancel scan
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
 
@@ -573,10 +573,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({ ok: true });
-}
+})
 
 // PATCH — update results after review (accept/reject strings)
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   await requireSession();
   const { id } = await params;
   const body = await req.json();
@@ -620,4 +620,4 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-}
+})

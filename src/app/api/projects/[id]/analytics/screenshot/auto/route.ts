@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { pendingChanges, projectScreenshots } from "@/db/schema";
 import { and, eq, gte } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { chJson } from "@/db/clickhouse";
 import { captureMany, hashPath } from "@/lib/screenshots";
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin", "editor", "viewer"]);
@@ -74,4 +74,4 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
 
   return NextResponse.json({ ok: true, scheduled: toCapture.length, hasRecentEdit });
-}
+})

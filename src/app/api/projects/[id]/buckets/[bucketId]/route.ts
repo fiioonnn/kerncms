@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaBuckets } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 
-export async function PATCH(
+export const PATCH = withApi(async (
   request: Request,
   { params }: { params: Promise<{ id: string; bucketId: string }> },
-) {
+) => {
   const session = await requireSession();
   const { id, bucketId } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -45,12 +45,12 @@ export async function PATCH(
     .run();
 
   return NextResponse.json({ success: true });
-}
+})
 
-export async function DELETE(
+export const DELETE = withApi(async (
   _: Request,
   { params }: { params: Promise<{ id: string; bucketId: string }> },
-) {
+) => {
   const session = await requireSession();
   const { id, bucketId } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -77,4 +77,4 @@ export async function DELETE(
     .run();
 
   return NextResponse.json({ success: true });
-}
+})

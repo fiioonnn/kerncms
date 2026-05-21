@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projectAnalytics, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 import { getOctokit } from "@/lib/github";
 
 function ensureRow(projectId: string) {
@@ -16,7 +16,7 @@ function ensureRow(projectId: string) {
 
 export const KERNCMS_SCRIPT_RE = /<script[^>]+data-kerncms[^>]*>[^<]*<\/script>/g;
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApi(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -99,4 +99,4 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .run();
 
   return NextResponse.json({ ok: true });
-}
+})

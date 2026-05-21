@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireSession, requireRole } from "@/lib/auth-helpers";
+import { requireSession, requireRole, withApi } from "@/lib/auth-helpers";
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withApi(async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -13,9 +13,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   db.update(projects).set(body).where(eq(projects.id, id)).run();
 
   return NextResponse.json({ success: true });
-}
+})
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApi(async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await requireSession();
   const { id } = await params;
   await requireRole(id, session.user.id, ["admin"]);
@@ -23,4 +23,4 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   db.delete(projects).where(eq(projects.id, id)).run();
 
   return NextResponse.json({ success: true });
-}
+})
