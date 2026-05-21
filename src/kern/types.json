@@ -1,0 +1,18 @@
+{
+  "content": {
+    "default": {
+      "example": {
+        "title": "text",
+        "slug": "text",
+        "body": "textarea"
+      }
+    }
+  },
+  "globals": {
+    "example-seo": {
+      "siteName": "text",
+      "titleTemplate": "text",
+      "defaultDescription": "textarea"
+    }
+  }
+}
