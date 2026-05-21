@@ -1,6 +1,0 @@
-{
-  "$schema": "kern",
-  "title": "Example Page",
-  "slug": "example",
-  "body": "Hello from kern."
-}

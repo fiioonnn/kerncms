@@ -1,6 +1,0 @@
-{
-  "$schema": "kern",
-  "siteName": "My Site",
-  "titleTemplate": "%s | My Site",
-  "defaultDescription": "A site powered by kern."
-}
