@@ -1,3 +1,5 @@
+
+
 # Kern CMS
 
 A self-hosted, Git-based headless CMS. Connect your GitHub repo, define content types, and manage structured content through a visual editor — all changes are committed back to your repository.
@@ -13,7 +15,7 @@ npm run db:push
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and follow the setup wizard.
+Open [http://localhost:3000/setup](http://localhost:3000/setup) and follow the setup wizard.
 
 ## Docker
 
