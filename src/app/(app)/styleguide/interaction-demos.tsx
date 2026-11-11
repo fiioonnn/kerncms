@@ -8,10 +8,22 @@ import { Field, Input, Label } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Popover, PopoverContent, PopoverTrigger, SegmentedControl, Tooltip } from "@/components/ui/overlay";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
-function Demo({ title, rule, children }: { title: string; rule: string; children: React.ReactNode }) {
+/** Card with a title, a one-line usage rule and a live example. */
+export function Demo({
+  title,
+  rule,
+  children,
+  className,
+}: {
+  title: string;
+  rule: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <div className={cn("flex min-w-0 flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-card", className)}>
       <div className="flex flex-col gap-1">
         <h3 className="text-base font-semibold">{title}</h3>
         <p className="text-sm text-muted">{rule}</p>

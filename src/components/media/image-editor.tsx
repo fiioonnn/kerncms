@@ -9,6 +9,7 @@ import {
   FlipVertical2,
   Info,
   Link2,
+  MoreHorizontal,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Tooltip } from "@/components/ui/overlay";
 import { Select } from "@/components/ui/select";
@@ -219,6 +221,8 @@ export function ImageEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  /** Below lg the tool panel is a bottom sheet; tapping the active tool collapses it. */
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const s = draft;
 
@@ -260,7 +264,17 @@ export function ImageEditor({
     setHistory([initialState]);
     setIndex(0);
     setTool("crop");
+    setPanelOpen(true);
+    setCompare(false);
     setZoom(100);
+  }
+
+  function selectTool(next: Tool) {
+    if (next === tool) setPanelOpen((o) => !o);
+    else {
+      setTool(next);
+      setPanelOpen(true);
+    }
   }
 
   const shown = compare ? initialState : s;
@@ -319,15 +333,15 @@ export function ImageEditor({
       <BaseDialog.Root open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
         <BaseDialog.Portal>
           <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-[2px] transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
-          <BaseDialog.Popup className="fixed inset-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-popover outline-none transition-[scale,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
+          <BaseDialog.Popup className="fixed inset-0 z-50 flex flex-col overflow-hidden border-border bg-surface shadow-popover outline-none lg:inset-4 lg:rounded-2xl lg:border transition-[scale,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
             {/* Header */}
-            <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4">
-              <div className="flex min-w-0 flex-col leading-tight">
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-3 lg:gap-3 lg:px-4">
+              <div className="flex min-w-0 flex-1 flex-col leading-tight lg:flex-none">
                 <BaseDialog.Title className="truncate text-base font-semibold">{name}</BaseDialog.Title>
-                <BaseDialog.Description className="text-sm text-muted">{size} · 3000 × 2000 px</BaseDialog.Description>
+                <BaseDialog.Description className="truncate text-sm text-muted">{size} · 3000 × 2000 px</BaseDialog.Description>
               </div>
 
-              <div className="mx-auto flex items-center gap-1">
+              <div className="mx-auto hidden items-center gap-1 lg:flex">
                 <Tooltip label="Rückgängig">
                   <Button variant="ghost" size="icon" aria-label="Rückgängig" disabled={index === 0} onClick={undo}>
                     <Undo2 strokeWidth={1.75} />
@@ -354,12 +368,42 @@ export function ImageEditor({
                 </Tooltip>
               </div>
 
-              <Button variant="ghost" onClick={reset} disabled={index === 0}>
+              <Button variant="ghost" onClick={reset} disabled={index === 0} className="max-lg:hidden">
                 Zurücksetzen
               </Button>
-              <Button variant="secondary" onClick={close}>
+              <Button variant="secondary" onClick={close} className="max-lg:hidden">
                 Abbrechen
               </Button>
+
+              {/* Compact header: secondary actions live in a menu */}
+              <Menu>
+                <Tooltip label="Weitere Aktionen">
+                  <MenuTrigger
+                    aria-label="Weitere Aktionen"
+                    className={buttonStyles({ variant: "ghost", size: "icon", className: "data-popup-open:bg-subtle lg:hidden" })}
+                  >
+                    <MoreHorizontal strokeWidth={1.75} />
+                  </MenuTrigger>
+                </Tooltip>
+                <MenuContent>
+                  <MenuItem icon={Undo2} disabled={index === 0} onClick={undo} closeOnClick={false}>
+                    Rückgängig
+                  </MenuItem>
+                  <MenuItem icon={Redo2} disabled={index >= history.length - 1} onClick={redo} closeOnClick={false}>
+                    Wiederholen
+                  </MenuItem>
+                  <MenuItem icon={SplitSquareHorizontal} onClick={() => setCompare((c) => !c)}>
+                    {compare ? "Bearbeitung anzeigen" : "Original anzeigen"}
+                  </MenuItem>
+                  <MenuSeparator />
+                  <MenuItem icon={RotateCcw} disabled={index === 0} onClick={reset}>
+                    Zurücksetzen
+                  </MenuItem>
+                  <MenuItem icon={X} onClick={close}>
+                    Abbrechen
+                  </MenuItem>
+                </MenuContent>
+              </Menu>
               <Button
                 onClick={() => {
                   toast.success("Neue Version gespeichert", { description: "Das Original bleibt erhalten." });
@@ -373,16 +417,21 @@ export function ImageEditor({
               </BaseDialog.Close>
             </header>
 
-            <div className="flex min-h-0 flex-1">
-              {/* Tool rail */}
-              <nav className="flex w-24 shrink-0 flex-col gap-1 border-r border-border p-2">
+            <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+              {/* Tool rail: left column on desktop, bottom bar below lg */}
+              <nav
+                aria-label="Werkzeuge"
+                className="order-last flex shrink-0 gap-1 border-t border-border p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:order-none lg:w-24 lg:flex-col lg:border-t-0 lg:border-r lg:p-2"
+              >
                 {tools.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTool(t.id)}
+                    aria-pressed={tool === t.id}
+                    aria-controls="image-editor-panel"
+                    onClick={() => selectTool(t.id)}
                     className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 text-xs font-medium transition-colors",
+                      "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 lg:flex-none lg:gap-1.5 lg:py-3",
                       tool === t.id ? "bg-accent-soft text-accent" : "text-muted hover:bg-subtle hover:text-foreground",
                     )}
                   >
@@ -393,14 +442,18 @@ export function ImageEditor({
               </nav>
 
               {/* Stage */}
-              <div className="flex min-w-0 flex-1 flex-col bg-[#1c1c1f]">
-                <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#1c1c1f]">
+                <div
+                  className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4 lg:p-8"
+                  style={{ containerType: "size" }}
+                >
+                  {/* Largest 3:2 box that fits the available width and height */}
                   <div
                     ref={stageRef}
                     data-crop-stage
                     onClick={onStageClick}
-                    className={cn("relative aspect-[3/2] w-full max-w-4xl", tool === "focus" && "cursor-crosshair")}
-                    style={{ maxHeight: "100%" }}
+                    className={cn("relative aspect-[3/2] max-w-4xl", tool === "focus" && "cursor-crosshair")}
+                    style={{ width: "min(100cqw, 150cqh)" }}
                   >
                     <div className="absolute inset-0 overflow-hidden">
                       <div className="absolute inset-0 transition-transform duration-200" style={{ transform }}>
@@ -495,7 +548,7 @@ export function ImageEditor({
                 </div>
 
                 {/* Stage footer: zoom */}
-                <div className="flex h-12 shrink-0 items-center justify-center gap-1 border-t border-white/10 text-sm text-white/80">
+                <div className="flex h-11 shrink-0 items-center justify-center gap-1 border-t border-white/10 text-sm text-white/80 lg:h-12">
                   <Tooltip label="Verkleinern" side="top">
                     <button
                       type="button"
@@ -529,8 +582,16 @@ export function ImageEditor({
                 </div>
               </div>
 
-              {/* Tool panel */}
-              <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border">
+              {/* Tool panel: right column on desktop, scrollable bottom sheet below lg */}
+              <aside
+                id="image-editor-panel"
+                aria-label="Werkzeugoptionen"
+                className={cn(
+                  "flex max-h-[45vh] shrink-0 flex-col overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border bg-surface shadow-[0_-8px_24px_rgba(0,0,0,0.12)] lg:max-h-none lg:w-80 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none",
+                  !panelOpen && "max-lg:hidden",
+                )}
+              >
+                <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border-strong lg:hidden" />
                 {tool === "crop" && (
                   <Panel title="Zuschneiden" hint="An Ecken und Kanten ziehen, um die Größe zu ändern. Den Rahmen selbst zum Verschieben ziehen.">
                     <div className="flex flex-col gap-2">
@@ -709,7 +770,7 @@ export function ImageEditor({
 
 function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-5 p-5">
+    <div className="flex flex-col gap-5 p-4 lg:p-5">
       <div className="flex flex-col gap-0.5">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {hint && <p className="text-sm text-muted">{hint}</p>}

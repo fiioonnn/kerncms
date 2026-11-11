@@ -42,9 +42,9 @@ function ToastList() {
         </div>
         <Toast.Close
           aria-label="Schließen"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-subtle hover:text-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <X className="size-4" />
+          <X className="size-4" strokeWidth={1.75} />
         </Toast.Close>
       </Toast.Root>
     );

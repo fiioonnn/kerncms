@@ -36,7 +36,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Site switcher */}
       <div className="px-4 pb-2">
         <Menu>
-          <MenuTrigger className="flex h-14 w-full items-center gap-3 rounded-xl border border-border px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-4 focus-visible:ring-accent/15 data-popup-open:bg-subtle">
+          <MenuTrigger className="flex h-14 w-full items-center gap-3 rounded-xl border border-border px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
             <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-accent">
               {site.initials}
             </span>
@@ -132,7 +132,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* User menu */}
       <div className="border-t border-border p-3">
         <Menu>
-          <MenuTrigger className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-subtle data-popup-open:bg-subtle">
+          <MenuTrigger className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
             <Avatar name="Anna Schmidt" />
             <span className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-[15px] font-medium">Anna Schmidt</span>

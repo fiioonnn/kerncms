@@ -387,8 +387,9 @@ export default function OnboardingPage() {
                     }
                   />
                   <Select
+                    aria-label="Rolle"
                     items={roles}
-                    defaultValue={invite.role}
+                    value={invite.role}
                     onValueChange={(role) => setInvites((list) => list.map((i) => (i.id === invite.id ? { ...i, role } : i)))}
                   />
                   <Button

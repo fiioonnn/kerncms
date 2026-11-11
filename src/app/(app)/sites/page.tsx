@@ -176,7 +176,7 @@ export default function SitesPage() {
               <Link
                 key={site.domain}
                 href="/"
-                className="group rounded-2xl outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+                className="group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Card className="flex h-full flex-col overflow-hidden transition-colors group-hover:border-border-strong">
                   <SampleImage name={site.domain} className="aspect-[16/9] w-full border-b border-border" />

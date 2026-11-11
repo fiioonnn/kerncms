@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Check, ImagePlus, Pencil, Search, Upload, X } from "lucide-react";
 import { UploadDialog } from "@/components/actions/common";
 import { Button, buttonStyles } from "@/components/ui/button";
@@ -83,13 +83,14 @@ export function MediaPickerDialog({
                 <button
                   key={file.name}
                   type="button"
+                  aria-pressed={isSelected}
                   onClick={() => setSelected(file.name)}
                   onDoubleClick={() => {
                     onSelect(file.name);
                     onOpenChange(false);
                   }}
                   className={cn(
-                    "relative flex flex-col overflow-hidden rounded-xl border text-left transition-shadow outline-none",
+                    "relative flex flex-col overflow-hidden rounded-xl border text-left transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
                     isSelected ? "border-accent ring-4 ring-accent/20" : "border-border hover:shadow-popover",
                   )}
                 >
@@ -97,7 +98,7 @@ export function MediaPickerDialog({
                   <span className="truncate px-3 py-2 text-sm font-medium">{file.name}</span>
                   {isSelected && (
                     <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-accent text-white">
-                      <Check className="size-4" strokeWidth={3} />
+                      <Check className="size-4" strokeWidth={3} aria-hidden />
                     </span>
                   )}
                 </button>
@@ -135,16 +136,24 @@ export function ImageField({
     if (!controlled) setInnerValue(next);
     onChange?.(next);
   };
+  const id = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const file = mediaFiles.find((f) => f.name === value);
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[15px] font-medium">{label}</span>
+    <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
+      <span id={`${id}-label`} className="text-[15px] font-medium">
+        {label}
+      </span>
       {value ? (
         <div className="overflow-hidden rounded-xl border border-border-strong">
-          <button type="button" onClick={() => setPickerOpen(true)} className={cn("block w-full", aspect)} aria-label="Bild ändern">
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            aria-label={`Bild ändern: ${value}`}
+            className={cn("block w-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset", aspect)}
+          >
             <SampleImage name={value} className="size-full" />
           </button>
           <div className="flex items-center gap-1 border-t border-border p-1.5 pl-3">
@@ -166,11 +175,11 @@ export function ImageField({
           type="button"
           onClick={() => setPickerOpen(true)}
           className={cn(
-            "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border-strong text-muted transition-colors hover:border-accent hover:text-accent",
+            "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border-strong text-muted transition-colors outline-none hover:border-accent hover:text-accent focus-visible:border-accent focus-visible:text-accent focus-visible:ring-4 focus-visible:ring-accent/15",
             aspect,
           )}
         >
-          <ImagePlus className="size-7" strokeWidth={1.5} />
+          <ImagePlus className="size-7" strokeWidth={1.75} aria-hidden />
           <span className="text-[15px] font-medium">Bild wählen</span>
         </button>
       )}

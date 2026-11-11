@@ -5,24 +5,48 @@ import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const focusRing =
+  "outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+/** Labelled switch. Uncontrolled with `defaultChecked`, or controlled with `checked` + `onCheckedChange`. */
 export function Switch({
   label,
   description,
   defaultChecked,
+  checked,
+  onCheckedChange,
+  disabled,
+  className,
 }: {
   label: string;
   description?: string;
   defaultChecked?: boolean;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-6">
+    <label
+      className={cn(
+        "flex items-start justify-between gap-6",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        className,
+      )}
+    >
       <span className="flex flex-col gap-0.5">
         <span className="text-[15px] font-medium">{label}</span>
         {description && <span className="text-sm text-muted">{description}</span>}
       </span>
       <BaseSwitch.Root
         defaultChecked={defaultChecked}
-        className="relative mt-0.5 flex h-7 w-12 shrink-0 rounded-full bg-border-strong p-0.5 transition-colors outline-none focus-visible:ring-4 focus-visible:ring-accent/20 data-checked:bg-accent"
+        checked={checked}
+        onCheckedChange={onCheckedChange ? (next) => onCheckedChange(next) : undefined}
+        disabled={disabled}
+        className={cn(
+          "relative mt-0.5 flex h-7 w-12 shrink-0 rounded-full bg-border-strong p-0.5 transition-colors data-checked:bg-accent",
+          focusRing,
+        )}
       >
         <BaseSwitch.Thumb className="size-6 rounded-full bg-white shadow-card transition-transform data-checked:translate-x-5" />
       </BaseSwitch.Root>
@@ -61,7 +85,10 @@ export function Checkbox({
         checked={checked}
         onCheckedChange={onCheckedChange ? (next) => onCheckedChange(next) : undefined}
         disabled={disabled}
-        className="flex size-6 items-center justify-center rounded-md border border-border-strong bg-surface transition-colors outline-none focus-visible:ring-4 focus-visible:ring-accent/20 data-checked:border-accent data-checked:bg-accent data-disabled:opacity-50"
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-md border border-border-strong bg-surface transition-colors data-checked:border-accent data-checked:bg-accent data-disabled:opacity-50",
+          focusRing,
+        )}
       >
         <BaseCheckbox.Indicator className="text-white data-unchecked:hidden">
           <Check className="size-4" strokeWidth={3} />

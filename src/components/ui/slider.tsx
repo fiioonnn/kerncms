@@ -42,6 +42,7 @@ export function Slider({
         <span className="text-[15px] font-medium">{label}</span>
         <button
           type="button"
+          tabIndex={-1}
           onDoubleClick={() => {
             const reset = bipolar ? 0 : min;
             onValueChange(reset);
@@ -59,7 +60,7 @@ export function Slider({
           <BaseSlider.Indicator className={cn("rounded-full", bipolar ? "bg-transparent" : "bg-accent")} />
           <BaseSlider.Thumb
             aria-label={label}
-            className="size-5 rounded-full border-2 border-accent bg-surface shadow-card outline-none has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-accent/25"
+            className="size-5 rounded-full border-2 border-accent bg-surface shadow-card outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-surface"
           />
         </BaseSlider.Track>
       </BaseSlider.Control>

@@ -12,7 +12,7 @@ export function MediaTile({ name, size }: { name: string; size: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-card transition-shadow outline-none hover:shadow-popover focus-visible:ring-4 focus-visible:ring-accent/20"
+        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-card transition-shadow outline-none hover:shadow-popover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <div className="aspect-[4/3] w-full overflow-hidden">
           <SampleImage name={name} className="size-full transition-transform duration-300 group-hover:scale-105" />

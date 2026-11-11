@@ -44,15 +44,16 @@ export function PagePicker({
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="flex h-11 min-w-56 items-center gap-3 rounded-xl border border-border-strong bg-surface px-3 text-left transition-colors outline-none hover:border-muted/60 focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/15 data-popup-open:border-accent">
-          <FileText className="size-[18px] shrink-0 text-muted" strokeWidth={1.75} />
+        <PopoverTrigger
+          className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-border-strong bg-surface px-2.5 text-left sm:min-w-56 sm:gap-3 sm:px-3 transition-colors outline-none hover:border-muted/60 focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/15 data-popup-open:border-accent">
+          <FileText className="hidden size-[18px] shrink-0 text-muted sm:block" strokeWidth={1.75} />
           <span className="flex min-w-0 flex-1 flex-col leading-tight">
             <span className="truncate text-[15px] font-medium">{pageLabel(current)}</span>
-            <span className="truncate font-mono text-xs text-muted">{current}</span>
+            <span className="hidden truncate font-mono text-xs text-muted sm:block">{current}</span>
           </span>
-          <ChevronDown className="size-4 text-muted" />
+          <ChevronDown className="size-4 shrink-0 text-muted" />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80">
+        <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))]">
           <label className="flex h-12 items-center gap-2.5 border-b border-border px-4 text-muted">
             <Search className="size-[18px]" strokeWidth={1.75} />
             <input

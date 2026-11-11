@@ -136,7 +136,7 @@ function HeroFields(props: FieldsProps<HeroBlock>) {
         <Select
           label="Layout"
           items={layouts}
-          defaultValue={block.layout}
+          value={block.layout}
           onValueChange={(value) => onChange({ layout: value as HeroBlock["layout"] })}
         />
         <ImageField
@@ -202,7 +202,7 @@ function GalleryFields({ block, onChange }: FieldsProps<GalleryBlock>) {
       <Select
         label="Spalten"
         items={columnOptions}
-        defaultValue={block.columns}
+        value={block.columns}
         onValueChange={(value) => onChange({ columns: value as GalleryBlock["columns"] })}
       />
       <Section title="Bilder">

@@ -151,7 +151,7 @@ function SubmissionTable({
             <Td>
               <button
                 type="button"
-                className={cn("flex flex-col text-left outline-none focus-visible:text-accent", !row.read && "font-semibold")}
+                className={cn("flex flex-col rounded-md text-left outline-none focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2", !row.read && "font-semibold")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpen(row.id);

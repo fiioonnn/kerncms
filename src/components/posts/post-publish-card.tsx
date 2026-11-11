@@ -12,15 +12,7 @@ import { Select } from "@/components/ui/select";
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/toggles";
-
-type Category = { id: string; label: string };
-
-const initialCategories: Category[] = [
-  { id: "news", label: "Neuigkeiten" },
-  { id: "events", label: "Events" },
-  { id: "recipes", label: "Rezepte" },
-  { id: "jobs", label: "Karriere" },
-];
+import { addCategory, deleteCategory, renameCategory, useCategories } from "@/lib/category-store";
 
 /** Tags already used in other posts; offered as suggestions. */
 const existingTags = ["Sauerteig", "Brot", "Wochenmarkt", "Saisonal", "Vegan", "Ausbildung", "Catering", "Rezept", "Feiertage"];
@@ -31,23 +23,16 @@ const statusItems = [
   { label: "Veröffentlicht", value: "live" },
 ];
 
-function CategoryManager({
-  categories,
-  onChange,
-}: {
-  categories: Category[];
-  onChange: (next: Category[]) => void;
-}) {
+function CategoryManager() {
+  const categories = useCategories();
   const [name, setName] = useState("");
 
   function add() {
-    const label = name.trim();
-    if (!label) return;
-    if (categories.some((c) => c.label.toLowerCase() === label.toLowerCase())) {
+    if (!name.trim()) return;
+    if (!addCategory(name)) {
       toast.error("Diese Kategorie gibt es schon");
       return;
     }
-    onChange([...categories, { id: `${label.toLowerCase().replace(/\s+/g, "-")}-${categories.length}`, label }]);
     setName("");
   }
 
@@ -74,9 +59,7 @@ function CategoryManager({
               <Input
                 aria-label={`Name der Kategorie ${category.label}`}
                 value={category.label}
-                onChange={(e) =>
-                  onChange(categories.map((c) => (c.id === category.id ? { ...c, label: e.target.value } : c)))
-                }
+                onChange={(e) => renameCategory(category.id, e.target.value)}
               />
               <Tooltip label="Kategorie löschen">
                 <Button
@@ -86,7 +69,7 @@ function CategoryManager({
                   disabled={categories.length <= 1}
                   className="text-muted hover:bg-danger-soft hover:text-danger"
                   onClick={() => {
-                    onChange(categories.filter((c) => c.id !== category.id));
+                    deleteCategory(category.id);
                     toast.success(`„${category.label}“ gelöscht`, {
                       description: "Beiträge dieser Kategorie sind jetzt ohne Kategorie.",
                     });
@@ -123,10 +106,11 @@ export function PostPublishCard() {
   const [status, setStatus] = useState("draft");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("09:00");
-  const [categories, setCategories] = useState(initialCategories);
+  const categories = useCategories();
   const [category, setCategory] = useState("news");
 
-  const categoryExists = categories.some((c) => c.id === category);
+  // A deleted category falls back to the first remaining one.
+  const selectedCategory = categories.some((c) => c.id === category) ? category : categories[0]?.id;
 
   return (
     <Card>
@@ -163,18 +147,12 @@ export function PostPublishCard() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-medium">Kategorie</span>
-            <CategoryManager
-              categories={categories}
-              onChange={(next) => {
-                setCategories(next);
-                if (!next.some((c) => c.id === category) && next[0]) setCategory(next[0].id);
-              }}
-            />
+            <CategoryManager />
           </div>
           <Select
             key={categories.map((c) => `${c.id}:${c.label}`).join("|")}
             items={categories.map((c) => ({ label: c.label, value: c.id }))}
-            defaultValue={categoryExists ? category : categories[0]?.id}
+            defaultValue={selectedCategory}
             onValueChange={setCategory}
           />
         </div>

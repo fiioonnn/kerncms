@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card, Table, Td, Th } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
-import { formatEntryValue, getCollection } from "@/lib/collections";
+import { entryTitle, formatEntryValue, getCollection } from "@/lib/collections";
 
 export function EntriesTable({ slug }: { slug: string }) {
   const [query, setQuery] = useState("");
@@ -26,7 +26,6 @@ export function EntriesTable({ slug }: { slug: string }) {
         formatEntryValue(fieldsByName.get(name), value).toLowerCase().includes(normalized),
       ),
   );
-  const editHref = `/collections/${collection.slug}/new`;
 
   return (
     <div className="flex flex-col gap-5">
@@ -70,7 +69,8 @@ export function EntriesTable({ slug }: { slug: string }) {
             </thead>
             <tbody>
               {rows.map((entry) => {
-                const title = String(entry.values[collection.titleField] ?? entry.id);
+                const title = entryTitle(collection, entry);
+                const editHref = `/collections/${collection.slug}/${entry.id}`;
                 return (
                   <tr key={entry.id} className="transition-colors hover:bg-subtle/50">
                     <Td>

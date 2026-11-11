@@ -94,7 +94,7 @@ export function TagInput({
                 type="button"
                 aria-label={`„${tag}“ entfernen`}
                 onClick={() => update(tags.filter((t) => t !== tag))}
-                className="flex size-5 items-center justify-center rounded-md transition-colors hover:bg-accent/15"
+                className="flex size-5 items-center justify-center rounded-md transition-colors outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <X className="size-3.5" strokeWidth={2} />
               </button>

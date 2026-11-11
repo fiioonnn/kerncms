@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlay";
@@ -60,7 +60,7 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (date: Da
         >
           <ChevronLeft strokeWidth={1.75} />
         </Button>
-        <span className="text-[15px] font-semibold">
+        <span className="text-[15px] font-semibold" aria-live="polite">
           {monthNames[month]} {year}
         </span>
         <Button
@@ -88,7 +88,7 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (date: Da
               aria-pressed={selected ? sameDay(date, selected) : false}
               aria-label={formatDate(date)}
               className={cn(
-                "relative flex size-10 items-center justify-center rounded-lg text-[15px] transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent/40",
+                "relative flex size-10 items-center justify-center rounded-lg text-[15px] transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-surface",
                 sameDay(date, today) && "font-semibold text-accent",
                 selected && sameDay(date, selected) && "bg-accent font-semibold text-accent-foreground hover:bg-accent-hover",
               )}
@@ -125,17 +125,25 @@ export function DatePicker({
   onValueChange?: (date: Date) => void;
   className?: string;
 }) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [internal, setInternal] = useState<Date | undefined>(defaultValue);
   const selected = value ?? internal;
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      {label && <span className="text-[15px] font-medium">{label}</span>}
+      {label && (
+        <span id={`${id}-label`} className="text-[15px] font-medium">
+          {label}
+        </span>
+      )}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="flex h-11 w-full items-center gap-3 rounded-xl border border-border-strong bg-surface px-4 text-left text-[15px] text-foreground transition-colors outline-none select-none hover:border-muted/60 focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/15 data-popup-open:border-accent">
-          <CalendarDays className="size-[18px] shrink-0 text-muted" strokeWidth={1.75} />
-          <span className={cn("truncate", !selected && "text-muted")}>
+        <PopoverTrigger
+          aria-labelledby={label ? `${id}-label ${id}-value` : undefined}
+          className="flex h-11 w-full items-center gap-3 rounded-xl border border-border-strong bg-surface px-4 text-left text-[15px] text-foreground transition-colors outline-none select-none hover:border-muted/60 focus-visible:border-accent focus-visible:ring-4 focus-visible:ring-accent/15 data-popup-open:border-accent"
+        >
+          <CalendarDays className="size-[18px] shrink-0 text-muted" strokeWidth={1.75} aria-hidden />
+          <span id={`${id}-value`} className={cn("truncate", !selected && "text-muted")}>
             {selected ? formatDate(selected) : "Datum wählen"}
           </span>
         </PopoverTrigger>

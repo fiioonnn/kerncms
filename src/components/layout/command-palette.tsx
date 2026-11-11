@@ -2,7 +2,7 @@
 
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CornerDownLeft, FileText, Newspaper, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { allNavItems } from "./nav";
@@ -22,6 +22,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  const listId = useId();
 
   const results = entries.filter((entry) => entry.label.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -60,7 +61,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <BaseDialog.Popup className="fixed top-[14vh] left-1/2 z-50 w-full max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-surface shadow-popover outline-none transition-[scale,opacity] duration-150 data-ending-style:scale-[0.97] data-ending-style:opacity-0 data-starting-style:scale-[0.97] data-starting-style:opacity-0">
           <BaseDialog.Title className="sr-only">Suchen</BaseDialog.Title>
           <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-            <Search className="size-5 text-muted" strokeWidth={1.75} />
+            <Search className="size-5 text-muted" strokeWidth={1.75} aria-hidden />
             <input
               autoFocus
               value={query}
@@ -69,18 +70,27 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 setActive(0);
               }}
               onKeyDown={onKeyDown}
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={results.length > 0 ? `${listId}-${active}` : undefined}
               aria-label="Suchen"
               placeholder="Seiten, Beiträge und Bereiche durchsuchen…"
               className="h-full flex-1 bg-transparent text-base outline-none placeholder:text-muted"
             />
             <kbd className="rounded-md border border-border px-1.5 text-xs font-medium text-muted">Esc</kbd>
           </div>
-          <div className="max-h-96 overflow-y-auto p-2">
+          <div id={listId} role="listbox" aria-label="Treffer" className="max-h-96 overflow-y-auto p-2">
             {results.length === 0 && <p className="px-3 py-8 text-center text-[15px] text-muted">Keine Treffer</p>}
             {results.map((entry, i) => (
               <button
                 key={`${entry.hint}-${entry.label}`}
+                id={`${listId}-${i}`}
                 type="button"
+                role="option"
+                aria-selected={i === active}
+                tabIndex={-1}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => go(entry)}
                 className={cn(
@@ -88,10 +98,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   i === active && "bg-subtle",
                 )}
               >
-                <entry.icon className="size-5 text-muted" strokeWidth={1.75} />
+                <entry.icon className="size-5 text-muted" strokeWidth={1.75} aria-hidden />
                 <span className="flex-1 truncate font-medium">{entry.label}</span>
                 <span className="text-sm text-muted">{entry.hint}</span>
-                {i === active && <CornerDownLeft className="size-4 text-muted" />}
+                {i === active && <CornerDownLeft className="size-4 text-muted" strokeWidth={1.75} aria-hidden />}
               </button>
             ))}
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
@@ -10,6 +11,14 @@ const backdrop =
   "fixed inset-0 z-50 bg-foreground/30 backdrop-blur-[2px] transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0";
 const popup =
   "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-4rem)] w-full max-w-[calc(100vw-2rem)] -translate-1/2 flex-col rounded-2xl border border-border bg-surface shadow-popover outline-none transition-[scale,opacity] duration-150 data-ending-style:scale-[0.97] data-ending-style:opacity-0 data-starting-style:scale-[0.97] data-starting-style:opacity-0";
+
+/** First text field / select in the dialog body; dialogs without one fall back to Base UI's default. */
+const firstFieldSelector = [
+  "input:not([type=hidden]):not([disabled])",
+  "textarea:not([disabled])",
+  "[contenteditable=true]",
+  "[role=combobox]:not([data-disabled])",
+].join(",");
 
 /* ---------- Dialog ---------- */
 
@@ -29,6 +38,7 @@ export function DialogContent({
   children,
   footer,
   size = "md",
+  initialFocus,
   className,
 }: {
   title: string;
@@ -36,12 +46,20 @@ export function DialogContent({
   children?: React.ReactNode;
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Override where focus goes on open. By default: the first field in the body, else the first button. */
+  initialFocus?: BaseDialog.Popup.Props["initialFocus"];
   className?: string;
 }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <BaseDialog.Portal>
       <BaseDialog.Backdrop className={backdrop} />
       <BaseDialog.Popup
+        initialFocus={
+          initialFocus ??
+          ((openType) =>
+            openType === "touch" ? true : (bodyRef.current?.querySelector<HTMLElement>(firstFieldSelector) ?? true))
+        }
         className={cn(
           popup,
           size === "sm" && "sm:max-w-md",
@@ -62,10 +80,14 @@ export function DialogContent({
             aria-label="Schließen"
             className={buttonStyles({ variant: "ghost", size: "icon", className: "-mt-1 -mr-3 size-10" })}
           >
-            <X strokeWidth={1.75} />
+            <X strokeWidth={1.75} aria-hidden />
           </BaseDialog.Close>
         </div>
-        {children && <div className="overflow-y-auto px-6 py-5">{children}</div>}
+        {children && (
+          <div ref={bodyRef} className="overflow-y-auto px-6 py-5">
+            {children}
+          </div>
+        )}
         {footer && (
           <div className="flex justify-end gap-3 border-t border-border px-6 py-4">{footer}</div>
         )}

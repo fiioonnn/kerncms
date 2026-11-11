@@ -1,10 +1,14 @@
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Inbox, Plus } from "lucide-react";
+import { InputDemos, MediaDemos, RichTextDemo } from "./component-demos";
 import { InteractionDemos } from "./interaction-demos";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { Avatar, Badge, Card, CardContent, CardHeader, PageHeader, Table, Td, Th } from "@/components/ui/display";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Description, Field, Input, Label, Textarea } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 import { Checkbox, Switch } from "@/components/ui/toggles";
 
@@ -54,15 +58,23 @@ const typeScale = [
 ];
 
 const sizes = [
-  { name: "Buttons und Felder", value: "44 px hoch (h-11)" },
+  { name: "Buttons und Felder", value: "44 px hoch (h-11) · Icon-Buttons 44 × 44 px" },
+  { name: "Kleine Buttons", value: "36 px hoch (h-9), nur in Karten- und Tabellenzeilen" },
   { name: "Große Buttons", value: "48 px hoch (h-12)" },
   { name: "Navigationseinträge", value: "44 px hoch" },
-  { name: "Topbar", value: "56 px hoch" },
+  { name: "Topbar", value: "64 px hoch" },
   { name: "Sidebar", value: "288 px breit" },
-  { name: "Tabellenzeilen", value: "56 px hoch" },
-  { name: "Radien", value: "Felder 12 px · Karten 16 px" },
-  { name: "Abstände", value: "4-px-Raster, Karten innen 24 px" },
+  { name: "Tabellenzeilen", value: "56 px hoch, Kopfzeile 44 px" },
+  { name: "Seiteninhalt", value: "max. 1280 px breit, 32 px Rand" },
+  { name: "Radien", value: "Felder und Buttons 12 px · Karten und Dialoge 16 px" },
+  { name: "Abstände", value: "4-px-Raster · Karten innen 24 px seitlich, 20 px oben und unten" },
 ];
+
+const avatarSizes = [
+  { size: "sm", name: "Anna Schmidt", label: "sm · 32 px" },
+  { size: "md", name: "Jonas Weber", label: "md · 40 px" },
+  { size: "lg", name: "Lena Hoffmann", label: "lg · 48 px" },
+] as const;
 
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
@@ -180,6 +192,27 @@ export default function StyleguidePage() {
         </Card>
       </Section>
 
+      <Section
+        title="Eingabe-Bausteine"
+        description="Spezialfelder für Werte, die ein normales Textfeld schlecht abbildet. Label immer sichtbar darüber."
+      >
+        <InputDemos />
+      </Section>
+
+      <Section
+        title="Rich Text"
+        description="Für längere Texte mit Struktur. Nur Zwischenüberschriften, Hervorhebungen, Listen, Zitate und Links, keine freien Farben oder Schriftgrößen."
+      >
+        <RichTextDemo />
+      </Section>
+
+      <Section
+        title="Bilder und Medien"
+        description="Bilder kommen immer aus der Mediathek. Hochladen geht direkt im Dialog, Bearbeiten öffnet den Bildeditor."
+      >
+        <MediaDemos />
+      </Section>
+
       <Section title="Status und Personen" description="Badges zeigen Zustände, nie Aktionen. Punkt-Badges für Live und Entwurf.">
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap gap-3">
@@ -193,11 +226,17 @@ export default function StyleguidePage() {
             </Badge>
             <Badge tone="danger">Fehler</Badge>
           </div>
-          <div className="flex items-center gap-3">
-            <Avatar name="Anna Schmidt" size="sm" />
-            <Avatar name="Jonas Weber" />
-            <Avatar name="Lena Hoffmann" size="lg" />
+          <div className="flex flex-wrap items-end gap-6">
+            {avatarSizes.map((avatar) => (
+              <div key={avatar.size} className="flex flex-col items-center gap-2">
+                <Avatar name={avatar.name} size={avatar.size} />
+                <span className="text-sm text-muted">{avatar.label}</span>
+              </div>
+            ))}
           </div>
+          <p className="text-[15px] text-muted">
+            Klein in Tabellen und Listen, Standard in Menüs und Kopfzeilen, Groß im Profil.
+          </p>
         </div>
       </Section>
 
@@ -259,6 +298,49 @@ export default function StyleguidePage() {
             Inhalt des dritten Tabs.
           </TabPanel>
         </Tabs>
+      </Section>
+
+      <Section
+        title="Leer und Laden"
+        description="EmptyState, wenn eine Liste noch nichts enthält. Skeleton in der Form des späteren Inhalts, nie ein einzelner Spinner."
+      >
+        <div className="flex flex-col gap-6">
+          <Card>
+            <EmptyState
+              icon={Inbox}
+              title="Noch keine Eingänge"
+              description="Sobald jemand ein Formular auf deiner Website absendet, erscheint es hier."
+              action={<Button variant="secondary">Formular anlegen</Button>}
+            />
+          </Card>
+          <Card className="flex flex-col gap-4 p-6">
+            <div className="flex items-center gap-4">
+              <Skeleton className="size-10 rounded-full" />
+              <div className="flex flex-1 flex-col gap-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+              <Skeleton className="h-7 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </Card>
+        </div>
+      </Section>
+
+      <Section
+        title="Seitenzustände"
+        description="Laden, leer, Fehler und 404 als ganze Seiten. Jede neue Seite übernimmt diese Muster statt eigener Varianten."
+      >
+        <Card className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <div className="flex flex-col gap-1">
+            <span className="text-base font-semibold">Alle Zustände als statische Beispiele</span>
+            <span className="text-[15px] text-muted">loading.tsx, EmptyState, error.tsx und not-found.tsx im Vergleich.</span>
+          </div>
+          <Link href="/styleguide/states" className={buttonStyles({ variant: "secondary" })}>
+            Ansehen
+            <ArrowRight />
+          </Link>
+        </Card>
       </Section>
     </PageContainer>
   );

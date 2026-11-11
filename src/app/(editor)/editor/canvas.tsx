@@ -274,6 +274,7 @@ function BlockView(props: ViewProps<Block>) {
 
 export function Canvas({
   device,
+  fluid = false,
   blocks,
   selectedId,
   onSelect,
@@ -282,6 +283,8 @@ export function Canvas({
   onAdd,
 }: {
   device: string;
+  /** Small screens: fill the available width and use the narrow layout, ignoring `device`. */
+  fluid?: boolean;
   blocks: Block[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -289,11 +292,11 @@ export function Canvas({
   onDirty: () => void;
   onAdd: (type: BlockType) => void;
 }) {
-  const width = devices.find((d) => d.value === device)?.width;
-  const narrow = device === "mobile";
+  const width = fluid ? undefined : devices.find((d) => d.value === device)?.width;
+  const narrow = fluid || device === "mobile";
 
   return (
-    <div className={cn("flex-1 overflow-auto", width ? "bg-background p-8" : "bg-white")}>
+    <div className={cn("min-w-0 flex-1 overflow-auto", width ? "bg-background p-8" : "bg-white")}>
       <div
         className={cn("mx-auto bg-white transition-[max-width] duration-300", width && "overflow-hidden rounded-2xl border border-border")}
         style={{ maxWidth: width ?? "100%" }}

@@ -69,7 +69,7 @@ export const collections: Collection[] = [
       { name: "anleitung", label: "Anleitung", type: "richtext" },
     ],
     entries: [
-      { id: "dinkel-vollkornbrot", status: "live", updated: "21. Okt.", values: { titel: "Dinkel-Vollkornbrot", zeit: 90, schwierigkeit: "mittel", vegan: true, bild: "dinkelbrot.jpg" } },
+      { id: "dinkel-vollkornbrot", status: "live", updated: "21. Okt.", values: { titel: "Dinkel-Vollkornbrot", zeit: 90, schwierigkeit: "mittel", vegan: true, bild: "dinkelbrot.jpg", zutaten: "500 g Dinkelvollkornmehl\n400 ml lauwarmes Wasser\n20 g frische Hefe\n10 g Salz\n2 EL Sonnenblumenkerne", anleitung: "<p>Hefe im Wasser auflösen, mit Mehl und Salz zu einem weichen Teig verrühren.</p><h2>Gehen lassen</h2><p>Den Teig abgedeckt <strong>45 Minuten</strong> an einem warmen Ort gehen lassen, dann in die Form geben.</p>" } },
       { id: "butter-croissants", status: "live", updated: "14. Okt.", values: { titel: "Butter-Croissants", zeit: 180, schwierigkeit: "schwer", vegan: false, bild: "croissants.jpg" } },
       { id: "roggenmischbrot", status: "draft", updated: "Heute", values: { titel: "Roggenmischbrot mit Sauerteig", zeit: 120, schwierigkeit: "mittel", vegan: true, bild: "sauerteig.jpg" } },
       { id: "zimtschnecken", status: "live", updated: "2. Okt.", values: { titel: "Zimtschnecken", zeit: 75, schwierigkeit: "leicht", vegan: false } },
@@ -93,7 +93,7 @@ export const collections: Collection[] = [
     ],
     entries: [
       { id: "wochenmarkt-november", status: "live", updated: "3. Nov.", values: { titel: "Stand auf dem Wochenmarkt", datum: "2026-11-21", ort: "Marktplatz", anmeldung: false } },
-      { id: "backkurs-sauerteig", status: "live", updated: "28. Okt.", values: { titel: "Backkurs: Sauerteig für Einsteiger", datum: "2026-12-05", ort: "Backstube", anmeldung: true } },
+      { id: "backkurs-sauerteig", status: "live", updated: "28. Okt.", values: { titel: "Backkurs: Sauerteig für Einsteiger", datum: "2026-12-05", ort: "Backstube", anmeldung: true, beschreibung: "<p>In drei Stunden zeigen wir, wie ihr einen eigenen Sauerteig ansetzt und pflegt. Am Ende nehmt ihr ein Brot und euer Anstellgut mit nach Hause.</p>" } },
       { id: "adventsmarkt", status: "draft", updated: "Gestern", values: { titel: "Adventsmarkt", datum: "2026-12-12", ort: "Rathausplatz", anmeldung: false } },
     ],
   },
@@ -122,6 +122,14 @@ export const collections: Collection[] = [
 
 export function getCollection(slug: string) {
   return collections.find((collection) => collection.slug === slug);
+}
+
+export function getEntry(collection: Collection, id: string) {
+  return collection.entries.find((entry) => entry.id === id);
+}
+
+export function entryTitle(collection: Collection, entry: CollectionEntry) {
+  return String(entry.values[collection.titleField] ?? entry.id);
 }
 
 export function collectionFolder(collection: Collection) {

@@ -28,7 +28,7 @@ export function Tab({
   return (
     <BaseTabs.Tab
       className={cn(
-        "flex h-12 items-center gap-2 px-4 text-[15px] font-medium whitespace-nowrap text-muted outline-none select-none hover:text-foreground focus-visible:text-foreground data-active:text-foreground",
+        "flex h-12 items-center gap-2 rounded-lg px-4 text-[15px] font-medium whitespace-nowrap text-muted outline-none select-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset data-active:text-foreground",
         className,
       )}
       {...props}
@@ -40,5 +40,5 @@ export function TabPanel({
   className,
   ...props
 }: Omit<BaseTabs.Panel.Props, "className"> & { className?: string }) {
-  return <BaseTabs.Panel className={cn("pt-8 outline-none", className)} {...props} />;
+  return <BaseTabs.Panel className={cn("rounded-lg pt-8 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background", className)} {...props} />;
 }

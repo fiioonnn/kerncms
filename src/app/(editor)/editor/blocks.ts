@@ -107,9 +107,11 @@ export function createBlock(type: BlockType, id: string): Block {
   }
 }
 
-export const initialBlocks: Block[] = [
+/* ---------- Example content per page ---------- */
+
+const homeBlocks: Block[] = [
   {
-    id: "hero",
+    id: "home-hero",
     type: "hero",
     headline: "Frisches Brot, jeden Morgen aus unserer Backstube",
     highlight: "jeden Morgen",
@@ -119,15 +121,160 @@ export const initialBlocks: Block[] = [
     buttonLink: { type: "page", path: "/sortiment" },
     layout: "left",
   },
-  createBlock("categories", "categories"),
+  createBlock("categories", "home-categories"),
   {
-    id: "quote",
+    id: "home-quote",
     type: "quote",
     text: "Seit Jahren holen wir hier jeden Samstag unser Dinkelbrot. Man schmeckt die Zeit, die darin steckt.",
     author: "Anna Schneider",
     role: "Stammkundin",
   },
 ];
+
+const aboutBlocks: Block[] = [
+  {
+    id: "about-hero",
+    type: "hero",
+    headline: "Drei Generationen Bäckerhandwerk in der Lindenstraße",
+    highlight: "Drei Generationen",
+    mark: "marker",
+    text: "Was 1962 mit einem Ofen und einem Sauerteig begann, ist heute ein Team aus vierzehn Menschen.",
+    buttonLabel: "Unser Team kennenlernen",
+    buttonLink: { type: "page", path: "/kontakt" },
+    layout: "center",
+    image: "team-backstube.jpg",
+  },
+  {
+    id: "about-history",
+    type: "text",
+    heading: "Wie alles begann",
+    body: "Großvater Heinrich Müller eröffnete die Backstube 1962 mit einem gebrauchten Etagenofen. Sein Sauerteig wird bis heute jeden Tag aufgefrischt und ist älter als die meisten unserer Kundinnen und Kunden.",
+  },
+  {
+    id: "about-values",
+    type: "text",
+    heading: "Zeit ist unsere wichtigste Zutat",
+    body: "Unsere Teige ruhen bis zu 48 Stunden. Das Mehl kommt aus der Mühle Brandt, zwölf Kilometer entfernt. Fertigmischungen und Backmittel gibt es bei uns nicht.",
+  },
+  { id: "about-gallery", type: "gallery", columns: "3", images: ["team-backstube.jpg", "ofen.jpg", "laden-aussen.jpg"] },
+];
+
+const rangeBlocks: Block[] = [
+  {
+    id: "range-hero",
+    type: "hero",
+    headline: "Unser Sortiment, täglich frisch gebacken",
+    highlight: "täglich frisch",
+    mark: "wavy",
+    text: "Brote, Brötchen, Kuchen und saisonale Spezialitäten. Was ausverkauft ist, backen wir am nächsten Morgen wieder.",
+    buttonLabel: "Vorbestellen",
+    buttonLink: { type: "page", path: "/kontakt" },
+    layout: "left",
+  },
+  {
+    id: "range-categories",
+    type: "categories",
+    tiles: [
+      { title: "Sauerteigbrote", image: "sauerteig.jpg", link: { type: "page", path: "/sortiment" } },
+      { title: "Dinkel & Vollkorn", image: "dinkelbrot.jpg", link: { type: "page", path: "/sortiment" } },
+      { title: "Feingebäck", image: "croissants.jpg", link: { type: "page", path: "/sortiment" } },
+    ],
+  },
+  {
+    id: "range-season",
+    type: "text",
+    heading: "Saisonal im November",
+    body: "Stollen nach Familienrezept, Martinsgänse aus Hefeteig und unser Kürbiskernbrot gibt es nur, solange die Saison dauert.",
+  },
+  { id: "range-gallery", type: "gallery", columns: "4", images: ["stollen.jpg", "kuerbisbrot.jpg", "brezeln.jpg", "apfelkuchen.jpg"] },
+];
+
+const cateringBlocks: Block[] = [
+  {
+    id: "catering-hero",
+    type: "hero",
+    headline: "Catering für Feiern, Büros und Veranstaltungen",
+    highlight: "Catering",
+    mark: "accent",
+    text: "Belegte Brötchen, Kuchenplatten und Frühstücksbuffets ab zehn Personen, geliefert im Umkreis von 20 Kilometern.",
+    buttonLabel: "Angebot anfragen",
+    buttonLink: { type: "page", path: "/kontakt" },
+    layout: "left",
+    image: "fruehstuecksbuffet.jpg",
+  },
+  {
+    id: "catering-offer",
+    type: "text",
+    heading: "So funktioniert die Bestellung",
+    body: "Schreib uns bis spätestens drei Werktage vorher, für wie viele Personen und wann du bestellen möchtest. Wir melden uns innerhalb eines Tages mit einem Angebot.",
+  },
+  { id: "catering-gallery", type: "gallery", columns: "2", images: ["fruehstuecksbuffet.jpg", "kuchenplatte.jpg"] },
+  {
+    id: "catering-quote",
+    type: "quote",
+    text: "Das Frühstücksbuffet für unser Team-Event war liebevoll angerichtet und pünktlich da. Wir bestellen wieder.",
+    author: "Julia Becker",
+    role: "Büroleitung, Becker & Partner",
+  },
+];
+
+const contactBlocks: Block[] = [
+  {
+    id: "contact-hero",
+    type: "hero",
+    headline: "Besuch uns in der Lindenstraße 12",
+    highlight: "Lindenstraße 12",
+    mark: "marker",
+    text: "Montag bis Freitag 6:30 bis 18 Uhr, Samstag 6:30 bis 13 Uhr. Sonntags haben wir geschlossen.",
+    buttonLabel: "Route planen",
+    buttonLink: { type: "external", url: "https://maps.example.com/baeckerei-mueller", newTab: true },
+    layout: "center",
+  },
+  {
+    id: "contact-text",
+    type: "text",
+    heading: "Vorbestellungen und Fragen",
+    body: "Ruf uns unter 0221 123 45 67 an oder schreib an hallo@baeckerei-mueller.de. Vorbestellungen für Samstag nehmen wir bis Freitag 12 Uhr an.",
+  },
+  { id: "contact-gallery", type: "gallery", columns: "2", images: ["laden-aussen.jpg", "wochenmarkt.jpg"] },
+];
+
+const imprintBlocks: Block[] = [
+  {
+    id: "imprint-text",
+    type: "text",
+    heading: "Impressum",
+    body: "Bäckerei Müller GmbH, Lindenstraße 12, 50674 Köln. Vertreten durch die Geschäftsführerin Katharina Müller. Registergericht Köln, HRB 12345. USt-IdNr. DE123456789.",
+  },
+  {
+    id: "imprint-contact",
+    type: "text",
+    heading: "Kontakt",
+    body: "Telefon 0221 123 45 67, E-Mail hallo@baeckerei-mueller.de.",
+  },
+  {
+    id: "imprint-liability",
+    type: "text",
+    heading: "Haftung für Inhalte",
+    body: "Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität können wir jedoch keine Gewähr übernehmen.",
+  },
+];
+
+/** Example blocks of each site page, as last saved. */
+export const pageContent: Record<string, Block[]> = {
+  "/": homeBlocks,
+  "/ueber-uns": aboutBlocks,
+  "/sortiment": rangeBlocks,
+  "/catering": cateringBlocks,
+  "/kontakt": contactBlocks,
+  "/impressum": imprintBlocks,
+};
+
+const noBlocks: Block[] = [];
+
+export function examplePageBlocks(path: string): Block[] {
+  return pageContent[path] ?? noBlocks;
+}
 
 /** One-line description of a block's content for the outline list. */
 export function blockSummary(block: Block) {

@@ -104,7 +104,7 @@ export function SegmentedControl({
             value={item.value}
             aria-label={item.label ?? item.value}
             className={cn(
-              "flex h-9 items-center justify-center gap-2 rounded-lg text-[15px] font-medium text-muted transition-colors outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent/40 data-pressed:bg-subtle data-pressed:text-foreground",
+              "flex h-9 items-center justify-center gap-2 rounded-lg text-[15px] font-medium text-muted transition-colors outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent data-pressed:bg-subtle data-pressed:text-foreground",
               item.icon && !item.label ? "w-10" : "px-4",
             )}
           >

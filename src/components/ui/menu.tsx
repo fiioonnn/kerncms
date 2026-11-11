@@ -54,7 +54,7 @@ export function MenuItem({
   return (
     <BaseMenu.Item
       className={cn(
-        "flex h-10 cursor-default items-center gap-3 rounded-lg px-3 text-[15px] outline-none select-none data-highlighted:bg-subtle",
+        "flex h-10 cursor-default items-center gap-3 rounded-lg px-3 text-[15px] outline-none select-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-inset data-highlighted:bg-subtle",
         danger && "text-danger data-highlighted:bg-danger-soft",
         className,
       )}

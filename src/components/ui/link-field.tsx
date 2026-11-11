@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Switch as BaseSwitch } from "@base-ui/react/switch";
+import { useId, useState } from "react";
 import { Check, ExternalLink, FileText, Globe, Search } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger, SegmentedControl } from "@/components/ui/overlay";
+import { Switch } from "@/components/ui/toggles";
 import { sitePages } from "@/lib/example-content";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +74,7 @@ function LinkPicker({
                     type="button"
                     onClick={() => onPick({ type: "page", path: page.value })}
                     className={cn(
-                      "flex h-12 items-center gap-3 rounded-lg px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:bg-subtle",
+                      "flex h-12 items-center gap-3 rounded-lg px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:bg-subtle focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
                       active && "bg-accent-soft hover:bg-accent-soft",
                     )}
                   >
@@ -103,16 +103,7 @@ function LinkPicker({
             <Input autoFocus value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" />
             <span className="text-sm text-muted">Mit https://, mailto: oder tel: beginnen.</span>
           </label>
-          <label className="flex cursor-pointer items-start justify-between gap-6">
-            <span className="text-[15px] font-medium">In neuem Tab öffnen</span>
-            <BaseSwitch.Root
-              checked={newTab}
-              onCheckedChange={setNewTab}
-              className="relative mt-0.5 flex h-7 w-12 shrink-0 rounded-full bg-border-strong p-0.5 transition-colors outline-none focus-visible:ring-4 focus-visible:ring-accent/20 data-checked:bg-accent"
-            >
-              <BaseSwitch.Thumb className="size-6 rounded-full bg-white shadow-card transition-transform data-checked:translate-x-5" />
-            </BaseSwitch.Root>
-          </label>
+          <Switch label="In neuem Tab öffnen" checked={newTab} onCheckedChange={setNewTab} />
           <Button type="submit" disabled={!validUrl} className="self-end">
             Übernehmen
           </Button>
@@ -134,13 +125,16 @@ export function LinkField({
   onChange: (value: LinkValue) => void;
   description?: string;
 }) {
+  const id = useId();
   const [open, setOpen] = useState(false);
   const page = value.type === "page" ? sitePages.find((p) => p.value === value.path) : undefined;
   const Icon = value.type === "page" ? FileText : Globe;
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[15px] font-medium">{label}</span>
+    <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
+      <span id={`${id}-label`} className="text-[15px] font-medium">
+        {label}
+      </span>
       <div className="flex min-h-14 items-center gap-3 rounded-xl border border-border-strong bg-surface py-2 pr-2 pl-3.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-subtle text-muted">
           <Icon className="size-[18px]" strokeWidth={1.75} />
@@ -164,7 +158,9 @@ export function LinkField({
           )}
         </span>
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger className={buttonStyles({ variant: "ghost", size: "sm" })}>Ändern</PopoverTrigger>
+          <PopoverTrigger aria-label={`${label} ändern`} className={buttonStyles({ variant: "ghost", size: "sm" })}>
+            Ändern
+          </PopoverTrigger>
           <PopoverContent align="end">
             <LinkPicker
               value={value}

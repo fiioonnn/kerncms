@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Plus } from "lucide-react";
 import { RowActions } from "@/components/actions/common";
+import { PostCategory } from "@/components/posts/post-category";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar, Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
@@ -8,12 +9,12 @@ import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 
 type PostStatus = "draft" | "scheduled" | "live";
 
-const posts: { title: string; category: string; author: string; status: PostStatus; date: string }[] = [
-  { title: "Adventsgebäck: Stollen vorbestellen", category: "Neuigkeiten", author: "Jonas Weber", status: "scheduled", date: "24. Nov., 08:00" },
-  { title: "Neue Sauerteigbrote ab Mai", category: "Neuigkeiten", author: "Anna Schmidt", status: "draft", date: "Heute" },
-  { title: "Unser Stand auf dem Wochenmarkt", category: "Events", author: "Jonas Weber", status: "live", date: "3. Nov." },
-  { title: "Rezept: Dinkel-Vollkornbrot", category: "Rezepte", author: "Anna Schmidt", status: "live", date: "21. Okt." },
-  { title: "Ausbildung bei uns", category: "Karriere", author: "Lena Hoffmann", status: "live", date: "9. Okt." },
+const posts: { title: string; /** Category id from the category store. */ category: string; author: string; status: PostStatus; date: string }[] = [
+  { title: "Adventsgebäck: Stollen vorbestellen", category: "news", author: "Jonas Weber", status: "scheduled", date: "24. Nov., 08:00" },
+  { title: "Neue Sauerteigbrote ab Mai", category: "news", author: "Anna Schmidt", status: "draft", date: "Heute" },
+  { title: "Unser Stand auf dem Wochenmarkt", category: "events", author: "Jonas Weber", status: "live", date: "3. Nov." },
+  { title: "Rezept: Dinkel-Vollkornbrot", category: "recipes", author: "Anna Schmidt", status: "live", date: "21. Okt." },
+  { title: "Ausbildung bei uns", category: "jobs", author: "Lena Hoffmann", status: "live", date: "9. Okt." },
 ];
 
 function StatusBadge({ status }: { status: PostStatus }) {
@@ -60,7 +61,9 @@ function PostTable({ filter }: { filter?: PostStatus }) {
                   {post.title}
                 </Link>
               </Td>
-              <Td className="text-muted">{post.category}</Td>
+              <Td className="text-muted">
+                <PostCategory id={post.category} />
+              </Td>
               <Td>
                 <span className="flex items-center gap-3">
                   <Avatar name={post.author} size="sm" />
