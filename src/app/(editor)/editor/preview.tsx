@@ -14,6 +14,7 @@ export type PreviewState = {
   status: "installing" | "starting" | "ready" | "error" | "stopped";
   port: number | null;
   url: string | null;
+  lanUrl: string | null;
   error: string | null;
   log: string[];
   startedAt: number;

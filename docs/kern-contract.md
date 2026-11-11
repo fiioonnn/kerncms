@@ -14,7 +14,7 @@ site:
   url: https://baeckerei-mueller.de
 branch: main                      # Live-Branch
 preview:
-  command: pnpm exec astro dev --port {port} --host 127.0.0.1
+  command: pnpm exec astro dev --port {port} --host {host} --ignore-lock   # {host}: 0.0.0.0 (Handy-Vorschau) oder 127.0.0.1
 build:
   command: pnpm exec astro build
 media:
@@ -133,6 +133,9 @@ Die Markierungen sind immer im HTML (sie stören nicht). Das Overlay-Skript läd
 ```astro
 {import.meta.env.KERN_PREVIEW && <script is:inline src={`${import.meta.env.KERN_CMS_URL}/kern-overlay.js`}></script>}
 ```
+
+Damit die Vorschau auch auf dem Handy (gleiches WLAN, per QR-Code) funktioniert, lauscht der Vorschau-Server auf allen Netzwerk-Schnittstellen.
+Mit `KERN_PREVIEW_LAN=0` bleibt er auf `127.0.0.1`.
 
 Das CMS startet den Vorschau-Server mit den Umgebungsvariablen `KERN_PREVIEW=1` und `KERN_CMS_URL`. In `astro.config.mjs` daher
 `vite: { define: … }` nicht nötig; Astro liest Variablen ohne `PUBLIC_` serverseitig über `import.meta.env` bzw. `process.env`.

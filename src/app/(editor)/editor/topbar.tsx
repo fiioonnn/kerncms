@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import { ArrowLeft, Check, ExternalLink, Loader2, MoreHorizontal, PanelLeft, Redo2, RotateCcw, Save, Undo2 } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { ArrowLeft, Check, ExternalLink, Loader2, MoreHorizontal, PanelLeft, Redo2, RefreshCw, RotateCcw, Save, Smartphone, Undo2 } from "lucide-react";
+import { toast } from "@/components/ui/toast";
+import { restartPreview } from "@/server/actions/site";
+import { PhonePreviewDialog } from "./phone-preview-dialog";
 import { PublishButton } from "@/components/actions/publish";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Badge } from "@/components/ui/display";
@@ -58,6 +61,7 @@ export function EditorTopbar({
   canUndo,
   canRedo,
   previewHref,
+  phoneHref,
   onUndo,
   onRedo,
   onOpenPanel,
@@ -79,6 +83,8 @@ export function EditorTopbar({
   canRedo: boolean;
   /** The page in the preview server, for "Vorschau in neuem Tab". */
   previewHref: string | null;
+  /** Preview address reachable from other devices in the network. */
+  phoneHref: string | null;
   onUndo: () => void;
   onRedo: () => void;
   onOpenPanel: () => void;
@@ -92,6 +98,7 @@ export function EditorTopbar({
 }) {
   const isMac = useIsMac();
   const mod = isMac ? "⌘" : "Strg+";
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const redoKey = isMac ? "⇧⌘Z" : "Strg+Y";
   const dirty = saveState !== "saved";
 
@@ -210,6 +217,23 @@ export function EditorTopbar({
                 Vorschau in neuem Tab
               </MenuItem>
             )}
+            {previewHref && (
+              <MenuItem icon={Smartphone} onClick={() => setPhoneOpen(true)}>
+                Auf dem Handy ansehen
+              </MenuItem>
+            )}
+            {canEdit && (
+              <MenuItem
+                icon={RefreshCw}
+                onClick={() =>
+                  void restartPreview().then((result) =>
+                    result.ok ? toast.success("Vorschau wird neu gestartet") : toast.error("Neustart fehlgeschlagen", { description: result.error }),
+                  )
+                }
+              >
+                Vorschau neu starten
+              </MenuItem>
+            )}
             <div className="sm:hidden">
               <MenuSeparator />
               <MenuItem icon={ArrowLeft} onClick={onLeave}>
@@ -237,6 +261,7 @@ export function EditorTopbar({
             <PublishButton showDone className="min-w-36 max-sm:min-w-0 max-sm:px-3 max-sm:text-sm" />
           ))}
       </div>
+      <PhonePreviewDialog open={phoneOpen} onOpenChange={setPhoneOpen} href={phoneHref} pageTitle={title} />
     </header>
   );
 }

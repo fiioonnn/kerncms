@@ -645,6 +645,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
         canUndo={doc.past.length > 0}
         canRedo={doc.future.length > 0}
         previewHref={frameSrc}
+        phoneHref={preview?.status === "ready" && preview.lanUrl ? preview.lanUrl + doc.framePath : null}
         onUndo={undo}
         onRedo={redo}
         onOpenPanel={() => setDrawerOpen(true)}

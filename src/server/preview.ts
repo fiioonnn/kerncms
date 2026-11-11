@@ -2,6 +2,7 @@ import "server-only";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import type { Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
@@ -11,10 +12,27 @@ export type PreviewState = {
   status: "installing" | "starting" | "ready" | "error" | "stopped";
   port: number | null;
   url: string | null;
+  /** Address on the local network (same Wi-Fi), e.g. for a phone. Null when the preview only listens locally. */
+  lanUrl: string | null;
   error: string | null;
   log: string[];
   startedAt: number;
 };
+
+/** Phones on the same network can open the preview, unless KERN_PREVIEW_LAN=0. */
+function lanEnabled() {
+  return process.env.KERN_PREVIEW_LAN !== "0";
+}
+
+/** First private IPv4 address of this machine, e.g. 192.168.178.95. */
+export function lanAddress() {
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const net of list ?? []) {
+      if (net.family === "IPv4" && !net.internal && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(net.address)) return net.address;
+    }
+  }
+  return null;
+}
 
 type Entry = PreviewState & { proc: ChildProcess | null; ready: Promise<void> | null };
 
@@ -81,11 +99,12 @@ function runToEnd(command: string, cwd: string, entry: Entry) {
 
 export function getPreview(siteId: string): PreviewState {
   const entry = registry.get(siteId);
-  if (!entry) return { status: "stopped", port: null, url: null, error: null, log: [], startedAt: 0 };
+  if (!entry) return { status: "stopped", port: null, url: null, lanUrl: null, error: null, log: [], startedAt: 0 };
   return {
     status: entry.status,
     port: entry.port,
     url: entry.url,
+    lanUrl: entry.lanUrl,
     error: entry.error,
     startedAt: entry.startedAt,
     log: entry.log.slice(-40),
@@ -101,6 +120,7 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
     status: "starting",
     port: null,
     url: null,
+    lanUrl: null,
     error: null,
     log: existing?.log ?? [],
     startedAt: Date.now(),
@@ -123,7 +143,14 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
       const port = await freePort(4400 + (registry.size % 50) * 2);
       entry.port = port;
       entry.url = `http://127.0.0.1:${port}`;
-      const command = config.preview.command.replaceAll("{port}", String(port));
+      // Listen on all interfaces so a phone in the same network can open the preview too.
+      const host = lanEnabled() ? "0.0.0.0" : "127.0.0.1";
+      const lan = lanEnabled() ? lanAddress() : null;
+      entry.lanUrl = lan ? `http://${lan}:${port}` : null;
+      const command = config.preview.command
+        .replaceAll("{port}", String(port))
+        .replaceAll("{host}", host)
+        .replace(/--host[ =]127\.0\.0\.1\b/, `--host ${host}`);
       pushLog(entry, `$ ${command}`);
       const proc = run(command, dir, { KERN_PREVIEW: "1", KERN_CMS_URL: cmsUrl, BROWSER: "none" }, entry);
       entry.proc = proc;
