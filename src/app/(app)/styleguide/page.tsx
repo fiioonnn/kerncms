@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { InteractionDemos } from "./interaction-demos";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Avatar, Badge, Card, CardContent, CardHeader, PageHeader, Table, Td, Th } from "@/components/ui/display";
@@ -235,6 +236,10 @@ export default function StyleguidePage() {
             </Table>
           </Card>
         </div>
+      </Section>
+
+      <Section title="Interaktion" description="Menüs, Dialoge, Toasts, Tooltips und Umschalter. Alle basieren auf Base UI und sind per Tastatur bedienbar.">
+        <InteractionDemos />
       </Section>
 
       <Section title="Tabs" description="Für Unterbereiche einer Seite, nicht für Hauptnavigation.">

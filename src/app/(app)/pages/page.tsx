@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { MoreHorizontal, Plus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button, buttonStyles } from "@/components/ui/button";
+import { RowActions } from "@/components/actions/common";
+import { NewPageDialog } from "@/components/actions/create-dialogs";
+import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
 
 const pages = [
@@ -20,10 +21,7 @@ export default function PagesPage() {
         title="Seiten"
         description="Alle Seiten deiner Website. Klicke auf eine Seite, um sie visuell zu bearbeiten."
         actions={
-          <Button>
-            <Plus />
-            Neue Seite
-          </Button>
+          <NewPageDialog />
         }
       />
 
@@ -64,9 +62,7 @@ export default function PagesPage() {
                     <Link href="/editor" className={buttonStyles({ variant: "secondary", size: "sm" })}>
                       Bearbeiten
                     </Link>
-                    <Button variant="ghost" size="icon" aria-label="Mehr">
-                      <MoreHorizontal />
-                    </Button>
+                    <RowActions name={page.title} editHref="/editor" path={page.path} />
                   </div>
                 </Td>
               </tr>

@@ -10,15 +10,21 @@ export function Select({
   items,
   label,
   defaultValue,
+  onValueChange,
   className,
 }: {
   items: SelectItem[];
   label?: string;
   defaultValue?: string;
+  onValueChange?: (value: string) => void;
   className?: string;
 }) {
   return (
-    <BaseSelect.Root items={items} defaultValue={defaultValue}>
+    <BaseSelect.Root
+      items={items}
+      defaultValue={defaultValue}
+      onValueChange={(value) => onValueChange?.(value as string)}
+    >
       <div className={cn("flex flex-col gap-2", className)}>
         {label && (
           <BaseSelect.Label className="text-[15px] font-medium text-foreground">

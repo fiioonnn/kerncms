@@ -1,7 +1,7 @@
-import { ImageIcon, Upload } from "lucide-react";
+import { UploadDialog } from "@/components/actions/common";
+import { MediaTile } from "./media-tile";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui/button";
-import { Card, PageHeader } from "@/components/ui/display";
+import { PageHeader } from "@/components/ui/display";
 
 const files = [
   { name: "hero-brot.jpg", size: "1,2 MB" },
@@ -21,24 +21,13 @@ export default function MediaPage() {
         title="Medien"
         description="Bilder und Dateien, die du in Seiten und Beiträgen verwenden kannst."
         actions={
-          <Button>
-            <Upload />
-            Hochladen
-          </Button>
+          <UploadDialog />
         }
       />
 
       <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
         {files.map((file) => (
-          <Card key={file.name} className="group overflow-hidden transition-shadow hover:shadow-popover">
-            <div className="flex aspect-[4/3] items-center justify-center bg-subtle text-border-strong">
-              <ImageIcon className="size-10" strokeWidth={1.25} />
-            </div>
-            <div className="flex flex-col px-4 py-3.5">
-              <span className="truncate text-[15px] font-medium">{file.name}</span>
-              <span className="text-sm text-muted">{file.size}</span>
-            </div>
-          </Card>
+          <MediaTile key={file.name} name={file.name} size={file.size} />
         ))}
       </div>
     </PageContainer>

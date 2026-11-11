@@ -1,22 +1,37 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
   Eye,
+  Images,
+  LayoutTemplate,
   Monitor,
+  MessageSquareQuote,
   Plus,
   Redo2,
   Smartphone,
   Tablet,
+  Text,
   Trash2,
   Undo2,
+  type LucideIcon,
 } from "lucide-react";
+import { PublishButton } from "@/components/actions/publish";
 import { Button, buttonStyles } from "@/components/ui/button";
+import { ConfirmDialog, Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/display";
 import { Description, Field, Input, Label, Textarea } from "@/components/ui/field";
+import { SegmentedControl, Tooltip } from "@/components/ui/overlay";
 import { Select } from "@/components/ui/select";
+import { toast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/toggles";
 import { cn } from "@/lib/utils";
+import { EditorLoader } from "./editor-loader";
+
+/* ---------- Example content ---------- */
 
 const pages = [
   { label: "Startseite", value: "home" },
@@ -31,67 +46,182 @@ const layouts = [
 ];
 
 const marks = [
-  { label: "Akzent", className: "text-accent" },
-  { label: "Marker", className: "bg-warning-soft" },
-  { label: "Wellenlinie", className: "underline decoration-wavy decoration-accent underline-offset-4" },
+  { id: "accent", label: "Akzent", className: "text-accent" },
+  { id: "marker", label: "Marker", className: "bg-warning-soft box-decoration-clone px-1" },
+  { id: "wavy", label: "Wellenlinie", className: "underline decoration-wavy decoration-accent decoration-2 underline-offset-[6px]" },
+] as const;
+
+type MarkId = (typeof marks)[number]["id"];
+
+const devices = [
+  { value: "desktop", label: "Desktop", icon: Monitor, width: undefined },
+  { value: "tablet", label: "Tablet", icon: Tablet, width: 820 },
+  { value: "mobile", label: "Smartphone", icon: Smartphone, width: 390 },
 ];
 
-const viewports = [
-  { label: "Desktop", icon: Monitor },
-  { label: "Tablet", icon: Tablet },
-  { label: "Smartphone", icon: Smartphone },
+const blockTypes: { label: string; description: string; icon: LucideIcon }[] = [
+  { label: "Hero", description: "Große Überschrift mit Text und Button", icon: LayoutTemplate },
+  { label: "Text", description: "Fließtext mit Zwischenüberschriften", icon: Text },
+  { label: "Galerie", description: "Bilder im Raster", icon: Images },
+  { label: "Zitat", description: "Kundenstimme oder Zitat", icon: MessageSquareQuote },
 ];
 
-function EditorTopbar() {
+type BlockId = "hero" | "categories";
+
+/* ---------- Topbar ---------- */
+
+function EditorTopbar({
+  device,
+  onDeviceChange,
+  onPageChange,
+}: {
+  device: string;
+  onDeviceChange: (value: string) => void;
+  onPageChange: (value: string) => void;
+}) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-surface px-4">
-      <Link
-        href="/pages"
-        aria-label="Zurück zum CMS"
-        className={buttonStyles({ variant: "ghost", size: "icon" })}
-      >
-        <ArrowLeft strokeWidth={1.75} />
-      </Link>
+      <Tooltip label="Zurück zum CMS">
+        <Link href="/pages" aria-label="Zurück zum CMS" className={buttonStyles({ variant: "ghost", size: "icon" })}>
+          <ArrowLeft strokeWidth={1.75} />
+        </Link>
+      </Tooltip>
       <span className="h-8 w-px bg-border" />
-      <Select items={pages} defaultValue="home" className="w-56" />
+      <Select items={pages} defaultValue="home" onValueChange={onPageChange} className="w-56" />
       <Badge tone="warning" dot>
         Entwurf
       </Badge>
 
-      <div className="mx-auto flex rounded-xl border border-border p-1">
-        {viewports.map((viewport, i) => (
-          <Button
-            key={viewport.label}
-            variant="ghost"
-            size="icon"
-            aria-label={viewport.label}
-            className={cn("size-9 rounded-lg", i === 0 && "bg-subtle")}
-          >
-            <viewport.icon strokeWidth={1.75} />
-          </Button>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Gerät"
+        items={devices.map(({ value, label, icon }) => ({ value, label, icon }))}
+        value={device}
+        onValueChange={onDeviceChange}
+        className="mx-auto"
+      />
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="Rückgängig">
-          <Undo2 strokeWidth={1.75} />
-        </Button>
-        <Button variant="ghost" size="icon" aria-label="Wiederholen">
-          <Redo2 strokeWidth={1.75} />
-        </Button>
+        <Tooltip label="Rückgängig (⌘Z)">
+          <Button variant="ghost" size="icon" aria-label="Rückgängig" onClick={() => toast.info("Rückgängig gemacht")}>
+            <Undo2 strokeWidth={1.75} />
+          </Button>
+        </Tooltip>
+        <Tooltip label="Wiederholen (⇧⌘Z)">
+          <Button variant="ghost" size="icon" aria-label="Wiederholen" onClick={() => toast.info("Wiederholt")}>
+            <Redo2 strokeWidth={1.75} />
+          </Button>
+        </Tooltip>
         <span className="mx-1 h-8 w-px bg-border" />
-        <Button variant="secondary">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            void navigator.clipboard?.writeText(`${location.origin}/preview/startseite`);
+            toast.success("Vorschau-Link kopiert", { description: "Gültig für 7 Tage, ohne Anmeldung." });
+          }}
+        >
           <Eye />
           Vorschau
         </Button>
-        <Button variant="secondary">Speichern</Button>
-        <Button>Veröffentlichen</Button>
+        <Button variant="secondary" onClick={() => toast.success("Gespeichert", { description: "Die Änderung liegt im Entwurf." })}>
+          Speichern
+        </Button>
+        <PublishButton changes={1} />
       </div>
     </header>
   );
 }
 
-function PropertiesSidebar() {
+/* ---------- Properties sidebar ---------- */
+
+function HeroFields({ mark, onMarkChange }: { mark: MarkId; onMarkChange: (mark: MarkId) => void }) {
+  const active = marks.find((m) => m.id === mark)!;
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <span className="text-[15px] font-medium">Überschrift</span>
+        <div className="rounded-xl border border-accent ring-4 ring-accent/15">
+          <div className="flex flex-wrap gap-1.5 border-b border-border p-2">
+            {marks.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={m.id === mark}
+                onClick={() => onMarkChange(m.id)}
+                className={cn(
+                  "h-9 rounded-lg px-3 text-sm font-medium transition-colors",
+                  m.id === mark ? "bg-accent-soft text-accent" : "hover:bg-subtle",
+                )}
+              >
+                <span className={m.className}>{m.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="px-4 py-3 text-[15px] leading-relaxed">
+            Frisches Brot, <span className={cn("rounded", active.className)}>jeden Morgen</span> aus unserer Backstube
+          </p>
+        </div>
+        <p className="text-sm text-muted">Markiere Wörter und wähle einen Stil.</p>
+      </div>
+
+      <Field>
+        <Label>Text</Label>
+        <Textarea rows={3} defaultValue="Seit 1962 backen wir mit Zeit, Handwerk und regionalem Mehl." />
+      </Field>
+
+      <div className="flex flex-col gap-5 border-t border-border pt-7">
+        <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Button</h3>
+        <Field>
+          <Label>Text</Label>
+          <Input defaultValue="Zum Sortiment" />
+        </Field>
+        <Field>
+          <Label>Link</Label>
+          <Input defaultValue="/sortiment" />
+          <Description>Interne Seite oder vollständige URL.</Description>
+        </Field>
+      </div>
+
+      <div className="flex flex-col gap-5 border-t border-border pt-7">
+        <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Darstellung</h3>
+        <Select label="Layout" items={layouts} defaultValue="left" />
+        <Switch label="Hintergrundbild" description="Bild hinter der Überschrift anzeigen." />
+      </div>
+    </>
+  );
+}
+
+function CategoryFields() {
+  return (
+    <>
+      {["Brote", "Brötchen", "Kuchen"].map((label, i) => (
+        <div key={label} className={cn("flex flex-col gap-5", i > 0 && "border-t border-border pt-7")}>
+          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Kachel {i + 1}</h3>
+          <Field>
+            <Label>Titel</Label>
+            <Input defaultValue={label} />
+          </Field>
+          <Field>
+            <Label>Link</Label>
+            <Input defaultValue={`/sortiment#${label.toLowerCase()}`} />
+          </Field>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function PropertiesSidebar({
+  block,
+  mark,
+  onMarkChange,
+}: {
+  block: BlockId;
+  mark: MarkId;
+  onMarkChange: (mark: MarkId) => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const title = block === "hero" ? "Hero" : "Kategorien";
+
   return (
     <aside className="flex w-[400px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex flex-col gap-1 border-b border-border px-6 py-5">
@@ -100,127 +230,183 @@ function PropertiesSidebar() {
           <ChevronRight className="size-3.5" />
           Block
         </span>
-        <h2 className="text-xl font-semibold tracking-tight">Hero</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
       </div>
 
-      <div className="flex flex-1 flex-col gap-7 overflow-y-auto px-6 py-6">
-        <div className="flex flex-col gap-2">
-          <span className="text-[15px] font-medium">Überschrift</span>
-          <div className="rounded-xl border border-accent ring-4 ring-accent/15">
-            <div className="flex flex-wrap gap-1.5 border-b border-border p-2">
-              {marks.map((mark, i) => (
-                <button
-                  key={mark.label}
-                  type="button"
-                  className={cn(
-                    "h-9 rounded-lg px-3 text-sm font-medium transition-colors",
-                    i === 0 ? "bg-accent-soft text-accent" : "hover:bg-subtle",
-                  )}
-                >
-                  <span className={mark.className}>{mark.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="px-4 py-3 text-[15px] leading-relaxed">
-              Frisches Brot, <span className="rounded bg-accent-soft px-0.5 text-accent">jeden Morgen</span> aus
-              unserer Backstube
-            </p>
-          </div>
-          <p className="text-sm text-muted">Markiere Wörter und wähle einen Stil.</p>
-        </div>
-
-        <Field>
-          <Label>Text</Label>
-          <Textarea rows={3} defaultValue="Seit 1962 backen wir mit Zeit, Handwerk und regionalem Mehl." />
-        </Field>
-
-        <div className="flex flex-col gap-5 border-t border-border pt-7">
-          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Button</h3>
-          <Field>
-            <Label>Text</Label>
-            <Input defaultValue="Zum Sortiment" />
-          </Field>
-          <Field>
-            <Label>Link</Label>
-            <Input defaultValue="/sortiment" />
-            <Description>Interne Seite oder vollständige URL.</Description>
-          </Field>
-        </div>
-
-        <div className="flex flex-col gap-5 border-t border-border pt-7">
-          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Darstellung</h3>
-          <Select label="Layout" items={layouts} defaultValue="left" />
-          <Switch label="Hintergrundbild" description="Bild hinter der Überschrift anzeigen." />
-        </div>
+      <div key={block} className="flex flex-1 flex-col gap-7 overflow-y-auto px-6 py-6">
+        {block === "hero" ? <HeroFields mark={mark} onMarkChange={onMarkChange} /> : <CategoryFields />}
       </div>
 
       <div className="border-t border-border p-4">
-        <Button variant="ghost" className="w-full text-danger hover:bg-danger-soft">
+        <Button variant="ghost" className="w-full text-danger hover:bg-danger-soft" onClick={() => setConfirmOpen(true)}>
           <Trash2 />
           Block entfernen
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Block „${title}“ entfernen?`}
+        description="Der Block verschwindet aus dem Entwurf. Mit Rückgängig holst du ihn zurück."
+        confirmLabel="Entfernen"
+        danger
+        onConfirm={() => toast.success(`Block „${title}“ entfernt`)}
+      />
     </aside>
   );
 }
 
-function Canvas() {
+/* ---------- Canvas ---------- */
+
+function AddBlockDialog() {
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      {/* Mock of the customer's site as it would appear in the iframe */}
-      <div>
-        <div className="flex items-center justify-between border-b border-neutral-100 px-12 py-6">
-          <span className="text-lg font-bold">Bäckerei Müller</span>
-          <span className="flex gap-7 text-[15px] text-neutral-500">
-            <span>Sortiment</span>
-            <span>Über uns</span>
-            <span>Kontakt</span>
-          </span>
-        </div>
-
-        <div className="relative m-4 rounded-xl px-8 py-16 outline-2 outline-accent">
-          <span className="absolute -top-3 left-6 rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-white">
-            Hero
-          </span>
-          <h1 className="max-w-3xl text-5xl leading-tight font-bold tracking-tight">
-            Frisches Brot, <span className="text-accent">jeden Morgen</span> aus unserer Backstube
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-neutral-500">
-            Seit 1962 backen wir mit Zeit, Handwerk und regionalem Mehl.
-          </p>
-          <span className="mt-8 inline-flex h-12 items-center rounded-full bg-neutral-900 px-6 text-[15px] font-medium text-white">
-            Zum Sortiment
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-5 px-12 pt-4 pb-10">
-          {["Brote", "Brötchen", "Kuchen"].map((label) => (
-            <div
-              key={label}
-              className="flex aspect-[4/3] items-end rounded-xl bg-neutral-100 p-4 text-[15px] font-medium outline-dashed outline-1 outline-transparent hover:outline-accent"
+    <Dialog>
+      <DialogTrigger className={buttonStyles({ variant: "secondary" })}>
+        <Plus />
+        Block hinzufügen
+      </DialogTrigger>
+      <DialogContent title="Block hinzufügen" description="Wähle, was unter dem letzten Block erscheinen soll." size="lg">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {blockTypes.map((type) => (
+            <DialogClose
+              key={type.label}
+              onClick={() => toast.success(`Block „${type.label}“ hinzugefügt`)}
+              className="flex items-start gap-4 rounded-xl border border-border p-4 text-left transition-colors outline-none hover:border-accent hover:bg-accent-soft/50 focus-visible:ring-4 focus-visible:ring-accent/15"
             >
-              {label}
-            </div>
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-subtle text-foreground">
+                <type.icon className="size-5" strokeWidth={1.75} />
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-base font-medium">{type.label}</span>
+                <span className="text-sm text-muted">{type.description}</span>
+              </span>
+            </DialogClose>
           ))}
         </div>
-        <div className="flex justify-center px-12 pb-16">
-          <Button variant="secondary">
-            <Plus />
-            Block hinzufügen
-          </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Canvas({
+  device,
+  block,
+  onSelect,
+  mark,
+}: {
+  device: string;
+  block: BlockId;
+  onSelect: (block: BlockId) => void;
+  mark: MarkId;
+}) {
+  const width = devices.find((d) => d.value === device)?.width;
+  const narrow = device === "mobile";
+  const markClass = marks.find((m) => m.id === mark)!.className;
+
+  const blockClass = (id: BlockId) =>
+    cn(
+      "relative cursor-pointer rounded-xl outline-2 -outline-offset-2 transition-[outline-color]",
+      block === id ? "outline-accent" : "outline-transparent hover:outline-accent/40",
+    );
+
+  return (
+    <div className={cn("flex-1 overflow-auto", width ? "bg-background p-8" : "bg-white")}>
+      <div
+        className={cn("mx-auto bg-white transition-[max-width] duration-300", width && "overflow-hidden rounded-2xl border border-border")}
+        style={{ maxWidth: width ?? "100%" }}
+      >
+        <div className={cn("flex items-center justify-between border-b border-neutral-100 py-6", narrow ? "px-6" : "px-12")}>
+          <span className="text-lg font-bold">Bäckerei Müller</span>
+          {narrow ? (
+            <span className="flex flex-col gap-1">
+              <span className="h-0.5 w-5 bg-neutral-800" />
+              <span className="h-0.5 w-5 bg-neutral-800" />
+              <span className="h-0.5 w-5 bg-neutral-800" />
+            </span>
+          ) : (
+            <span className="flex gap-7 text-[15px] text-neutral-500">
+              <span>Sortiment</span>
+              <span>Über uns</span>
+              <span>Kontakt</span>
+            </span>
+          )}
+        </div>
+
+        <div className={cn("m-3", blockClass("hero"))} onClick={() => onSelect("hero")}>
+          {block === "hero" && (
+            <span className="absolute -top-3 left-6 rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-white">Hero</span>
+          )}
+          <div className={cn(narrow ? "px-5 py-10" : "px-9 py-16")}>
+            <h1 className={cn("max-w-3xl leading-tight font-bold tracking-tight", narrow ? "text-4xl" : "text-5xl")}>
+              Frisches Brot, <span className={markClass}>jeden Morgen</span> aus unserer Backstube
+            </h1>
+            <p className="mt-6 max-w-xl text-lg text-neutral-500">
+              Seit 1962 backen wir mit Zeit, Handwerk und regionalem Mehl.
+            </p>
+            <span className="mt-8 inline-flex h-12 items-center rounded-full bg-neutral-900 px-6 text-[15px] font-medium text-white">
+              Zum Sortiment
+            </span>
+          </div>
+        </div>
+
+        <div className={cn("m-3", blockClass("categories"))} onClick={() => onSelect("categories")}>
+          {block === "categories" && (
+            <span className="absolute -top-3 left-6 z-10 rounded-md bg-accent px-2 py-0.5 text-xs font-medium text-white">
+              Kategorien
+            </span>
+          )}
+          <div className={cn("grid gap-5 p-9", narrow ? "grid-cols-1 p-5" : "grid-cols-3")}>
+            {["Brote", "Brötchen", "Kuchen"].map((label) => (
+              <div key={label} className="flex aspect-[4/3] items-end rounded-xl bg-neutral-100 p-4 text-[15px] font-medium">
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-center px-12 pt-4 pb-16">
+          <AddBlockDialog />
         </div>
       </div>
     </div>
   );
 }
 
+/* ---------- Page ---------- */
+
 export default function EditorPage() {
+  const [loading, setLoading] = useState(true);
+  const [loadingText, setLoadingText] = useState<string | undefined>();
+  const [device, setDevice] = useState("desktop");
+  const [block, setBlock] = useState<BlockId>("hero");
+  const [mark, setMark] = useState<MarkId>("accent");
+
+  // Simulates the site preview starting up; later this waits for the iframe.
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setLoading(false), loadingText ? 600 : 1200);
+    return () => clearTimeout(timer);
+  }, [loading, loadingText]);
+
   return (
     <div className="flex h-dvh flex-col">
-      <EditorTopbar />
+      <EditorLoader
+        visible={loading}
+        {...(loadingText && { title: `${loadingText} wird geladen`, detail: "Einen Moment…" })}
+      />
+      <EditorTopbar
+        device={device}
+        onDeviceChange={setDevice}
+        onPageChange={(value) => {
+          setLoadingText(pages.find((p) => p.value === value)?.label);
+          setBlock("hero");
+          setLoading(true);
+        }}
+      />
       <div className="flex min-h-0 flex-1">
-        <PropertiesSidebar />
-        <Canvas />
+        <PropertiesSidebar block={block} mark={mark} onMarkChange={setMark} />
+        <Canvas device={device} block={block} onSelect={setBlock} mark={mark} />
       </div>
     </div>
   );

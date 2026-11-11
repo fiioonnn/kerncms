@@ -1,6 +1,6 @@
-import { MoreHorizontal, UserPlus } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui/button";
+import { RowActions } from "@/components/actions/common";
+import { InviteDialog } from "@/components/actions/create-dialogs";
 import { Avatar, Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
 
 const members = [
@@ -16,10 +16,7 @@ export default function TeamPage() {
         title="Team"
         description="Wer Zugriff auf diese Website hat und was er bearbeiten darf."
         actions={
-          <Button>
-            <UserPlus />
-            Einladen
-          </Button>
+          <InviteDialog />
         }
       />
 
@@ -48,9 +45,7 @@ export default function TeamPage() {
                   <Badge tone={member.tone}>{member.role}</Badge>
                 </Td>
                 <Td>
-                  <Button variant="ghost" size="icon" aria-label="Mehr">
-                    <MoreHorizontal />
-                  </Button>
+                  <RowActions name={member.name} deleteLabel="Entfernen" />
                 </Td>
               </tr>
             ))}

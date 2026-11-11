@@ -1,6 +1,7 @@
-import { Copy, GitBranch, ShieldCheck } from "lucide-react";
+import { GitBranch, ShieldCheck } from "lucide-react";
+import { CopyButton, SaveButton } from "@/components/actions/common";
+import { RepoChangeButton } from "./repo-change";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -50,7 +51,7 @@ export default function SettingsPage() {
               </Field>
               <Select label="Sprache" items={languages} defaultValue="de" />
               <div className="flex justify-end border-t border-border pt-6">
-                <Button>Speichern</Button>
+                <SaveButton description="Die Einstellungen gelten sofort." />
               </div>
             </CardContent>
           </Card>
@@ -74,9 +75,7 @@ export default function SettingsPage() {
                   <span className="font-mono text-[15px] font-medium">baeckerei-mueller/website</span>
                   <span className="text-sm text-muted">über die kerncms GitHub App</span>
                 </span>
-                <Button variant="secondary" size="sm" className="ml-auto">
-                  Ändern
-                </Button>
+                <RepoChangeButton />
               </div>
               <Select label="Live-Branch" items={branches} defaultValue="main" />
               <Field>
@@ -152,10 +151,7 @@ export default function SettingsPage() {
                 <code className="min-w-0 flex-1 font-mono text-sm leading-relaxed break-all">
                   {'<script defer src="/_kern/t.js"></script>'}
                 </code>
-                <Button variant="secondary" size="sm">
-                  <Copy />
-                  Kopieren
-                </Button>
+                <CopyButton value={"<script defer src=\"/_kern/t.js\"></script>"} />
               </div>
               <p className="text-sm text-muted">
                 Das Skript wird über die eigene Domain ausgeliefert, damit keine Daten an Dritte gehen.

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ArrowLeft, Bold, Heading2, ImagePlus, Italic, Link2, List } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
+import { SaveButton, UploadDialog } from "@/components/actions/common";
+import { PublishButton } from "@/components/actions/publish";
 import { Button, buttonStyles } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/overlay";
 import { Card, CardContent, CardHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label, Textarea } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -14,7 +17,13 @@ const categories = [
   { label: "Karriere", value: "jobs" },
 ];
 
-const toolbar = [Heading2, Bold, Italic, Link2, List];
+const toolbar = [
+  { icon: Heading2, label: "Zwischenüberschrift" },
+  { icon: Bold, label: "Fett" },
+  { icon: Italic, label: "Kursiv" },
+  { icon: Link2, label: "Link" },
+  { icon: List, label: "Liste" },
+];
 
 export default function NewPostPage() {
   return (
@@ -27,8 +36,8 @@ export default function NewPostPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Neuer Beitrag</h1>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary">Als Entwurf speichern</Button>
-          <Button>Veröffentlichen</Button>
+          <SaveButton variant="secondary" label="Als Entwurf speichern" message="Entwurf gespeichert" />
+          <PublishButton changes={1} />
         </div>
       </div>
 
@@ -48,10 +57,12 @@ export default function NewPostPage() {
               <span className="text-[15px] font-medium">Inhalt</span>
               <div className="overflow-hidden rounded-xl border border-border-strong">
                 <div className="flex gap-1 border-b border-border bg-subtle/60 p-2">
-                  {toolbar.map((Icon, i) => (
-                    <Button key={i} variant="ghost" size="icon" className="size-10" aria-label="Format">
-                      <Icon strokeWidth={1.75} />
-                    </Button>
+                  {toolbar.map(({ icon: Icon, label }) => (
+                    <Tooltip key={label} label={label}>
+                      <Button variant="ghost" size="icon" className="size-10" aria-label={label}>
+                        <Icon strokeWidth={1.75} />
+                      </Button>
+                    </Tooltip>
                   ))}
                 </div>
                 <div className="min-h-80 bg-surface p-5" />
@@ -76,13 +87,15 @@ export default function NewPostPage() {
           <Card>
             <CardHeader title="Beitragsbild" />
             <CardContent>
-              <button
-                type="button"
-                className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border-strong text-muted transition-colors hover:border-accent hover:text-accent"
-              >
-                <ImagePlus className="size-8" strokeWidth={1.5} />
-                <span className="text-[15px] font-medium">Bild hochladen</span>
-              </button>
+              <UploadDialog
+                triggerClassName="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border-strong text-muted transition-colors hover:border-accent hover:text-accent"
+                trigger={
+                  <>
+                    <ImagePlus className="size-8" strokeWidth={1.5} />
+                    <span className="text-[15px] font-medium">Bild hochladen</span>
+                  </>
+                }
+              />
             </CardContent>
           </Card>
         </div>

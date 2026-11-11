@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
 import { BarList } from "@/components/charts/bar-list";
-import { VisitorsChart } from "@/components/charts/visitors-chart";
+import { VisitorsCard } from "./visitors-card";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
@@ -34,7 +34,6 @@ const regions = [
   { label: "Andere", value: 342 },
 ];
 
-const ranges = ["7 Tage", "30 Tage", "12 Monate"];
 
 export default function AnalyticsPage() {
   return (
@@ -44,22 +43,7 @@ export default function AnalyticsPage() {
         description="Wie viele Menschen deine Website besuchen und was sie sich ansehen. Ohne Cookies und ohne Cookie-Banner."
       />
 
-      {/* Filter row */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex rounded-xl border border-border bg-surface p-1">
-          {ranges.map((range) => (
-            <button
-              key={range}
-              type="button"
-              className={cn(
-                "h-9 rounded-lg px-4 text-[15px] font-medium transition-colors",
-                range === "30 Tage" ? "bg-subtle text-foreground" : "text-muted hover:text-foreground",
-              )}
-            >
-              {range}
-            </button>
-          ))}
-        </div>
+      <div className="mb-8 flex justify-end">
         <Badge tone="success" className="h-9 gap-2 px-3.5">
           <ShieldCheck className="size-4" />
           Cookielos · Daten in der EU
@@ -80,13 +64,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {/* Visitors over time */}
-      <Card className="mt-8">
-        <CardHeader title="Besucher pro Tag" description="Letzte 30 Tage, eindeutige Besucher je Tag" />
-        <CardContent className="pt-8">
-          <VisitorsChart data={daily} label="Besucher pro Tag, letzte 30 Tage" />
-        </CardContent>
-      </Card>
+      <VisitorsCard data={daily} />
 
       {/* Breakdowns */}
       <div className="mt-8 grid gap-8 lg:grid-cols-2">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { RowActions } from "@/components/actions/common";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar, Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
@@ -24,6 +25,7 @@ function PostTable({ filter }: { filter?: "draft" | "live" }) {
             <Th>Autor</Th>
             <Th>Status</Th>
             <Th>Datum</Th>
+            <Th className="w-0" aria-label="Aktionen" />
           </tr>
         </thead>
         <tbody>
@@ -53,6 +55,9 @@ function PostTable({ filter }: { filter?: "draft" | "live" }) {
                 )}
               </Td>
               <Td className="text-muted">{post.date}</Td>
+              <Td>
+                <RowActions name={post.title} editHref="/posts/new" />
+              </Td>
             </tr>
           ))}
         </tbody>

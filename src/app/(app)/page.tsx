@@ -4,7 +4,8 @@ import { BarList } from "@/components/charts/bar-list";
 import { VisitorsChart } from "@/components/charts/visitors-chart";
 import { analyticsKpis, dailyVisitors, topPages } from "@/lib/example-analytics";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button, buttonStyles } from "@/components/ui/button";
+import { PublishButton, DiscardButton } from "@/components/actions/publish";
+import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
 
 const stats = [
@@ -136,8 +137,8 @@ export default function DashboardPage() {
               ))}
             </ul>
             <div className="mt-auto flex gap-3 pt-4">
-              <Button className="flex-1">Veröffentlichen</Button>
-              <Button variant="secondary">Verwerfen</Button>
+              <PublishButton className="flex-1" />
+              <DiscardButton />
             </div>
           </CardContent>
         </Card>

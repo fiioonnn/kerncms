@@ -112,7 +112,7 @@ export function VisitorsChart({
 
       {/* X axis */}
       <div className="ml-16 flex justify-between text-sm text-muted">
-        {[0, 7, 14, 21, data.length - 1].map((i) => (
+        {[...new Set([0, 1, 2, 3, 4].map((k) => Math.round((k * (data.length - 1)) / 4)))].map((i) => (
           <span key={i}>{formatDay(data[i].date)}</span>
         ))}
       </div>
