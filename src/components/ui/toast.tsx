@@ -25,16 +25,20 @@ function ToastList() {
   const { toasts } = Toast.useToastManager();
   return toasts.map((item) => {
     const { icon: Icon, className } = icons[(item.type as keyof typeof icons) ?? "info"] ?? icons.info;
+    const hasDescription = Boolean(item.description);
     return (
       <Toast.Root
         key={item.id}
         toast={item}
-        className="flex w-full items-start gap-3.5 rounded-2xl border border-border bg-surface p-4 pr-3 shadow-popover transition-[translate,opacity] duration-200 ease-out select-none data-ending-style:translate-x-6 data-ending-style:opacity-0 data-starting-style:translate-y-4 data-starting-style:opacity-0"
+        className={cn(
+          "flex w-full gap-3 rounded-2xl border border-border bg-surface py-3 pr-3 pl-4 shadow-popover transition-[translate,opacity] duration-200 ease-out select-none data-ending-style:translate-x-6 data-ending-style:opacity-0 data-starting-style:translate-y-4 data-starting-style:opacity-0",
+          hasDescription ? "items-start" : "items-center",
+        )}
       >
-        <Icon className={cn("mt-0.5 size-5 shrink-0", className)} strokeWidth={2} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <Toast.Title className="text-[15px] font-semibold" />
-          <Toast.Description className="text-sm text-muted" />
+        <Icon className={cn("size-5 shrink-0", hasDescription && "mt-1.5", className)} strokeWidth={2} />
+        <div className={cn("flex min-w-0 flex-1 flex-col gap-0.5", hasDescription && "py-1")}>
+          <Toast.Title className="text-[15px] leading-snug font-semibold" />
+          {hasDescription && <Toast.Description className="text-sm leading-snug text-muted" />}
         </div>
         <Toast.Close
           aria-label="Schließen"
