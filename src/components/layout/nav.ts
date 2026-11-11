@@ -43,6 +43,8 @@ export const navigation: NavGroup[] = [
       { label: "Globals", href: "/globals", icon: Globe },
       { label: "Freigaben", href: "/approvals", icon: BadgeCheck, badge: "approvalsOpen" },
       { label: "Verlauf", href: "/history", icon: History },
+      { label: "Team", href: "/team", icon: Users },
+      { label: "Einstellungen", href: "/settings", icon: Settings },
     ],
   },
 ];
@@ -50,8 +52,6 @@ export const navigation: NavGroup[] = [
 /** Reachable via buttons and the user menu; not listed in the sidebar. */
 export const secondaryItems: NavItem[] = [
   { label: "Visueller Editor", href: "/editor", icon: MousePointerClick, parent: "/pages" },
-  { label: "Team", href: "/team", icon: Users },
-  { label: "Einstellungen", href: "/settings", icon: Settings },
   { label: "Papierkorb", href: "/trash", icon: Trash2 },
   { label: "Styleguide", href: "/styleguide", icon: Palette },
   { label: "Alle Websites", href: "/sites", icon: LayoutGrid },

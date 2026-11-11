@@ -11,19 +11,23 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const files = form.getAll("file").filter((f): f is File => typeof f !== "string");
     if (files.length === 0) return Response.json({ ok: false, error: "Keine Datei ausgewählt." }, { status: 400 });
-    const names = await withSiteLock(ws.site.id, async () => {
-      const saved: string[] = [];
-      for (const file of files) saved.push(await saveUpload(ws.site.id, ws.user.id, ws.dir, ws.config, file));
-      await commit(
-        ws.dir,
-        saved.length === 1 ? `Bild „${saved[0]}“ hochgeladen` : `${saved.length} Dateien hochgeladen`,
-        { name: ws.user.name, email: ws.user.email },
-        saved.map((n) => path.posix.join(ws.config.media.dir, n)),
-      );
-      return saved;
+    const saved = await withSiteLock(ws.site.id, async () => {
+      const result: { name: string; value: string; location: string }[] = [];
+      for (const file of files) result.push(await saveUpload(ws.site, ws.user.id, ws.dir, ws.config, file));
+      // Files in object storage are live right away; only repository files are committed.
+      const inRepo = result.filter((r) => r.location === "repo").map((r) => r.name);
+      if (inRepo.length > 0) {
+        await commit(
+          ws.dir,
+          inRepo.length === 1 ? `Bild „${inRepo[0]}“ hochgeladen` : `${inRepo.length} Dateien hochgeladen`,
+          { name: ws.user.name, email: ws.user.email },
+          inRepo.map((n) => path.posix.join(ws.config.media.dir, n)),
+        );
+      }
+      return result;
     });
     revalidatePath("/", "layout");
-    return Response.json({ ok: true, names });
+    return Response.json({ ok: true, names: saved.map((s) => s.name), values: saved.map((s) => s.value) });
   } catch (error) {
     const status = error instanceof ForbiddenError ? 403 : 400;
     return Response.json({ ok: false, error: (error as Error).message }, { status });

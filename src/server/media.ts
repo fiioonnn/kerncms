@@ -3,13 +3,14 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import sharp from "sharp";
 import { db } from "@/db";
-import { media, trash } from "@/db/schema";
+import { media, type MediaLocation, trash } from "@/db/schema";
 import type { KernConfig, MediaItem } from "@/lib/kern-types";
 import { S3_BUCKET, s3 } from "@/lib/s3";
 import { type ChangeSet, safeJoin, slugify, statusOf } from "./content";
+import { cancelCleanup, scheduleCleanup, storeFor } from "./storage";
 
 export const IMAGE_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -58,7 +59,7 @@ async function dimensions(file: string, key: string) {
   return entry;
 }
 
-async function contentCorpus(dir: string, config: KernConfig) {
+export async function contentCorpus(dir: string, config: KernConfig) {
   const roots = new Set([config.pages.path, ...config.collections.map((c) => c.path), ...config.globals.map((g) => path.posix.dirname(g.path))]);
   const files: { rel: string; text: string }[] = [];
   for (const root of roots) {
@@ -74,14 +75,14 @@ async function contentCorpus(dir: string, config: KernConfig) {
 
 export async function listMedia(siteId: string, dir: string, config: KernConfig, changes: ChangeSet): Promise<MediaItem[]> {
   const folder = safeJoin(dir, config.media.dir);
-  if (!existsSync(folder)) return [];
   const [names, metaRows, corpus] = await Promise.all([
-    readdir(folder),
+    existsSync(folder) ? readdir(folder) : Promise.resolve([] as string[]),
     db.select().from(media).where(eq(media.siteId, siteId)),
     contentCorpus(dir, config),
   ]);
   const metaByName = new Map(metaRows.map((row) => [row.name, row]));
-  const items = await Promise.all(
+  const usedIn = (value: string) => corpus.filter((c) => c.text.includes(value)).map((c) => c.rel);
+  const repoItems = await Promise.all(
     names
       .filter((name) => !name.startsWith(".") && FILE_TYPES[path.extname(name).toLowerCase()])
       .map(async (name): Promise<MediaItem> => {
@@ -95,6 +96,7 @@ export async function listMedia(siteId: string, dir: string, config: KernConfig,
           name,
           src: `/api/media/${encodeURIComponent(name)}?v=${Math.round(info.mtimeMs)}`,
           value,
+          location: "repo",
           size: info.size,
           width: dims.width,
           height: dims.height,
@@ -104,13 +106,35 @@ export async function listMedia(siteId: string, dir: string, config: KernConfig,
           focusX: meta?.focusX ?? 50,
           focusY: meta?.focusY ?? 50,
           tags: meta?.tags ?? [],
-          usedIn: corpus.filter((c) => c.text.includes(value)).map((c) => c.rel),
+          usedIn: usedIn(value),
           status: statusOf(changes, rel),
           updatedAt: info.mtime.toISOString(),
         };
       }),
   );
-  return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const remoteItems = metaRows
+    .filter((row) => row.location !== "repo" && row.url)
+    .map(
+      (row): MediaItem => ({
+        name: row.name,
+        src: `${row.url}?v=${row.updatedAt.getTime()}`,
+        value: row.url!,
+        location: row.location,
+        size: row.size ?? 0,
+        width: row.width,
+        height: row.height,
+        type: mimeOf(row.name),
+        alt: row.alt,
+        caption: row.caption,
+        focusX: row.focusX,
+        focusY: row.focusY,
+        tags: row.tags,
+        usedIn: usedIn(row.url!),
+        status: "live",
+        updatedAt: row.updatedAt.toISOString(),
+      }),
+    );
+  return [...repoItems, ...remoteItems].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function mediaPath(dir: string, config: KernConfig, name: string) {
@@ -124,11 +148,66 @@ function cleanFileName(original: string) {
   return { base, ext };
 }
 
-export async function uniqueMediaName(dir: string, config: KernConfig, original: string) {
+export async function uniqueMediaName(siteId: string, dir: string, config: KernConfig, original: string) {
   const { base, ext } = cleanFileName(original);
+  const remote = new Set(
+    (await db.select({ name: media.name }).from(media).where(and(eq(media.siteId, siteId), ne(media.location, "repo")))).map((r) => r.name),
+  );
   let name = base + ext;
-  for (let i = 2; existsSync(mediaPath(dir, config, name)); i++) name = `${base}-${i}${ext}`;
+  for (let i = 2; existsSync(mediaPath(dir, config, name)) || remote.has(name); i++) name = `${base}-${i}${ext}`;
   return name;
+}
+
+/** Where a file currently lives, or null if it does not exist. */
+export async function locateMedia(siteId: string, dir: string, config: KernConfig, name: string) {
+  const [row] = await db.select().from(media).where(and(eq(media.siteId, siteId), eq(media.name, name)));
+  if (row && row.location !== "repo") return { location: row.location, row };
+  if (existsSync(mediaPath(dir, config, name))) return { location: "repo" as const, row: row ?? null };
+  return null;
+}
+
+export async function readMedia(siteId: string, dir: string, config: KernConfig, name: string) {
+  const found = await locateMedia(siteId, dir, config, name);
+  if (!found) throw new Error(`„${name}“ gibt es nicht mehr.`);
+  if (found.location === "repo") return { location: found.location, body: await readFile(mediaPath(dir, config, name)), row: found.row };
+  const store = (await storeFor(siteId, found.location))!;
+  return { location: found.location, body: await store.get(name), row: found.row };
+}
+
+async function imageSize(body: Buffer) {
+  try {
+    const meta = await sharp(body).metadata();
+    return { width: meta.width ?? null, height: meta.height ?? null };
+  } catch {
+    return { width: null, height: null };
+  }
+}
+
+/**
+ * Writes a file to a location and returns the value to store in content.
+ * Repo files still need a commit; remote files are live immediately.
+ */
+export async function writeMedia(siteId: string, dir: string, config: KernConfig, location: MediaLocation, name: string, body: Buffer) {
+  if (location === "repo") {
+    const target = mediaPath(dir, config, name);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, body);
+    await db
+      .insert(media)
+      .values({ siteId, name })
+      .onConflictDoUpdate({ target: [media.siteId, media.name], set: { location: "repo", url: null, size: null, width: null, height: null, updatedAt: new Date() } });
+    return mediaValue(config, name);
+  }
+  const store = (await storeFor(siteId, location))!;
+  await store.put(name, body, mimeOf(name));
+  await cancelCleanup(siteId, location, store.key(name));
+  const url = store.url(name);
+  const values = { location, url, size: body.length, ...(await imageSize(body)), updatedAt: new Date() };
+  await db
+    .insert(media)
+    .values({ siteId, name, ...values })
+    .onConflictDoUpdate({ target: [media.siteId, media.name], set: values });
+  return url;
 }
 
 /** Keeps a copy of every uploaded original in S3. Failure is not fatal: git is the source of truth. */
@@ -144,23 +223,24 @@ async function backupToS3(siteId: string, name: string, body: Buffer) {
   }
 }
 
-export async function saveUpload(siteId: string, userId: string, dir: string, config: KernConfig, file: File) {
+export async function saveUpload(
+  site: { id: string; mediaStorage: MediaLocation },
+  userId: string,
+  dir: string,
+  config: KernConfig,
+  file: File,
+) {
   if (file.size > MAX_UPLOAD) throw new Error(`„${file.name}“ ist größer als 20 MB.`);
   const ext = path.extname(file.name).toLowerCase();
   if (!FILE_TYPES[ext]) throw new Error(`Dateien vom Typ ${ext || "ohne Endung"} werden nicht unterstützt.`);
-  const name = await uniqueMediaName(dir, config, file.name);
+  const name = await uniqueMediaName(site.id, dir, config, file.name);
   let body: Buffer = Buffer.from(await file.arrayBuffer());
   // Rotate according to EXIF and drop metadata such as GPS position.
   if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) body = await sharp(body).rotate().toBuffer();
-  const target = mediaPath(dir, config, name);
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, body);
-  await db
-    .insert(media)
-    .values({ siteId, name, uploadedBy: userId, alt: "" })
-    .onConflictDoNothing();
-  void backupToS3(siteId, name, body);
-  return name;
+  const value = await writeMedia(site.id, dir, config, site.mediaStorage, name, body);
+  await db.update(media).set({ uploadedBy: userId }).where(and(eq(media.siteId, site.id), eq(media.name, name)));
+  if (site.mediaStorage === "repo") void backupToS3(site.id, name, body);
+  return { name, value, location: site.mediaStorage };
 }
 
 export type MediaMetaInput = { alt?: string; caption?: string; focusX?: number; focusY?: number; tags?: string[] };
@@ -199,10 +279,10 @@ export type ImageEdit = {
 };
 
 export async function editImage(siteId: string, userId: string, dir: string, config: KernConfig, name: string, edit: ImageEdit) {
-  const source = mediaPath(dir, config, name);
   const ext = path.extname(name).toLowerCase();
   if (![".jpg", ".jpeg", ".png", ".webp", ".avif"].includes(ext)) throw new Error("Dieses Format kann nicht bearbeitet werden.");
-  let image = sharp(await readFile(source)).rotate();
+  const source = await readMedia(siteId, dir, config, name);
+  let image = sharp(source.body).rotate();
   if (edit.rotate) image = image.rotate(edit.rotate);
   if (edit.flipV) image = image.flip();
   if (edit.flipH) image = image.flop();
@@ -236,33 +316,38 @@ export async function editImage(siteId: string, userId: string, dir: string, con
   else image = image.jpeg({ quality, mozjpeg: true });
   buffer = await image.toBuffer();
 
-  const targetName = edit.saveAs === "copy" ? await uniqueMediaName(dir, config, name.replace(/(\.\w+)$/, "-bearbeitet$1")) : name;
-  await writeFile(mediaPath(dir, config, targetName), buffer);
+  const targetName = edit.saveAs === "copy" ? await uniqueMediaName(siteId, dir, config, name.replace(/(\.\w+)$/, "-bearbeitet$1")) : name;
+  await writeMedia(siteId, dir, config, source.location, targetName, buffer);
   if (targetName !== name) {
-    const [original] = await db.select().from(media).where(and(eq(media.siteId, siteId), eq(media.name, name)));
+    const original = source.row;
     await db
-      .insert(media)
-      .values({ siteId, name: targetName, uploadedBy: userId, alt: original?.alt ?? "", caption: original?.caption ?? "", tags: original?.tags ?? [] })
-      .onConflictDoNothing();
+      .update(media)
+      .set({ uploadedBy: userId, alt: original?.alt ?? "", caption: original?.caption ?? "", tags: original?.tags ?? [] })
+      .where(and(eq(media.siteId, siteId), eq(media.name, targetName)));
   }
-  void backupToS3(siteId, targetName, buffer);
-  return targetName;
+  if (source.location === "repo") void backupToS3(siteId, targetName, buffer);
+  return { name: targetName, location: source.location };
 }
 
+/** Moves a file to the trash. Returns its location (repo files still need a commit). */
 export async function moveMediaToTrash(siteId: string, userId: string, dir: string, config: KernConfig, name: string) {
-  const file = mediaPath(dir, config, name);
-  const content = await readFile(file);
-  const [meta] = await db.select().from(media).where(and(eq(media.siteId, siteId), eq(media.name, name)));
+  const { location, body, row } = await readMedia(siteId, dir, config, name);
   await db.insert(trash).values({
     siteId,
     kind: "media",
     label: name,
     path: path.posix.join(config.media.dir, name),
-    content: content.toString("base64"),
+    content: body.toString("base64"),
     binary: true,
-    meta: { alt: meta?.alt ?? "", caption: meta?.caption ?? "" },
+    meta: { alt: row?.alt ?? "", caption: row?.caption ?? "", location },
     deletedBy: userId,
   });
-  await rm(file);
+  if (location === "repo") await rm(mediaPath(dir, config, name));
+  else {
+    // The live site may still show it until the next publish.
+    const store = (await storeFor(siteId, location))!;
+    await scheduleCleanup(siteId, location, store.key(name));
+  }
   await db.delete(media).where(and(eq(media.siteId, siteId), eq(media.name, name)));
+  return location;
 }

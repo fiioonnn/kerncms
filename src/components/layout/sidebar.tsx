@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Check, ChevronsUpDown, LayoutGrid, Loader2, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Settings, Shield, Trash2, UserRound, Users, X } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Loader2, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Shield, Trash2, UserRound, X } from "lucide-react";
 import { Logo } from "@/components/auth/auth-shell";
 import { useKern } from "@/components/kern/kern-provider";
 import { useStatus } from "@/components/history/use-status";
@@ -189,12 +189,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             </MenuItem>
             <MenuSeparator />
             <MenuLabel>Website verwalten</MenuLabel>
-            <MenuItem icon={Settings} render={<Link href="/settings" onClick={onNavigate} />}>
-              Einstellungen
-            </MenuItem>
-            <MenuItem icon={Users} render={<Link href="/team" onClick={onNavigate} />}>
-              Team
-            </MenuItem>
             <MenuItem icon={Trash2} render={<Link href="/trash" onClick={onNavigate} />}>
               Papierkorb
             </MenuItem>

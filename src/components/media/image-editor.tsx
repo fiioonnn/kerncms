@@ -363,7 +363,12 @@ export function ImageEditor({
       const list = res.ok ? ((await res.json()) as MediaItem[]) : [];
       const saved = list.find((m) => m.name === name) ?? { ...item, name, value: item.value.replace(item.name, name) };
       toast.success(saveAs === "copy" ? `Als „${name}“ gespeichert` : "Bild gespeichert", {
-        description: saveAs === "copy" ? "Das Original bleibt unverändert." : "Die Änderung ist im Entwurf und geht beim Veröffentlichen live.",
+        description:
+          saveAs === "copy"
+            ? "Das Original bleibt unverändert."
+            : item.location === "repo"
+              ? "Die Änderung ist im Entwurf und geht beim Veröffentlichen live."
+              : "Die Datei liegt im Speicher und ist sofort live.",
       });
       onSaved?.(saved);
       close();

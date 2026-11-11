@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { Check, ImagePlus, Pencil, Search, Upload, X } from "lucide-react";
 import { formatBytes, UploadDialog } from "@/components/actions/common";
 import { useOptionalKern } from "@/components/kern/kern-provider";
-import { useMedia } from "@/components/kern/use-media";
+import { mediaItemByName, useMedia } from "@/components/kern/use-media";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,7 +63,7 @@ export function MediaPickerDialog({
               }
               onUploaded={(names) => {
                 const item = names[0];
-                if (item) setSelected(prefix + item);
+                if (item) setSelected(mediaItemByName(item)?.value ?? prefix + item);
               }}
             />
             <DialogClose className={buttonStyles({ variant: "secondary" })}>Abbrechen</DialogClose>

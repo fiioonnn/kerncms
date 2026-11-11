@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, FileText, Film, ImageIcon, Search, Trash2, UploadCloud, X } from "lucide-react";
+import { Check, Cloud, FileText, Film, ImageIcon, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { formatBytes, UploadDialog } from "@/components/actions/common";
 import { useCan } from "@/components/kern/kern-provider";
 import { reloadMedia, uploadMedia, useMedia } from "@/components/kern/use-media";
@@ -269,6 +269,12 @@ export function MediaLibrary() {
                         {formatBytes(item.size)}
                       </span>
                       {item.usedIn.length === 0 && <span className="shrink-0 text-xs">· unbenutzt</span>}
+                      {item.location !== "repo" && (
+                        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" title={item.location === "s3" ? "Liegt im eigenen S3-Speicher" : "Liegt im kerncms-Speicher"}>
+                          <Cloud className="size-3.5" strokeWidth={2} />
+                          {item.location === "s3" ? "S3" : "kerncms"}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </button>

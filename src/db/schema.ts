@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+export type MediaLocation = "repo" | "cms" | "s3";
+
 export const roleEnum = pgEnum("role", ["owner", "admin", "editor", "viewer"]);
 
 export const users = pgTable("users", {
@@ -99,6 +101,8 @@ export const sites = pgTable("sites", {
     .default(sql`'pk_' || substr(md5(random()::text || clock_timestamp()::text), 1, 20)`),
   /** Extra origins allowed to post forms, besides the live URL (e.g. a staging domain). */
   allowedOrigins: jsonb().$type<string[]>().notNull().default([]),
+  /** Where new uploads go: the repository (default), kerncms' own storage or the site's S3. */
+  mediaStorage: text().$type<MediaLocation>().notNull().default("repo"),
   createdAt: timestamp().notNull().defaultNow(),
 });
 
@@ -146,6 +150,12 @@ export const media = pgTable(
     focusX: integer().notNull().default(50),
     focusY: integer().notNull().default(50),
     tags: jsonb().$type<string[]>().notNull().default([]),
+    /** "repo": file in the media dir. Otherwise the file lives in object storage at `url`. */
+    location: text().$type<MediaLocation>().notNull().default("repo"),
+    url: text(),
+    size: integer(),
+    width: integer(),
+    height: integer(),
     uploadedBy: uuid().references(() => users.id, { onDelete: "set null" }),
     updatedAt: timestamp().notNull().defaultNow(),
   },
@@ -288,4 +298,38 @@ export const notifications = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type Site = typeof sites.$inferSelect;
+
+/** The site's own S3-compatible bucket ("Eigener Speicher"). */
+export const siteStorage = pgTable("site_storage", {
+  siteId: uuid()
+    .primaryKey()
+    .references(() => sites.id, { onDelete: "cascade" }),
+  endpoint: text().notNull().default(""),
+  region: text().notNull().default("auto"),
+  bucket: text().notNull(),
+  accessKeyId: text().notNull(),
+  /** Encrypted with KERN_SECRET. */
+  secretAccessKey: text().notNull(),
+  /** Public base URL of the bucket, e.g. https://cdn.example.com */
+  publicUrl: text().notNull(),
+  prefix: text().notNull().default(""),
+  forcePathStyle: boolean().notNull().default(true),
+  updatedAt: timestamp().notNull().defaultNow(),
+});
+
+/**
+ * Objects to delete once the draft that stops using them is published
+ * (the live site keeps pointing at them until then).
+ */
+export const mediaCleanup = pgTable("media_cleanup", {
+  id: uuid().primaryKey().defaultRandom(),
+  siteId: uuid()
+    .notNull()
+    .references(() => sites.id, { onDelete: "cascade" }),
+  location: text().$type<MediaLocation>().notNull(),
+  key: text().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+  /** Set when a publish went out without the file; deleted a while later, once hosting has rebuilt. */
+  releasedAt: timestamp(),
+});
 export type Role = (typeof roleEnum.enumValues)[number];

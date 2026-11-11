@@ -21,11 +21,13 @@ export async function saveImageEdit(name: string, edit: ImageEdit) {
     const ws = await getWorkspace("editor");
     return withSiteLock(ws.site.id, async () => {
       const saved = await editImage(ws.site.id, ws.user.id, ws.dir, ws.config, name, edit);
-      await commit(ws.dir, `Bild „${saved}“ bearbeitet`, { name: ws.user.name, email: ws.user.email }, [
-        path.posix.join(ws.config.media.dir, saved),
-      ]);
+      if (saved.location === "repo") {
+        await commit(ws.dir, `Bild „${saved.name}“ bearbeitet`, { name: ws.user.name, email: ws.user.email }, [
+          path.posix.join(ws.config.media.dir, saved.name),
+        ]);
+      }
       revalidatePath("/", "layout");
-      return { name: saved };
+      return { name: saved.name };
     });
   });
 }
@@ -34,13 +36,18 @@ export async function deleteMedia(names: string[]) {
   return run(async () => {
     const ws = await getWorkspace("editor");
     return withSiteLock(ws.site.id, async () => {
-      for (const name of names) await moveMediaToTrash(ws.site.id, ws.user.id, ws.dir, ws.config, name);
-      await commit(
-        ws.dir,
-        names.length === 1 ? `Bild „${names[0]}“ gelöscht` : `${names.length} Dateien gelöscht`,
-        { name: ws.user.name, email: ws.user.email },
-        names.map((n) => path.posix.join(ws.config.media.dir, n)),
-      );
+      const inRepo: string[] = [];
+      for (const name of names) {
+        if ((await moveMediaToTrash(ws.site.id, ws.user.id, ws.dir, ws.config, name)) === "repo") inRepo.push(name);
+      }
+      if (inRepo.length > 0) {
+        await commit(
+          ws.dir,
+          inRepo.length === 1 ? `Bild „${inRepo[0]}“ gelöscht` : `${inRepo.length} Dateien gelöscht`,
+          { name: ws.user.name, email: ws.user.email },
+          inRepo.map((n) => path.posix.join(ws.config.media.dir, n)),
+        );
+      }
       revalidatePath("/", "layout");
       return null;
     });

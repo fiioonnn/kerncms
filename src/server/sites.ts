@@ -14,6 +14,7 @@ import { requireUser, type SessionUser } from "./auth";
 import { CONFIG_FILE, loadConfig, parseConfig } from "./config";
 import { ensureWorktree, isGitRepo, showFile } from "./git";
 import { cloneDir, readRemoteConfig, syncSoon } from "./github";
+import { cleanupSoon } from "./storage";
 
 /** Local folders are a development convenience; in production every site comes from GitHub. */
 export function localReposAllowed() {
@@ -84,6 +85,7 @@ export const getWorkspace = cache(async (min: Role = "viewer"): Promise<Workspac
   const ctx = await requireRole(min);
   const dir = await ensureWorktree(ctx.site);
   syncSoon(ctx.site);
+  cleanupSoon(ctx.site.id);
   const config = await loadConfig(dir);
   return { ...ctx, dir, config };
 });

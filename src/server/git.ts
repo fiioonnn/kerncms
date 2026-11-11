@@ -150,7 +150,18 @@ export async function uncommittedFiles(dir: string) {
 export async function commit(dir: string, message: string, author: Author, files?: string[]) {
   if (files && files.length === 0) return null;
   // node_modules is a symlink the CMS creates in the draft checkout; it must never be committed.
-  await git(dir, ["add", "-A", "--", ...(files ?? ["."]), ":(exclude)node_modules"]);
+  // With explicit files the exclude pathspec is left out: combined with deleted files, git
+  // then reports node_modules as "ignored" and fails although it staged everything.
+  const paths = files ? files.filter((f) => f !== "node_modules" && !f.startsWith("node_modules/")) : null;
+  if (paths && paths.length === 0) return null;
+  // A path that is neither on disk nor in the index (deletion already staged) would make git add fail.
+  const addable = paths
+    ? await (async () => {
+        const indexed = new Set((await git(dir, ["ls-files", "-z", "--", ...paths])).split("\0").filter(Boolean));
+        return paths.filter((p) => indexed.has(p) || existsSync(path.join(dir, p)));
+      })()
+    : [".", ":(exclude)node_modules"];
+  if (addable.length > 0) await git(dir, ["add", "-A", "--", ...addable]);
   await git(dir, ["reset", "-q", "--", "node_modules"]).catch(() => {});
   const staged = await git(dir, ["diff", "--cached", "--name-only"]);
   if (!staged.trim()) return null;

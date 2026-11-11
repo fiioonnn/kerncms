@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deploys, type DeployStep, type Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
+import { releaseCleanup } from "./storage";
 import { commit, DRAFT_BRANCH, git, linkNodeModules, publishDraft, syncDraftWithLive, uncommittedFiles, unpublishedFiles, withSiteLock, type Author } from "./git";
 import { notify } from "./notifications";
 
@@ -87,6 +88,7 @@ export async function startPublish(site: Site, dir: string, config: KernConfig, 
       }
 
       await db.update(deploys).set({ status: "done", finishedAt: new Date() }).where(eq(deploys.id, deploy.id));
+      await releaseCleanup(site.id);
       await notify(site.id, null, "deploy", `${author.name} hat „${message}“ veröffentlicht`, "/history");
     } catch (error) {
       const err = error as Error & { log?: string };

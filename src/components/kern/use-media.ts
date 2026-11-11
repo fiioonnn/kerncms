@@ -27,6 +27,11 @@ export function reloadMedia() {
   return loading;
 }
 
+/** A file from the last loaded list (e.g. right after an upload). */
+export function mediaItemByName(name: string) {
+  return items?.find((item) => item.name === name) ?? null;
+}
+
 export function useMedia() {
   const data = useSyncExternalStore(
     (cb) => {

@@ -106,8 +106,10 @@ export type MediaItem = {
   name: string;
   /** URL the CMS can show it from. */
   src: string;
-  /** Value stored in content (e.g. /media/x.jpg). */
+  /** Value stored in content (e.g. /media/x.jpg or https://…). */
   value: string;
+  /** Where the file is stored. */
+  location: "repo" | "cms" | "s3";
   size: number;
   width: number | null;
   height: number | null;

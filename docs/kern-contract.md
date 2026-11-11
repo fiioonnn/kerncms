@@ -83,7 +83,7 @@ Felder sind immer ein Objekt `name → Definition`. Die Reihenfolge im YAML ist 
 | `boolean`  | boolean                             | |
 | `select`   | string                              | `options: [{ label, value }]` |
 | `date`     | string `YYYY-MM-DD`                 | |
-| `image`    | string, Pfad relativ zur Website: `/media/x.jpg` | |
+| `image`    | string: `/media/x.jpg` (im Repository) oder eine volle URL (kerncms- oder S3-Speicher) | siehe „Medien-Speicher“ |
 | `link`     | `{ "type": "page", "path": "/kontakt" }` oder `{ "type": "external", "url": "https://…", "newTab": true }` | |
 | `tags`     | string[]                            | |
 | `list`     | Array von Objekten                  | `fields: {…}`, `itemLabel: <feldname>` |
@@ -168,6 +168,22 @@ und lokal von localhost angenommen.
   `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/collect` mit `{ "path": "/", "referrer": "…", "width": 1280 }`,
   gesendet per `navigator.sendBeacon` beim Laden jeder Seite. Nicht senden, wenn `KERN_PREVIEW` aktiv ist
   oder `navigator.doNotTrack === "1"`.
+
+### Medien-Speicher
+
+Wo neue Uploads landen, stellt man in den Website-Einstellungen unter „Medien“ ein:
+
+- **Repository** (Standard): Datei in `media.dir`, Wert `/media/x.jpg`, geht mit dem Veröffentlichen live.
+- **kerncms-Speicher**: Datei im Bucket von kerncms, Wert `<KERN_PUBLIC_URL>/files/<site-id>/x.jpg`, sofort online.
+  `KERN_PUBLIC_URL` muss dafür öffentlich erreichbar sein.
+- **Eigener S3-Speicher**: Bucket des Kunden (R2, AWS, Hetzner, MinIO …), Wert `<öffentliche Adresse>/<ordner>/x.jpg`.
+
+Die Website muss daher beide Formen ausgeben können: `<img src={block.image}>` funktioniert für beide.
+Wer `astro:assets` nutzt, muss die Domains unter `image.domains` erlauben.
+
+„Medien verschieben“ kopiert Dateien in einen anderen Speicher, schreibt alle Verweise in Seiten, Einträgen und
+Globals um und legt dafür einen Commit im Entwurf an. Alte Objekte im Speicher werden eine Stunde nach dem
+nächsten Veröffentlichen gelöscht, damit die Live-Website bis dahin weiter funktioniert.
 
 ## 6. Weiterleitungen
 

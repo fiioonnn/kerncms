@@ -7,6 +7,7 @@ import {
   GitBranch,
   GitMerge,
   History,
+  Images,
   KeyRound,
   MailCheck,
   Route,
@@ -24,6 +25,7 @@ import { headers } from "next/headers";
 import { DangerZone } from "./danger-zone";
 import { EmbedSettings } from "./embed";
 import { FormsSettings } from "./forms";
+import { MediaStorageSettings } from "./media-storage";
 import { GeneralSettings } from "./general";
 import { Redirects } from "./redirects";
 import { Schema } from "./schema";
@@ -34,6 +36,7 @@ export const metadata = { title: "Einstellungen · kerncms" };
 const sections: { id: string; label: string; description: string; icon: LucideIcon }[] = [
   { id: "general", label: "Allgemein", description: "Name, Adresse, Freigaben", icon: Settings2 },
   { id: "redirects", label: "Weiterleitungen", description: "Alte Adressen umleiten", icon: Route },
+  { id: "media", label: "Medien", description: "Speicherort, S3", icon: Images },
   { id: "forms", label: "Formulare", description: "Benachrichtigung, Antworten", icon: MailCheck },
   { id: "embed", label: "Einbindung", description: "Schlüssel und Domains", icon: KeyRound },
   { id: "schema", label: "Schema", description: "Was bearbeitbar ist", icon: FileCode },
@@ -163,6 +166,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           )}
 
           {active === "redirects" && <Redirects initial={settings.redirects} file={config.redirects} canEdit={isAdmin} />}
+
+          {active === "media" && <MediaStorageSettings info={settings.media} canEdit={isAdmin} />}
 
           {active === "forms" && (
             <FormsSettings forms={config.forms} settings={settings.formSettings} sender={settings.sender} siteName={site.name} canEdit={isAdmin} />

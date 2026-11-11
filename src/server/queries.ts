@@ -4,14 +4,16 @@ import path from "node:path";
 import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { approvals, deploys, formSettings, formSubmissions, invites, memberships, sessions, trash, users } from "@/db/schema";
+import { approvals, deploys, formSettings, formSubmissions, invites, mediaCleanup, memberships, sessions, trash, users } from "@/db/schema";
 import type { Role } from "@/db/schema";
 import { analyticsSummary } from "./analytics";
 import { hashToken } from "./auth";
 import { CONFIG_FILE, findCollection } from "./config";
 import { getChangeSet, listEntries, listPages, readEntry, readGlobal, readPage, readRedirects } from "./content";
 import { git, log, showFile, uncommittedFiles, unpublishedFiles } from "./git";
-import { listMedia } from "./media";
+import { listMedia, mediaValue } from "./media";
+import { mediaLocationCounts } from "./media-migrate";
+import { publicCmsUrl, siteStorageConfig } from "./storage";
 import { listNotifications } from "./notifications";
 import { notificationFrom } from "./site-mail";
 import { getSiteContext, getWorkspace, type Workspace } from "./sites";
@@ -323,8 +325,29 @@ export async function getSettings() {
     redirects,
     formSettings: await formSettingsOf(ws),
     sender: notificationFrom(ws.site.name),
+    media: await mediaStorageInfo(ws),
   };
 }
+
+async function mediaStorageInfo(ws: Workspace) {
+  const [custom, counts, pending] = await Promise.all([
+    siteStorageConfig(ws.site.id),
+    mediaLocationCounts(ws.site.id, ws.dir, ws.config),
+    db.select({ id: mediaCleanup.id }).from(mediaCleanup).where(eq(mediaCleanup.siteId, ws.site.id)),
+  ]);
+  return {
+    storage: ws.site.mediaStorage,
+    custom: custom ? { ...custom, secretAccessKey: "" } : null,
+    counts,
+    cmsAvailable: Boolean(process.env.S3_BUCKET),
+    cmsBaseUrl: `${publicCmsUrl()}/files/${ws.site.id}/`,
+    publicUrlConfigured: Boolean(process.env.KERN_PUBLIC_URL),
+    repoPrefix: mediaValue(ws.config, ""),
+    pendingCleanup: pending.length,
+  };
+}
+
+export type MediaStorageInfo = Awaited<ReturnType<typeof mediaStorageInfo>>;
 
 /* ---------- Profile ---------- */
 

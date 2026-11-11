@@ -8,7 +8,8 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { approvals, formSubmissions, media, memberships, sites, trash } from "@/db/schema";
+import { approvals, formSubmissions, media, type MediaLocation, memberships, sites, trash } from "@/db/schema";
+import { locateMedia, writeMedia } from "../media";
 import { run } from "../action";
 import { safeJoin } from "../content";
 import { startPublish } from "../deploy";
@@ -224,6 +225,27 @@ export async function restoreFromTrash(id: string) {
     const [item] = await db.select().from(trash).where(and(eq(trash.id, id), eq(trash.siteId, ws.site.id)));
     if (!item) throw new Error("Nicht mehr im Papierkorb.");
     return withSiteLock(ws.site.id, async () => {
+      const location = (item.meta.location ?? "repo") as MediaLocation;
+      if (item.kind === "media" && location !== "repo") {
+        // Back into the storage it came from (or the repository if that storage is gone).
+        const name = path.basename(item.path);
+        if (await locateMedia(ws.site.id, ws.dir, ws.config, name)) throw new Error(`„${name}“ gibt es schon.`);
+        let restoredTo: MediaLocation = location;
+        try {
+          await writeMedia(ws.site.id, ws.dir, ws.config, location, name, Buffer.from(item.content, "base64"));
+        } catch {
+          restoredTo = "repo";
+          await writeMedia(ws.site.id, ws.dir, ws.config, "repo", name, Buffer.from(item.content, "base64"));
+        }
+        await db
+          .update(media)
+          .set({ alt: item.meta.alt ?? "", caption: item.meta.caption ?? "" })
+          .where(and(eq(media.siteId, ws.site.id), eq(media.name, name)));
+        if (restoredTo === "repo") await commit(ws.dir, `„${item.label}“ wiederhergestellt`, author(ws), [item.path]);
+        await db.delete(trash).where(eq(trash.id, id));
+        refresh();
+        return null;
+      }
       const target = safeJoin(ws.dir, item.path);
       if (existsSync(target)) throw new Error(`Unter ${item.path} liegt schon eine Datei.`);
       await mkdir(path.dirname(target), { recursive: true });
