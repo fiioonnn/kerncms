@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, Reply, Settings2, Trash2 } from "lucide-react";
 import { refreshStatus } from "@/components/history/use-status";
 import { useKern } from "@/components/kern/kern-provider";
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { resendSubmissionMail, type FormSettingsInput } from "@/server/actions/forms";
 import { deleteSubmissions, updateSubmissions } from "@/server/actions/site";
 import { Tooltip } from "@/components/ui/overlay";
-import { FormSettingsDialog } from "./form-settings-dialog";
+import { cleanLabel, displayValue, replyMailto } from "@/lib/form-template";
 
 type Submission = {
   id: string;
@@ -48,19 +49,15 @@ function summarize(s: Submission, form: FormDef | undefined) {
 export function FormsInbox({
   forms,
   initial,
-  settings: initialSettings,
+  settings,
   canConfigure,
-  sender,
 }: {
   forms: FormDef[];
   initial: Submission[];
   settings: Record<string, FormSettingsInput>;
   canConfigure: boolean;
-  sender: string;
 }) {
   const kern = useKern();
-  const [settings, setSettings] = useState(initialSettings);
-  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [items, setItems] = useState(initial);
   const [formKey, setFormKey] = useState<string | null>(null);
   const [tab, setTab] = useState<"inbox" | "archive">("inbox");
@@ -115,7 +112,6 @@ export function FormsInbox({
   }
 
   const endpoint = `/api/public/${kern.site.publicKey}/forms/${formKey ?? forms[0]?.key ?? "<formular>"}`;
-  const settingsForm = forms.find((f) => f.key === settingsFor);
 
   if (forms.length === 0) {
     return (
@@ -204,19 +200,13 @@ export function FormsInbox({
           </nav>
           {canConfigure && (
             <div className="mt-1 border-t border-border p-2 pt-3">
-              {forms.length === 1 || formKey ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => setSettingsFor(formKey ?? forms[0].key)}
-                >
-                  <Settings2 />
-                  Benachrichtigung einstellen
-                </Button>
-              ) : (
-                <p className="px-2 text-sm text-muted">Formular wählen, um die E-Mail-Benachrichtigung einzustellen.</p>
-              )}
+              <Link
+                href={`/settings?tab=forms${formKey ? `#form-${formKey}` : ""}`}
+                className={buttonStyles({ variant: "ghost", size: "sm", className: "w-full justify-start" })}
+              >
+                <Settings2 />
+                E-Mail-Einstellungen
+              </Link>
             </div>
           )}
         </Card>
@@ -266,6 +256,13 @@ export function FormsInbox({
             onResent={(patch) => setItems((list) => list.map((s) => (s.id === open.id ? { ...s, ...patch } : s)))}
             submission={open}
             form={formOf(open.form)}
+            replyHref={(() => {
+              const form = formOf(open.form);
+              const formSettings = settings[open.form];
+              return form && formSettings
+                ? replyMailto({ form, data: open.data, siteName: kern.site.name, createdAt: open.createdAt }, formSettings)
+                : null;
+            })()}
             onDelete={() => setConfirmOpen(true)}
             onArchive={() => {
               change([open.id], { archived: !open.archived }, open.archived ? "In den Posteingang verschoben" : "Archiviert");
@@ -278,17 +275,6 @@ export function FormsInbox({
           />
         )}
       </Dialog>
-
-      {settingsForm && (
-        <FormSettingsDialog
-          form={settingsForm}
-          initial={settings[settingsForm.key] ?? { notify: false, recipients: [], subject: "" }}
-          sender={sender}
-          open={settingsFor !== null}
-          onOpenChange={(next) => !next && setSettingsFor(null)}
-          onSaved={(saved) => setSettings((s) => ({ ...s, [settingsForm.key]: saved }))}
-        />
-      )}
 
       <ConfirmDialog
         open={confirmOpen}
@@ -410,18 +396,24 @@ function SubmissionDialog({
   onArchive,
   onUnread,
   onResent,
+  replyHref,
 }: {
   submission: Submission;
   form: FormDef | undefined;
+  replyHref: string | null;
   onDelete: () => void;
   onArchive: () => void;
   onUnread: () => void;
   onResent: (patch: Partial<Submission>) => void;
 }) {
   const { subject, email } = summarize(submission, form);
+  const href = replyHref ?? (email ? `mailto:${email}?subject=${encodeURIComponent(`Re: ${subject}`)}` : null);
   const known = new Set(form?.fields.map((f) => f.name));
   const rows = [
-    ...(form?.fields ?? []).map((f) => ({ key: f.name, label: f.label, value: submission.data[f.name] ?? "" })),
+    ...(form?.fields ?? []).map((f) => {
+      const raw = submission.data[f.name] ?? "";
+      return { key: f.name, label: cleanLabel(f.label), value: raw ? displayValue(form, f.name, raw) : "" };
+    }),
     ...Object.entries(submission.data)
       .filter(([key]) => !known.has(key) && !key.startsWith("_"))
       .map(([key, value]) => ({ key, label: key, value })),
@@ -433,20 +425,25 @@ function SubmissionDialog({
       size="lg"
       footer={
         <>
-          <Button variant="ghost" className="mr-auto text-danger hover:bg-danger-soft" onClick={onDelete}>
-            <Trash2 />
-            Löschen
-          </Button>
-          <Button variant="secondary" onClick={onArchive}>
-            {submission.archived ? <ArchiveRestore /> : <Archive />}
-            {submission.archived ? "Zurück in den Posteingang" : "Archivieren"}
-          </Button>
-          <Button variant="secondary" onClick={onUnread}>
-            <MailOpen />
-            Ungelesen
-          </Button>
-          {email && (
-            <a href={`mailto:${email}?subject=${encodeURIComponent(`Re: ${subject}`)}`} className={buttonStyles()}>
+          <div className="mr-auto flex items-center gap-1">
+            <Tooltip label="Löschen" side="top">
+              <Button variant="ghost" size="icon" className="text-danger hover:bg-danger-soft" onClick={onDelete} aria-label="Löschen">
+                <Trash2 />
+              </Button>
+            </Tooltip>
+            <Tooltip label={submission.archived ? "Zurück in den Posteingang" : "Archivieren"} side="top">
+              <Button variant="ghost" size="icon" onClick={onArchive} aria-label={submission.archived ? "Zurück in den Posteingang" : "Archivieren"}>
+                {submission.archived ? <ArchiveRestore /> : <Archive />}
+              </Button>
+            </Tooltip>
+            <Tooltip label="Als ungelesen markieren" side="top">
+              <Button variant="ghost" size="icon" onClick={onUnread} aria-label="Als ungelesen markieren">
+                <MailOpen />
+              </Button>
+            </Tooltip>
+          </div>
+          {href && (
+            <a href={href} className={buttonStyles()}>
               <Reply />
               Per Mail antworten
             </a>

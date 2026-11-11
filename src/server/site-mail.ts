@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { formSettings, formSubmissions, type Site } from "@/db/schema";
+import { cleanLabel, displayValue, notificationSubject, replyMailto, visitorEmail as findVisitorEmail } from "@/lib/form-template";
 import type { FormDef } from "@/lib/kern-types";
 import { DEFAULT_FROM, defaultTransport, mailLayout } from "./mail";
 
@@ -10,8 +11,6 @@ import { DEFAULT_FROM, defaultTransport, mailLayout } from "./mail";
  * No Reply-To: replying to the notification would quote it to the visitor. Instead the mail has
  * a button that opens a fresh mail to the visitor in the customer's own mail program.
  */
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -27,39 +26,17 @@ export function notificationFrom(siteName: string, formLabel = "Kontaktformular"
   return `"${name}" <${address}>`;
 }
 
-/** Label without a trailing period, so "Einverstanden.: Ja" reads "Einverstanden: Ja". */
-function cleanLabel(label: string) {
-  return label.replace(/[.:]\s*$/, "");
-}
-
-/** Human-readable value of a submitted field (select → option label, checkbox → Ja/Nein). */
-function displayValue(form: FormDef, name: string, value: string) {
-  const field = form.fields.find((f) => f.name === name);
-  if (!field) return value;
-  if (field.type === "boolean") return value === "true" || value === "on" ? "Ja" : "Nein";
-  if (field.type === "select") return field.options?.find((o) => o.value === value)?.label ?? value;
-  return value;
-}
-
-/** Replaces {feld} placeholders with submitted values; unknown ones are removed. */
-export function fillSubject(template: string, form: FormDef, data: Record<string, string>) {
-  return template
-    .replace(/\{(\w+)\}/g, (_, key: string) => (data[key] !== undefined ? displayValue(form, key, data[key]) : ""))
-    .replace(/[\r\n]+/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
 /** Sends the notification for one submission and records the result. Never throws. */
 export async function sendSubmissionMails(input: {
   site: Pick<Site, "id" | "name">;
+  createdAt?: Date;
   form: FormDef;
   submissionId: string;
   data: Record<string, string>;
   page: string | null;
   cmsUrl: string;
 }) {
-  const { site, form, submissionId, data, page, cmsUrl } = input;
+  const { site, form, submissionId, data, page, cmsUrl, createdAt } = input;
   const [settings] = await db
     .select()
     .from(formSettings)
@@ -72,7 +49,8 @@ export async function sendSubmissionMails(input: {
   }
 
   try {
-    const visitorEmail = Object.entries(data).find(([key, value]) => form.fields.find((f) => f.name === key)?.type === "email" && EMAIL.test(value))?.[1];
+    const ctx = { form, data, siteName: site.name, createdAt };
+    const visitorEmail = findVisitorEmail(form, data);
     const filled = form.fields.filter((f) => data[f.name] !== undefined && data[f.name] !== "");
     const rows = filled
       .map(
@@ -82,9 +60,9 @@ export async function sendSubmissionMails(input: {
       .join("");
     const text = filled.map((f) => `${cleanLabel(f.label)}: ${displayValue(form, f.name, data[f.name])}`).join("\n");
     // Neutral wording: the visitor sees subject and content again when the customer replies.
-    const subject = fillSubject(settings.subject || `Anfrage über das ${form.label}`, form, data);
+    const subject = notificationSubject(settings.subject, ctx);
     const visitorName = (data.name ?? "").trim() || visitorEmail;
-    const replyHref = visitorEmail ? `mailto:${visitorEmail}?subject=${encodeURIComponent(`Re: ${subject}`)}` : null;
+    const replyHref = replyMailto(ctx, settings);
     await defaultTransport.sendMail({
       from: notificationFrom(site.name, form.label),
       to: settings.recipients,

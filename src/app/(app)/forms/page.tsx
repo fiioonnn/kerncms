@@ -18,6 +18,6 @@ export default async function FormsPage() {
       </PageContainer>
     );
   }
-  const { forms, submissions, settings, canConfigure, sender } = await getForms();
-  return <FormsInbox forms={forms} initial={submissions} settings={settings} canConfigure={canConfigure} sender={sender} />;
+  const { forms, submissions, settings, canConfigure } = await getForms();
+  return <FormsInbox forms={forms} initial={submissions} settings={settings} canConfigure={canConfigure} />;
 }

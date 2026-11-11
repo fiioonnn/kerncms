@@ -22,6 +22,8 @@ export type FormSettingsInput = {
   notify: boolean;
   recipients: string[];
   subject: string;
+  replySubject: string;
+  replyBody: string;
 };
 
 export async function saveFormSettings(form: string, input: FormSettingsInput) {
@@ -37,6 +39,8 @@ export async function saveFormSettings(form: string, input: FormSettingsInput) {
       notify: input.notify,
       recipients,
       subject: input.subject.trim().slice(0, 200),
+      replySubject: input.replySubject.trim().slice(0, 200),
+      replyBody: input.replyBody.replace(/\s+$/, "").slice(0, 5000),
       updatedAt: new Date(),
     };
     await db
@@ -60,7 +64,7 @@ export async function resendSubmissionMail(id: string) {
     if (!form) throw new Error("Das Formular gibt es nicht mehr.");
     const h = await headers();
     const cmsUrl = process.env.KERN_PUBLIC_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-    await sendSubmissionMails({ site: ws.site, form, submissionId: id, data: submission.data, page: submission.page, cmsUrl });
+    await sendSubmissionMails({ site: ws.site, form, submissionId: id, data: submission.data, page: submission.page, cmsUrl, createdAt: submission.createdAt });
     const [after] = await db.select({ status: formSubmissions.mailStatus, error: formSubmissions.mailError }).from(formSubmissions).where(eq(formSubmissions.id, id));
     refresh();
     if (after?.status === "failed") throw new Error(after.error ?? "Versand fehlgeschlagen.");

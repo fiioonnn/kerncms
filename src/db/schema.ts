@@ -185,6 +185,9 @@ export const formSettings = pgTable(
     recipients: jsonb().$type<string[]>().notNull().default([]),
     /** May contain {feldname} placeholders, e.g. "Neue Anfrage: {topic}". */
     subject: text().notNull().default(""),
+    /** Prefilled "Per Mail antworten" mail, may contain {feldname} placeholders. Empty = defaults. */
+    replySubject: text().notNull().default(""),
+    replyBody: text().notNull().default(""),
     updatedAt: timestamp().notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.siteId, t.form] })],

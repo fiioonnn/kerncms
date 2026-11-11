@@ -14,7 +14,7 @@ import { git, log, showFile, uncommittedFiles, unpublishedFiles } from "./git";
 import { listMedia } from "./media";
 import { listNotifications } from "./notifications";
 import { notificationFrom } from "./site-mail";
-import { getSiteContext, getWorkspace } from "./sites";
+import { getSiteContext, getWorkspace, type Workspace } from "./sites";
 
 /* All functions here are for Server Components. They check access themselves. */
 
@@ -218,6 +218,26 @@ export async function getApprovals() {
 
 /* ---------- Forms ---------- */
 
+/** Notification and reply settings per configured form, with defaults for forms never configured. */
+async function formSettingsOf(ws: Workspace) {
+  const rows = await db.select().from(formSettings).where(eq(formSettings.siteId, ws.site.id));
+  return Object.fromEntries(
+    ws.config.forms.map((f) => {
+      const row = rows.find((r) => r.form === f.key);
+      return [
+        f.key,
+        {
+          notify: row?.notify ?? false,
+          recipients: row?.recipients ?? [],
+          subject: row?.subject ?? "",
+          replySubject: row?.replySubject ?? "",
+          replyBody: row?.replyBody ?? "",
+        },
+      ];
+    }),
+  );
+}
+
 export async function getForms() {
   const ws = await getWorkspace("editor");
   const rows = await db
@@ -226,25 +246,10 @@ export async function getForms() {
     .where(eq(formSubmissions.siteId, ws.site.id))
     .orderBy(desc(formSubmissions.createdAt))
     .limit(500);
-  const settingsRows = await db.select().from(formSettings).where(eq(formSettings.siteId, ws.site.id));
   return {
     forms: ws.config.forms,
     canConfigure: ws.role === "admin" || ws.role === "owner",
-    /** Sender shown in notification mails, e.g. "Bäckerei Müller über kerncms <info@kerncms.com>". */
-    sender: notificationFrom(ws.site.name),
-    settings: Object.fromEntries(
-      ws.config.forms.map((f) => {
-        const row = settingsRows.find((r) => r.form === f.key);
-        return [
-          f.key,
-          {
-            notify: row?.notify ?? false,
-            recipients: row?.recipients ?? [],
-            subject: row?.subject ?? "",
-          },
-        ];
-      }),
-    ),
+    settings: await formSettingsOf(ws),
     submissions: rows.map((r) => ({
       id: r.id,
       form: r.form,
@@ -316,6 +321,8 @@ export async function getSettings() {
     configSource,
     configFile: CONFIG_FILE,
     redirects,
+    formSettings: await formSettingsOf(ws),
+    sender: notificationFrom(ws.site.name),
   };
 }
 
