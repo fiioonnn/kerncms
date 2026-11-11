@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "pnpm services:up && next dev",
+    "services:up": "docker compose up -d --wait postgres storage && docker compose run --rm --quiet-pull storage-init",
+    "services:down": "docker compose stop",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

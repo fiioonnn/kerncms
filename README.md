@@ -11,12 +11,11 @@ pnpm install
 
 ## Development
 
-Start Postgres and storage in Docker, run the app locally:
-
 ```bash
-docker compose up -d postgres storage storage-init
 pnpm dev
 ```
+
+This starts Postgres and storage in Docker (waits until they are healthy and creates the bucket), then runs `next dev` locally. The containers keep running after you stop the dev server; stop them with `pnpm services:down`.
 
 - App: http://localhost:3000
 - S3 API: http://localhost:9000
