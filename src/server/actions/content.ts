@@ -15,6 +15,7 @@ import {
   pageFile,
   pageNameForPath,
   readEntry,
+  readGlobal,
   readPage,
   removeFile,
   safeJoin,
@@ -222,6 +223,16 @@ export async function deleteEntry(collectionKey: string, id: string) {
 }
 
 /* ---------- Globals and redirects ---------- */
+
+/** Current values of a global, e.g. to edit it from the visual editor. */
+export async function loadGlobal(key: string) {
+  return run(async () => {
+    const ws = await getWorkspace("viewer");
+    const global = findGlobal(ws.config, key);
+    if (!global) throw new Error("Unbekannter Bereich.");
+    return { values: await readGlobal(ws.dir, global) };
+  });
+}
 
 export async function saveGlobal(key: string, values: EntryValues) {
   return run(async () => {

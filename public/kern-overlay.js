@@ -245,15 +245,16 @@
       const block = blockOf(target);
       if (!block) {
         stopEditing();
-        if (link) {
-          const url = new URL(link.href, location.href);
-          if (url.origin === location.origin && (url.pathname !== location.pathname || !url.hash)) {
-            send("navigate", { path: url.pathname });
-          }
+        // Global content (logo, navigation, footer) wins over the link it sits in.
+        const global = closest(target, "[data-kern-global]");
+        if (global) {
+          send("global", { ref: global.getAttribute("data-kern-global") });
           return;
         }
-        const global = closest(target, "[data-kern-global]");
-        if (global) send("global", { ref: global.getAttribute("data-kern-global") });
+        if (link) {
+          const url = new URL(link.href, location.href);
+          if (url.origin === location.origin && url.pathname !== location.pathname) send("navigate", { path: url.pathname });
+        }
         return;
       }
 
@@ -315,10 +316,31 @@
     // Only on reloads; opening a page fresh starts at the top.
     if (y && nav && nav.type === "reload") {
       history.scrollRestoration = "manual";
-      const restore = () => scrollTo(0, y);
-      requestAnimationFrame(restore);
-      // Images above may still change the layout.
-      addEventListener("load", restore, { once: true });
+      // Keep the page invisible until it is back at the old position, so it never flashes at the top.
+      const hide = document.createElement("style");
+      hide.textContent = "html{visibility:hidden!important;scroll-behavior:auto!important}";
+      document.head.appendChild(hide);
+      let shown = false;
+      const show = () => {
+        if (shown) return;
+        shown = true;
+        scrollTo(0, y);
+        hide.remove();
+      };
+      const restore = () => {
+        scrollTo(0, y);
+        // Wait one frame so the browser lays out at the restored position before showing it.
+        requestAnimationFrame(show);
+      };
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", restore, { once: true });
+      else restore();
+      // Never keep the page hidden for long, even if something blocks.
+      setTimeout(show, 1200);
+      // Images above may still change the layout; correct silently while the user hasn't scrolled.
+      let userScrolled = false;
+      addEventListener("wheel", () => (userScrolled = true), { once: true, passive: true });
+      addEventListener("touchmove", () => (userScrolled = true), { once: true, passive: true });
+      addEventListener("load", () => !userScrolled && scrollTo(0, y), { once: true });
     }
   } catch {}
 

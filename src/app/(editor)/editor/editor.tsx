@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { FilePlus2, Globe, Loader2, X } from "lucide-react";
+import { FilePlus2, Loader2 } from "lucide-react";
 import { emptyValues } from "@/components/kern/field-renderer";
 import { useCan, useKern } from "@/components/kern/kern-provider";
 import { MediaPickerDialog } from "@/components/media/media-picker";
@@ -16,6 +16,7 @@ import { discardPage, savePage, writePageDraft } from "@/server/actions/content"
 import { NewPageDialog } from "./page-picker";
 import { changedLeaves, fieldTypesFor, getAt, newBlockId, samePath, setAt, typeAt } from "./paths";
 import { PreviewFrame, PreviewLoader, usePreview } from "./preview";
+import { GlobalDialog } from "./global-dialog";
 import { EditorSidebar, SidebarDrawer, type SidebarTab } from "./sidebar";
 import { EditorTopbar, type SaveState } from "./topbar";
 
@@ -580,18 +581,9 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     return () => window.removeEventListener("message", listener);
   }, []);
 
-  // The global hint disappears after a while.
-  useEffect(() => {
-    if (!globalHint) return;
-    const timer = setTimeout(() => setGlobalHint(null), 8000);
-    return () => clearTimeout(timer);
-  }, [globalHint]);
 
   /* ----- Render ----- */
 
-  const [globalKey, globalPath] = (globalHint ?? "").split("#");
-  const globalDef = config.globals.find((g) => g.key === globalKey);
-  const globalField = globalDef?.fields.find((f) => f.name === globalPath?.split(".")[0]);
   const pickBlock = imagePick ? blocks.find((b) => b.id === imagePick.blockId) : undefined;
   const pickValue = pickBlock && imagePick ? getAt(pickBlock, imagePick.field) : undefined;
   const pageList = pages.map((p) => (p.name === name ? { ...p, title: data.title, path: data.path, status: dirty ? "unsaved" : p.status } : p)) as PageSummary[];
@@ -679,33 +671,6 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
             if (selectedId) post({ type: "select", blockId: selectedId, scroll: false });
           }}
         >
-          {globalHint && (
-            <div
-              role="status"
-              className="absolute bottom-6 left-1/2 z-10 flex w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-3 rounded-2xl border border-border bg-surface p-4 shadow-popover"
-            >
-              <Globe className="mt-0.5 size-5 shrink-0 text-accent" strokeWidth={1.75} />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[15px] font-semibold">
-                  {globalField ? `„${globalField.label}“ ist ein globaler Inhalt` : "Globaler Inhalt"}
-                </span>
-                <span className="text-sm text-muted">
-                  {globalDef ? `Er gehört zu „${globalDef.label}“ und erscheint auf allen Seiten.` : "Er erscheint auf allen Seiten."}
-                </span>
-                <Link href="/globals" className="mt-1 self-start text-sm font-medium text-accent hover:underline">
-                  In „Globale Inhalte“ bearbeiten
-                </Link>
-              </div>
-              <button
-                type="button"
-                aria-label="Schließen"
-                onClick={() => setGlobalHint(null)}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-subtle hover:text-foreground"
-              >
-                <X className="size-4" strokeWidth={1.75} />
-              </button>
-            </div>
-          )}
         </PreviewFrame>
       </div>
 
@@ -718,6 +683,8 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
           setImagePick(null);
         }}
       />
+
+      <GlobalDialog target={globalHint} onClose={() => setGlobalHint(null)} canEdit={canEdit} />
 
       <Dialog open={guard !== null} onOpenChange={(open) => !open && !guardBusy && setGuard(null)}>
         <DialogContent

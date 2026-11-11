@@ -12,6 +12,7 @@ import type { BlockData, BlockDef, FieldDef, MarkDef, PageData, PageSeo } from "
 import { cn } from "@/lib/utils";
 import { AddBlockDialog } from "./add-block-dialog";
 import { BlockOutline } from "./block-outline";
+import { useResizableWidth } from "./use-resizable-width";
 
 export type SidebarTab = "properties" | "blocks" | "page";
 
@@ -77,6 +78,7 @@ export function EditorSidebar({
   // The target is kept after closing so the dialog text stays put during its exit animation.
   const [removeOpen, setRemoveOpen] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<BlockData | null>(null);
+  const resize = useResizableWidth();
   const label = (block: BlockData | null | undefined) => (block ? (defs.get(block.type)?.label ?? block.type) : "");
   const askRemove = (block: BlockData | undefined) => {
     if (!block) return;
@@ -89,7 +91,37 @@ export function EditorSidebar({
   const Root = drawer ? "div" : "aside";
 
   return (
-    <Root className={cn("flex flex-col bg-surface", drawer ? "min-h-0 flex-1" : "w-[400px] shrink-0 border-r border-border")}>
+    <Root
+      className={cn("relative flex flex-col bg-surface", drawer ? "min-h-0 flex-1" : "shrink-0 border-r border-border")}
+      style={drawer ? undefined : { width: resize.width }}
+    >
+      {!drawer && (
+        <>
+          {/* Drag handle on the right edge; double-click resets the width. */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Seitenleiste verbreitern"
+            aria-valuenow={resize.width}
+            aria-valuemin={resize.min}
+            aria-valuemax={resize.max}
+            tabIndex={0}
+            onPointerDown={resize.startDrag}
+            onKeyDown={resize.onKeyDown}
+            onDoubleClick={resize.reset}
+            className="group absolute inset-y-0 -right-1.5 z-20 w-3 cursor-col-resize outline-none"
+          >
+            <span
+              className={cn(
+                "absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors",
+                resize.dragging ? "bg-accent" : "bg-transparent group-hover:bg-accent/50 group-focus-visible:bg-accent",
+              )}
+            />
+          </div>
+          {/* While dragging, the preview iframe must not swallow pointer events. */}
+          {resize.dragging && <div className="fixed inset-0 z-50 cursor-col-resize" />}
+        </>
+      )}
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as SidebarTab)} className="flex min-h-0 flex-1 flex-col">
         <TabsList className={cn("px-4", drawer && "pr-16")}>
           <Tab value="properties">Eigenschaften</Tab>
