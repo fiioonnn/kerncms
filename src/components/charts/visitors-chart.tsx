@@ -6,9 +6,12 @@ export type DailyPoint = { date: string; value: number };
 
 const W = 1000;
 
+/** Axis maximum with four whole-number ticks (1, 2 or 5 × 10^n per tick). */
 function niceMax(max: number) {
-  const step = 10 ** Math.floor(Math.log10(max));
-  return Math.ceil(max / step) * step;
+  const raw = Math.max(1, max / 4);
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? raw;
+  return Math.max(1, Math.ceil(step)) * 4;
 }
 
 function formatDay(iso: string) {
@@ -24,17 +27,21 @@ export function VisitorsChart({
   data,
   label,
   height = 260,
+  unit = "Besucher",
 }: {
   data: DailyPoint[];
   label: string;
   height?: number;
+  /** Shown after the value in the tooltip. */
+  unit?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const H = height;
 
   const max = niceMax(Math.max(...data.map((p) => p.value)));
   const ticks = [0, max / 4, max / 2, (max * 3) / 4, max];
-  const x = (i: number) => (i / (data.length - 1)) * W;
+  const span = Math.max(1, data.length - 1);
+  const x = (i: number) => (i / span) * W;
   const y = (v: number) => H - (v / max) * H;
 
   const line = data.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)} ${y(p.value)}`).join(" ");
@@ -45,7 +52,7 @@ export function VisitorsChart({
   function onMove(e: React.PointerEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
-    setHover(Math.max(0, Math.min(data.length - 1, Math.round(ratio * (data.length - 1)))));
+    setHover(Math.max(0, Math.min(data.length - 1, Math.round(ratio * span))));
   }
 
   return (
@@ -96,14 +103,14 @@ export function VisitorsChart({
             <>
               <span
                 className="pointer-events-none absolute size-3 -translate-1/2 rounded-full border-2 border-surface bg-accent"
-                style={{ left: `${(hover / (data.length - 1)) * 100}%`, top: `${(y(active.value) / H) * 100}%` }}
+                style={{ left: `${(hover / span) * 100}%`, top: `${(y(active.value) / H) * 100}%` }}
               />
               <div
                 className="pointer-events-none absolute top-2 z-10 flex -translate-x-1/2 flex-col rounded-xl border border-border bg-surface px-4 py-2.5 shadow-popover"
-                style={{ left: `clamp(70px, ${(hover / (data.length - 1)) * 100}%, calc(100% - 70px))` }}
+                style={{ left: `clamp(70px, ${(hover / span) * 100}%, calc(100% - 70px))` }}
               >
                 <span className="text-sm text-muted">{formatDay(active.date)}</span>
-                <span className="text-base font-semibold">{active.value.toLocaleString("de-DE")} Besucher</span>
+                <span className="text-base font-semibold">{active.value.toLocaleString("de-DE")} {unit}</span>
               </div>
             </>
           )}

@@ -17,7 +17,10 @@ export function BarList({
   format?: (value: number) => string;
   className?: string;
 }) {
-  const max = Math.max(...items.map((item) => item.value));
+  const max = Math.max(1, ...items.map((item) => item.value));
+  if (items.length === 0) {
+    return <p className={cn("py-6 text-center text-[15px] text-muted", className)}>Noch keine Daten im Zeitraum</p>;
+  }
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <div className="flex justify-between px-1 pb-2 text-sm font-medium text-muted">

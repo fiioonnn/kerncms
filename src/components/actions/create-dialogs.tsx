@@ -1,17 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Plus, UserPlus } from "lucide-react";
-import { buttonStyles } from "@/components/ui/button";
+import { slugify } from "@/components/collections/format";
+import { useCan, useKern } from "@/components/kern/kern-provider";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import { createPage } from "@/server/actions/content";
 
-const templates = [
-  { label: "Leere Seite", value: "blank" },
-  { label: "Inhaltsseite mit Hero", value: "content" },
-  { label: "Kontaktseite", value: "contact" },
-];
+const BLANK = "__blank";
 
 const roles = [
   { label: "Redakteur", value: "editor" },
@@ -19,12 +20,69 @@ const roles = [
   { label: "Nur lesen", value: "viewer" },
 ];
 
-export function NewPageDialog() {
+export function NewPageDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
+  const { pages } = useKern();
+  const canEdit = useCan("editor");
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [path, setPath] = useState("");
+  const [pathTouched, setPathTouched] = useState(false);
+  const [copyFrom, setCopyFrom] = useState(BLANK);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
+
+  if (!canEdit) return null;
+
+  const templates = [
+    { label: "Leere Seite", value: BLANK },
+    ...pages.map((p) => ({ label: `${p.title} (${p.path})`, value: p.name })),
+  ];
+
+  function reset() {
+    setTitle("");
+    setPath("");
+    setPathTouched(false);
+    setCopyFrom(BLANK);
+    setErrors({});
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) return setErrors({ title: "Bitte gib einen Titel ein." });
+    startTransition(async () => {
+      const result = await createPage({
+        title: title.trim(),
+        path: path.trim(),
+        copyFrom: copyFrom === BLANK ? undefined : copyFrom,
+      });
+      if (!result.ok) {
+        setErrors(result.errors ?? {});
+        toast.error("Seite nicht angelegt", { description: result.error });
+        return;
+      }
+      toast.success("Seite angelegt", { description: `${result.data.path} liegt jetzt im Entwurf.` });
+      setOpen(false);
+      reset();
+      router.push(`/editor?page=${encodeURIComponent(result.data.name)}`);
+    });
+  }
+
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) reset();
+      }}
+    >
       <DialogTrigger className={buttonStyles()}>
-        <Plus />
-        Neue Seite
+        {trigger ?? (
+          <>
+            <Plus />
+            Neue Seite
+          </>
+        )}
       </DialogTrigger>
       <DialogContent
         title="Neue Seite"
@@ -32,27 +90,44 @@ export function NewPageDialog() {
         footer={
           <>
             <DialogClose className={buttonStyles({ variant: "secondary" })}>Abbrechen</DialogClose>
-            <DialogClose
-              className={buttonStyles()}
-              onClick={() => toast.success("Seite angelegt", { description: "Sie liegt jetzt im Entwurf." })}
-            >
-              Seite anlegen
-            </DialogClose>
+            <Button type="submit" form="new-page-form" disabled={pending}>
+              {pending ? "Wird angelegt…" : "Seite anlegen"}
+            </Button>
           </>
         }
       >
-        <div className="flex flex-col gap-6">
+        <form id="new-page-form" onSubmit={submit} className="flex flex-col gap-6">
           <Field>
             <Label>Titel</Label>
-            <Input autoFocus />
+            <Input
+              autoFocus
+              required
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (!pathTouched) setPath(e.target.value.trim() ? `/${slugify(e.target.value)}` : "");
+              }}
+            />
+            {errors.title && <p className="text-sm font-medium text-danger">{errors.title}</p>}
           </Field>
           <Field>
             <Label>Pfad</Label>
-            <Input className="font-mono" />
-            <Description>Wird aus dem Titel vorgeschlagen, wenn du ihn leer lässt.</Description>
+            <Input
+              className="font-mono"
+              value={path}
+              onChange={(e) => {
+                setPath(e.target.value);
+                setPathTouched(true);
+              }}
+            />
+            <Description>Optional. Wird aus dem Titel vorgeschlagen.</Description>
+            {errors.path && <p className="text-sm font-medium text-danger">{errors.path}</p>}
           </Field>
-          <Select label="Vorlage" items={templates} defaultValue="content" />
-        </div>
+          <div className="flex flex-col gap-2">
+            <Select label="Vorlage" items={templates} value={copyFrom} onValueChange={setCopyFrom} />
+            <p className="text-sm text-muted">Übernimmt die Blöcke einer bestehenden Seite.</p>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Full-page loader shown while the visual editor (and later the site preview
- * iframe) is starting. The bar fills once over `duration`; the overlay fades
+ * Full-page loader shown while the visual editor and the site preview are
+ * starting. `children` (e.g. the preview server's log) goes below the bar. The bar fills once over `duration`; the overlay fades
  * out when `visible` turns false. Without a duration (route-level loading
  * state) the bar fills slowly and stops just short of the end.
  */
@@ -11,11 +11,16 @@ export function EditorLoader({
   duration,
   title = "Visueller Editor wird geladen",
   detail = "Vorschau der Website wird vorbereitet…",
+  hideBar,
+  children,
 }: {
   visible: boolean;
   duration?: number;
   title?: string;
   detail?: string;
+  /** E.g. for an error state. */
+  hideBar?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <div
@@ -23,18 +28,17 @@ export function EditorLoader({
       aria-live="polite"
       aria-hidden={!visible}
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-background transition-opacity duration-300",
+        "fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-background px-4 transition-opacity duration-300",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >
-      <span className="flex size-16 animate-pulse items-center justify-center rounded-2xl bg-foreground text-2xl font-bold text-white shadow-popover">
-        k
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark */}
+      <img src="/logo-mark.svg" alt="" width={51} height={57} className="size-16 animate-pulse drop-shadow-md" />
       <div className="flex flex-col items-center gap-2 text-center">
         <span className="text-xl font-semibold tracking-tight">{title}</span>
         <span className="text-[15px] text-muted">{detail}</span>
       </div>
-      <div className="h-1.5 w-64 overflow-hidden rounded-full bg-subtle">
+      <div className={cn("h-1.5 w-64 overflow-hidden rounded-full bg-subtle", hideBar && "hidden")}>
         <div
           className="h-full origin-left rounded-full bg-accent"
           style={{
@@ -47,6 +51,7 @@ export function EditorLoader({
           }}
         />
       </div>
+      {children}
     </div>
   );
 }

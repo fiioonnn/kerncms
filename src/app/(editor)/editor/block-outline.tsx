@@ -5,7 +5,9 @@ import { ArrowDown, ArrowUp, Copy, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/overlay";
 import { cn } from "@/lib/utils";
-import { blockMeta, blockSummary, type Block } from "./blocks";
+import type { BlockData, BlockDef } from "@/lib/kern-types";
+import { BlockIcon } from "./block-icons";
+import { blockSummary } from "./paths";
 
 type DropTarget = { index: number; edge: "before" | "after" };
 
@@ -22,6 +24,7 @@ const rowButton = "size-9 rounded-lg text-muted hover:text-foreground [&_svg]:si
  */
 export function BlockOutline({
   blocks,
+  defs,
   selectedId,
   onSelect,
   onOpen,
@@ -29,7 +32,8 @@ export function BlockOutline({
   onDuplicate,
   onRemove,
 }: {
-  blocks: Block[];
+  blocks: BlockData[];
+  defs: Map<string, BlockDef>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   /** Double click: select and show the block's properties. */
@@ -49,7 +53,7 @@ export function BlockOutline({
     const to = index + direction;
     if (!block || to < 0 || to >= blocks.length) return;
     onMove(block.id, direction < 0 ? to : to + 1);
-    setAnnouncement(`${blockMeta[block.type].label} nach Position ${to + 1} von ${blocks.length} verschoben`);
+    setAnnouncement(`${defs.get(block.type)?.label ?? block.type} nach Position ${to + 1} von ${blocks.length} verschoben`);
     focusRow(block.id);
   };
 
@@ -91,7 +95,9 @@ export function BlockOutline({
         }}
       >
         {blocks.map((block, index) => {
-          const meta = blockMeta[block.type];
+          const def = defs.get(block.type);
+          const meta = { label: def?.label ?? block.type };
+          const summary = blockSummary(block, def);
           const selected = block.id === selectedId;
           const showBefore = dragId && target?.index === index && target.edge === "before";
           const showAfter = dragId && target?.index === index && target.edge === "after";
@@ -143,7 +149,7 @@ export function BlockOutline({
                   onClick={() => onSelect(block.id)}
                   onDoubleClick={() => onOpen(block.id)}
                   aria-current={selected || undefined}
-                  aria-label={`${meta.label}, Position ${index + 1} von ${blocks.length}: ${blockSummary(block)}`}
+                  aria-label={`${meta.label}, Position ${index + 1} von ${blocks.length}: ${summary}`}
                   aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
                   className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-lg pl-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                 >
@@ -153,11 +159,11 @@ export function BlockOutline({
                       selected ? "border-accent/20 bg-surface text-accent" : "border-border bg-surface text-foreground",
                     )}
                   >
-                    <meta.icon className="size-[18px]" strokeWidth={1.75} />
+                    <BlockIcon name={def?.icon} className="size-[18px]" strokeWidth={1.75} />
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <span className="text-[15px] font-medium">{meta.label}</span>
-                    <span className="truncate text-sm text-muted">{blockSummary(block)}</span>
+                    <span className="truncate text-sm text-muted">{summary}</span>
                   </span>
                 </button>
                 <Tooltip label="Nach oben">

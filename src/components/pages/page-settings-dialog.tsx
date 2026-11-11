@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { useKern, mediaSrc } from "@/components/kern/kern-provider";
 import { ImageField } from "@/components/media/media-picker";
-import { SampleImage } from "@/components/media/sample-image";
-import { buttonStyles } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Description, Field, Input, Label, Textarea } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/toggles";
-import { sitePages } from "@/lib/example-content";
+import type { PageSeo } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
+import { updatePageSettings } from "@/server/actions/content";
 
-const DOMAIN = "baeckerei-mueller.de";
+export type PageSettingsInput = { name: string; title: string; path: string; seo: PageSeo };
 
 function Counter({ value, ideal }: { value: string; ideal: [number, number] }) {
   const n = value.length;
@@ -25,127 +26,185 @@ function Counter({ value, ideal }: { value: string; ideal: [number, number] }) {
   );
 }
 
+function ErrorText({ error }: { error?: string }) {
+  return error ? <p className="text-sm font-medium text-danger">{error}</p> : null;
+}
+
+/** Title, path and SEO settings of a page. Saves with `updatePageSettings` (one commit). */
 export function PageSettingsDialog({
   open,
   onOpenChange,
-  title,
-  path,
+  page,
+  onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
-  path: string;
+  page: PageSettingsInput;
+  /** Called after a successful save with the stored path. */
+  onSaved?: (result: { title: string; path: string; seo: PageSeo }) => void;
 }) {
-  const [seoTitle, setSeoTitle] = useState(`${title} · Bäckerei Müller`);
-  const [seoDescription, setSeoDescription] = useState(
-    "Handwerklich gebackenes Brot aus regionalem Mehl. Seit 1962 in München, jeden Morgen frisch.",
-  );
-  const parents = [{ label: "Keine (oberste Ebene)", value: "none" }, ...sitePages.filter((p) => p.value !== path)];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        title={`Einstellungen: ${title}`}
-        description="Gilt für diese Seite. Änderungen landen im Entwurf."
-        size="lg"
-        footer={
-          <>
-            <DialogClose className={buttonStyles({ variant: "secondary" })}>Abbrechen</DialogClose>
-            <DialogClose
-              className={buttonStyles()}
-              onClick={() => toast.success("Seiteneinstellungen gespeichert", { description: "Die Änderung liegt im Entwurf." })}
-            >
-              Speichern
-            </DialogClose>
-          </>
-        }
-      >
-        <Tabs defaultValue="general">
-          <TabsList className="-mt-2">
-            <Tab value="general">Allgemein</Tab>
-            <Tab value="seo">Suchmaschinen</Tab>
-            <Tab value="social">Social Media</Tab>
-          </TabsList>
-
-          <TabPanel value="general" className="flex flex-col gap-5 pt-5">
-            <Field>
-              <Label>Titel</Label>
-              <Input defaultValue={title} />
-            </Field>
-            <Field>
-              <Label>Pfad</Label>
-              <div className="flex items-center rounded-xl border border-border-strong bg-subtle/60 pl-4 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
-                <span className="shrink-0 text-[15px] whitespace-nowrap text-muted">{DOMAIN}</span>
-                <Input defaultValue={path} className="rounded-l-none border-0 bg-surface font-mono focus:ring-0" />
-              </div>
-              <Description>Wenn du den Pfad änderst, wird automatisch eine Weiterleitung vom alten Pfad angelegt.</Description>
-            </Field>
-            <Select label="Übergeordnete Seite" items={parents} defaultValue="none" />
-            <div className="flex flex-col gap-5 border-t border-border pt-5">
-              <Switch label="Im Menü anzeigen" description="Die Seite erscheint in der Hauptnavigation." defaultChecked />
-              <Switch label="Seite ist öffentlich" description="Ausgeschaltet ist die Seite nur für angemeldete Nutzer sichtbar." defaultChecked />
-            </div>
-          </TabPanel>
-
-          <TabPanel value="seo" className="flex flex-col gap-5 pt-5">
-            <Field>
-              <div className="flex items-center justify-between">
-                <Label>Titel in Suchergebnissen</Label>
-                <Counter value={seoTitle} ideal={[30, 60]} />
-              </div>
-              <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
-            </Field>
-            <Field>
-              <div className="flex items-center justify-between">
-                <Label>Beschreibung</Label>
-                <Counter value={seoDescription} ideal={[70, 160]} />
-              </div>
-              <Textarea rows={3} value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} />
-              <Description>Ideal sind 70 bis 160 Zeichen. Google kürzt längere Texte.</Description>
-            </Field>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-[15px] font-medium">Vorschau bei Google</span>
-              <div className="rounded-xl border border-border p-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-subtle text-[10px] font-bold">BM</span>
-                  <span className="flex flex-col leading-tight">
-                    <span className="text-sm">Bäckerei Müller</span>
-                    <span className="text-xs text-muted">
-                      https://{DOMAIN}
-                      {path === "/" ? "" : path}
-                    </span>
-                  </span>
-                </div>
-                <p className="mt-2 truncate text-lg text-[#1a0dab]">{seoTitle || title}</p>
-                <p className="line-clamp-2 text-sm text-[#4d5156]">{seoDescription || "Keine Beschreibung angegeben."}</p>
-              </div>
-            </div>
-
-            <Switch label="Von Suchmaschinen ausschließen" description="Setzt „noindex“. Die Seite bleibt erreichbar, erscheint aber nicht bei Google." />
-          </TabPanel>
-
-          <TabPanel value="social" className="flex flex-col gap-5 pt-5">
-            <ImageField
-              label="Vorschaubild"
-              description="Wird beim Teilen auf WhatsApp, Facebook oder LinkedIn angezeigt. Ideal: 1200 × 630 px."
-              defaultValue="hero-brot.jpg"
-              aspect="aspect-[1200/630]"
-            />
-            <div className="flex flex-col gap-2">
-              <span className="text-[15px] font-medium">Vorschau beim Teilen</span>
-              <div className="overflow-hidden rounded-xl border border-border">
-                <SampleImage name="hero-brot.jpg" className="aspect-[1200/630] w-full" />
-                <div className="flex flex-col gap-0.5 bg-subtle/60 px-4 py-3">
-                  <span className="text-xs text-muted uppercase">{DOMAIN}</span>
-                  <span className="truncate text-[15px] font-semibold">{seoTitle || title}</span>
-                  <span className="line-clamp-1 text-sm text-muted">{seoDescription}</span>
-                </div>
-              </div>
-            </div>
-          </TabPanel>
-        </Tabs>
-      </DialogContent>
+      {open && <SettingsForm page={page} onDone={() => onOpenChange(false)} onSaved={onSaved} />}
     </Dialog>
+  );
+}
+
+function SettingsForm({
+  page,
+  onDone,
+  onSaved,
+}: {
+  page: PageSettingsInput;
+  onDone: () => void;
+  onSaved?: (result: { title: string; path: string; seo: PageSeo }) => void;
+}) {
+  const { site, mediaPrefix } = useKern();
+  const router = useRouter();
+  const [title, setTitle] = useState(page.title);
+  const [path, setPath] = useState(page.path);
+  const [seoTitle, setSeoTitle] = useState(page.seo.title ?? "");
+  const [seoDescription, setSeoDescription] = useState(page.seo.description ?? "");
+  const [seoImage, setSeoImage] = useState(page.seo.image ?? "");
+  const [noindex, setNoindex] = useState(page.seo.noindex ?? false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
+  const isHome = page.path === "/";
+  const domain = site.liveUrl ? site.liveUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : site.name;
+  const shownTitle = seoTitle || title;
+
+  function save() {
+    const seo: PageSeo = { title: seoTitle.trim(), description: seoDescription.trim(), image: seoImage, noindex };
+    startTransition(async () => {
+      const result = await updatePageSettings(page.name, { title, path: isHome ? "/" : path, seo });
+      if (!result.ok) {
+        setErrors(result.errors ?? {});
+        toast.error("Speichern fehlgeschlagen", { description: result.error });
+        return;
+      }
+      toast.success("Seiteneinstellungen gespeichert", { description: "Die Änderung liegt im Entwurf." });
+      onSaved?.({ title: title.trim(), path: result.data.path, seo });
+      router.refresh();
+      onDone();
+    });
+  }
+
+  return (
+    <DialogContent
+      title={`Einstellungen: ${page.title}`}
+      description="Gilt für diese Seite. Änderungen landen im Entwurf."
+      size="lg"
+      footer={
+        <>
+          <DialogClose className={buttonStyles({ variant: "secondary" })}>Abbrechen</DialogClose>
+          <Button onClick={save} disabled={pending || !title.trim()}>
+            {pending ? "Speichert…" : "Speichern"}
+          </Button>
+        </>
+      }
+    >
+      <Tabs defaultValue="general">
+        <TabsList className="-mt-2">
+          <Tab value="general">Allgemein</Tab>
+          <Tab value="seo">Suchmaschinen</Tab>
+          <Tab value="social">Social Media</Tab>
+        </TabsList>
+
+        <TabPanel value="general" className="flex flex-col gap-5 pt-5">
+          <Field>
+            <Label>Titel</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <ErrorText error={errors.title} />
+          </Field>
+          <Field>
+            <Label>Pfad</Label>
+            <div className="flex items-center rounded-xl border border-border-strong bg-subtle/60 pl-4 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15">
+              <span className="shrink-0 text-[15px] whitespace-nowrap text-muted">{domain}</span>
+              <Input
+                value={path}
+                disabled={isHome}
+                onChange={(e) => setPath(e.target.value)}
+                className="rounded-l-none border-0 bg-surface font-mono focus:ring-0"
+              />
+            </div>
+            <Description>
+              {isHome
+                ? "Die Startseite liegt immer unter „/“."
+                : "Links auf den alten Pfad funktionieren danach nicht mehr. Lege bei Bedarf eine Weiterleitung an."}
+            </Description>
+            <ErrorText error={errors.path} />
+          </Field>
+        </TabPanel>
+
+        <TabPanel value="seo" className="flex flex-col gap-5 pt-5">
+          <Field>
+            <div className="flex items-center justify-between">
+              <Label>Titel in Suchergebnissen</Label>
+              <Counter value={seoTitle} ideal={[30, 60]} />
+            </div>
+            <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
+            <Description>Leer lassen, um den Seitentitel zu verwenden.</Description>
+          </Field>
+          <Field>
+            <div className="flex items-center justify-between">
+              <Label>Beschreibung</Label>
+              <Counter value={seoDescription} ideal={[70, 160]} />
+            </div>
+            <Textarea rows={3} value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} />
+            <Description>Ideal sind 70 bis 160 Zeichen. Google kürzt längere Texte.</Description>
+          </Field>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[15px] font-medium">Vorschau bei Google</span>
+            <div className="rounded-xl border border-border p-4">
+              <span className="flex flex-col leading-tight">
+                <span className="text-sm">{site.name}</span>
+                <span className="text-xs text-muted">
+                  https://{domain}
+                  {isHome ? "" : path}
+                </span>
+              </span>
+              <p className="mt-2 truncate text-lg text-[#1a0dab]">{shownTitle}</p>
+              <p className="line-clamp-2 text-sm text-[#4d5156]">{seoDescription || "Keine Beschreibung angegeben."}</p>
+            </div>
+          </div>
+
+          <Switch
+            label="Von Suchmaschinen ausschließen"
+            description="Setzt „noindex“. Die Seite bleibt erreichbar, erscheint aber nicht bei Google."
+            checked={noindex}
+            onCheckedChange={setNoindex}
+          />
+        </TabPanel>
+
+        <TabPanel value="social" className="flex flex-col gap-5 pt-5">
+          <ImageField
+            label="Vorschaubild"
+            description="Wird beim Teilen auf WhatsApp, Facebook oder LinkedIn angezeigt. Ideal: 1200 × 630 px."
+            value={seoImage || undefined}
+            onChange={(next) => setSeoImage(next ?? "")}
+            aspect="aspect-[1200/630]"
+          />
+          <div className="flex flex-col gap-2">
+            <span className="text-[15px] font-medium">Vorschau beim Teilen</span>
+            <div className="overflow-hidden rounded-xl border border-border">
+              {seoImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={mediaSrc(seoImage, mediaPrefix)} alt="" className="aspect-[1200/630] w-full object-cover" />
+              ) : (
+                <div className="flex aspect-[1200/630] w-full items-center justify-center bg-subtle text-sm text-muted">
+                  Kein Vorschaubild
+                </div>
+              )}
+              <div className="flex flex-col gap-0.5 bg-subtle/60 px-4 py-3">
+                <span className="text-xs text-muted uppercase">{domain}</span>
+                <span className="truncate text-[15px] font-semibold">{shownTitle}</span>
+                <span className="line-clamp-1 text-sm text-muted">{seoDescription}</span>
+              </div>
+            </div>
+          </div>
+        </TabPanel>
+      </Tabs>
+    </DialogContent>
   );
 }

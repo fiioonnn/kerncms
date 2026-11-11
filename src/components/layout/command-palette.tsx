@@ -3,20 +3,32 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import { CornerDownLeft, FileText, Newspaper, Search } from "lucide-react";
+import { CornerDownLeft, FileText, Globe, Library, Plus, Search } from "lucide-react";
+import { useKern } from "@/components/kern/kern-provider";
 import { cn } from "@/lib/utils";
 import { allNavItems } from "./nav";
 
 type Entry = { label: string; hint: string; href: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> };
 
-const entries: Entry[] = [
-  ...allNavItems.map((item) => ({ label: item.label, hint: "Bereich", href: item.href, icon: item.icon })),
-  { label: "Startseite", hint: "Seite", href: "/editor", icon: FileText },
-  { label: "Über uns", hint: "Seite", href: "/editor", icon: FileText },
-  { label: "Sortiment", hint: "Seite", href: "/editor", icon: FileText },
-  { label: "Neue Sauerteigbrote ab Mai", hint: "Beitrag", href: "/posts/new", icon: Newspaper },
-  { label: "Rezept: Dinkel-Vollkornbrot", hint: "Beitrag", href: "/posts/new", icon: Newspaper },
-];
+function useEntries(): Entry[] {
+  const kern = useKern();
+  return [
+    ...kern.pages.map((page) => ({
+      label: page.title || page.name,
+      hint: page.path,
+      href: `/editor?page=${encodeURIComponent(page.name)}`,
+      icon: FileText,
+    })),
+    ...kern.config.collections.map((c) => ({ label: c.label, hint: "Inhalte", href: `/collections/${c.key}`, icon: Library })),
+    ...(kern.role === "viewer"
+      ? []
+      : kern.config.collections.map((c) => ({ label: `${c.singular} anlegen`, hint: c.label, href: `/collections/${c.key}/new`, icon: Plus }))),
+    ...kern.config.globals.map((g) => ({ label: g.label, hint: "Global", href: "/globals", icon: Globe })),
+    ...allNavItems
+      .filter((item) => item.href !== "/styleguide")
+      .map((item) => ({ label: item.label, hint: "Bereich", href: item.href, icon: item.icon })),
+  ];
+}
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
@@ -24,7 +36,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const [active, setActive] = useState(0);
   const listId = useId();
 
-  const results = entries.filter((entry) => entry.label.toLowerCase().includes(query.trim().toLowerCase()));
+  const entries = useEntries();
+  const q = query.trim().toLowerCase();
+  const results = entries.filter((entry) => entry.label.toLowerCase().includes(q) || entry.hint.toLowerCase().includes(q)).slice(0, 50);
 
   function go(entry: Entry | undefined) {
     if (!entry) return;
@@ -76,7 +90,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               aria-autocomplete="list"
               aria-activedescendant={results.length > 0 ? `${listId}-${active}` : undefined}
               aria-label="Suchen"
-              placeholder="Seiten, Beiträge und Bereiche durchsuchen…"
+              placeholder="Seiten, Inhalte und Bereiche durchsuchen…"
               className="h-full flex-1 bg-transparent text-base outline-none placeholder:text-muted"
             />
             <kbd className="rounded-md border border-border px-1.5 text-xs font-medium text-muted">Esc</kbd>
@@ -85,7 +99,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             {results.length === 0 && <p className="px-3 py-8 text-center text-[15px] text-muted">Keine Treffer</p>}
             {results.map((entry, i) => (
               <button
-                key={`${entry.hint}-${entry.label}`}
+                key={`${entry.href}-${entry.label}`}
                 id={`${listId}-${i}`}
                 type="button"
                 role="option"

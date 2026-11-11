@@ -6,17 +6,24 @@ import { Button, buttonStyles } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger, SegmentedControl } from "@/components/ui/overlay";
 import { Switch } from "@/components/ui/toggles";
-import { sitePages } from "@/lib/example-content";
+import { useOptionalKern } from "@/components/kern/kern-provider";
+import { sitePages as examplePages } from "@/lib/example-content";
 import { cn } from "@/lib/utils";
 
 export type LinkValue =
   | { type: "page"; path: string }
   | { type: "external"; url: string; newTab: boolean };
 
+/** Pages of the current site as select options; example pages outside a site (styleguide). */
+export function usePageOptions() {
+  const kern = useOptionalKern();
+  return kern ? kern.pages.map((p) => ({ label: p.title, value: p.path })) : examplePages;
+}
+
 /** Short human-readable form of a link, e.g. for the canvas or a list. */
-export function describeLink(value: LinkValue) {
+export function describeLink(value: LinkValue, pages: { label: string; value: string }[] = examplePages) {
   if (value.type === "page") {
-    return sitePages.find((p) => p.value === value.path)?.label ?? value.path;
+    return pages.find((p) => p.value === value.path)?.label ?? value.path;
   }
   return value.url;
 }
@@ -33,6 +40,7 @@ function LinkPicker({
   const [url, setUrl] = useState(value.type === "external" ? value.url : "");
   const [newTab, setNewTab] = useState(value.type === "external" ? value.newTab : true);
   const q = query.trim().toLowerCase();
+  const sitePages = usePageOptions();
   const results = sitePages.filter((p) => p.label.toLowerCase().includes(q) || p.value.includes(q));
   const validUrl = /^(https?:\/\/|mailto:|tel:)\S+$/.test(url.trim());
 
@@ -127,6 +135,7 @@ export function LinkField({
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const sitePages = usePageOptions();
   const page = value.type === "page" ? sitePages.find((p) => p.value === value.path) : undefined;
   const Icon = value.type === "page" ? FileText : Globe;
 

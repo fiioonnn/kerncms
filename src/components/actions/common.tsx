@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Copy, CopyPlus, Link2, MoreHorizontal, Pencil, Trash2, Upload, UploadCloud } from "lucide-react";
+import { Copy, CopyPlus, Link2, Loader2, MoreHorizontal, Pencil, Trash2, Upload, UploadCloud } from "lucide-react";
+import { uploadMedia } from "@/components/kern/use-media";
 import { Button, buttonStyles, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 import { ConfirmDialog, Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
@@ -120,15 +121,49 @@ export function CopyButton({ value, label = "Kopieren" }: { value: string; label
 export function UploadDialog({
   trigger,
   triggerClassName = buttonStyles(),
+  onUploaded,
+  accept = "image/*,.pdf,.svg,.mp4",
 }: {
   trigger?: React.ReactNode;
   triggerClassName?: string;
+  /** Called with the stored file names after a successful upload. */
+  onUploaded?: (names: string[]) => void;
+  accept?: string;
 }) {
+  const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload() {
+    setUploading(true);
+    setError(null);
+    try {
+      const names = await uploadMedia(files);
+      toast.success(names.length === 1 ? `„${names[0]}“ hochgeladen` : `${names.length} Dateien hochgeladen`);
+      onUploaded?.(names);
+      setOpen(false);
+      setFiles([]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
-    <Dialog onOpenChange={(open) => !open && setFiles([])}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (uploading) return;
+        setOpen(next);
+        if (!next) {
+          setFiles([]);
+          setError(null);
+        }
+      }}
+    >
       <DialogTrigger className={triggerClassName}>
         {trigger ?? (
           <>
@@ -142,17 +177,13 @@ export function UploadDialog({
         description="Bilder, PDFs und SVGs bis 20 MB."
         footer={
           <>
-            <DialogClose className={buttonStyles({ variant: "secondary" })}>Abbrechen</DialogClose>
-            <DialogClose
-              className={buttonStyles()}
-              onClick={() =>
-                toast.success(files.length ? `${files.length} Dateien hochgeladen` : "Hochgeladen", {
-                  description: "Die Dateien liegen jetzt in den Medien.",
-                })
-              }
-            >
-              Hochladen
+            <DialogClose className={buttonStyles({ variant: "secondary" })} disabled={uploading}>
+              Abbrechen
             </DialogClose>
+            <Button onClick={upload} disabled={files.length === 0 || uploading}>
+              {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
+              {uploading ? "Wird hochgeladen…" : files.length > 1 ? `${files.length} Dateien hochladen` : "Hochladen"}
+            </Button>
           </>
         }
       >
@@ -165,9 +196,9 @@ export function UploadDialog({
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            setFiles(Array.from(e.dataTransfer.files).map((f) => f.name));
+            setFiles(Array.from(e.dataTransfer.files));
           }}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+          className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15 ${
             dragging ? "border-accent bg-accent-soft text-accent" : "border-border-strong text-muted hover:border-accent hover:text-accent"
           }`}
         >
@@ -177,15 +208,22 @@ export function UploadDialog({
           <input
             type="file"
             multiple
+            accept={accept}
             className="sr-only"
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []).map((f) => f.name))}
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           />
         </label>
+        {error && (
+          <p role="alert" className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-[15px] text-danger">
+            {error}
+          </p>
+        )}
         {files.length > 0 && (
           <ul className="mt-4 flex flex-col gap-1">
-            {files.map((name) => (
-              <li key={name} className="truncate rounded-lg bg-subtle px-3 py-2 text-[15px]">
-                {name}
+            {files.map((file) => (
+              <li key={file.name} className="flex items-center justify-between gap-3 rounded-lg bg-subtle px-3 py-2 text-[15px]">
+                <span className="truncate">{file.name}</span>
+                <span className="shrink-0 text-sm text-muted">{formatBytes(file.size)}</span>
               </li>
             ))}
           </ul>
@@ -193,4 +231,10 @@ export function UploadDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+export function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MB`;
 }

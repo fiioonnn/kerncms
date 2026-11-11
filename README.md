@@ -21,7 +21,20 @@ This starts Postgres and storage in Docker (waits until they are healthy and cre
 - S3 API: http://localhost:9000
 - Storage console: http://localhost:9001 (credentials: `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 
+## Eine Website verbinden
+
+kerncms bearbeitet die Inhalte einer Astro-Website direkt in ihrem Git-Repository. Der Vertrag zwischen CMS und Website steht in [docs/kern-contract.md](docs/kern-contract.md); ein vollständiges Beispiel liegt in `~/Projects/example-astro-page`.
+
+1. `pnpm dev` starten und http://localhost:3000 öffnen. Beim ersten Mal legst du das Inhaber-Konto an.
+2. Unter „Website verbinden“ den Ordner des Repositorys angeben (z. B. `~/Projects/example-astro-page`).
+3. kerncms legt einen Entwurfs-Branch `kern/draft` und einen eigenen Worktree unter `.kern-data/` an. Der visuelle Editor startet dort den Astro-Dev-Server der Website als Vorschau.
+4. „Speichern“ committet auf `kern/draft`, „Veröffentlichen“ mergt in den Live-Branch (`main`) und baut die Website.
+
+Formulare und die cookielose Statistik der Website senden an `/api/public/<site-id>/…`.
+
 ## Full stack in Docker
+
+The Docker image runs the CMS only. Connecting a local repository and the live preview need `pnpm dev` on the host, because the CMS starts the site's dev server and works in its git repository.
 
 ```bash
 docker compose up -d --build

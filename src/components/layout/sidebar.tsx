@@ -1,36 +1,76 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useId, useState, useTransition } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Settings, Trash2, UserRound, Users, X } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Loader2, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Settings, Shield, Trash2, UserRound, Users, X } from "lucide-react";
+import { Logo } from "@/components/auth/auth-shell";
+import { useKern } from "@/components/kern/kern-provider";
+import { useStatus } from "@/components/history/use-status";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/display";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { toast } from "@/components/ui/toast";
+import { roleLabels } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
+import { logout } from "@/server/actions/auth";
+import { switchSite } from "@/server/actions/site";
 import { findNavItem, navigation } from "./nav";
 
-const sites = [
-  { name: "Bäckerei Müller", domain: "baeckerei-mueller.de", initials: "BM" },
-  { name: "Café Sonnenschein", domain: "cafe-sonnenschein.de", initials: "CS" },
-  { name: "Weingut Berger", domain: "weingut-berger.at", initials: "WB" },
-];
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function hostOf(url: string | null) {
+  if (!url) return "Keine Live-Adresse";
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const active = findNavItem(pathname);
-  const [site, setSite] = useState(sites[0]);
+  const kern = useKern();
+  const status = useStatus();
+  const [switching, startSwitch] = useTransition();
+  const logoutForm = useId();
+  const site = kern.site;
+
+  function changeSite(id: string, name: string) {
+    if (id === site.id) return;
+    startSwitch(async () => {
+      const result = await switchSite(id);
+      if (!result.ok) {
+        toast.error("Wechseln fehlgeschlagen", { description: result.error });
+        return;
+      }
+      toast.info(`Gewechselt zu ${name}`);
+      onNavigate?.();
+      router.push("/");
+      router.refresh();
+    });
+  }
 
   return (
     <>
       {/* Brand */}
-      <div className="flex h-16 items-center gap-3 px-6">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-foreground text-base font-bold text-white">
-          k
-        </span>
-        <span className="text-lg font-semibold tracking-tight">kerncms</span>
+      <div className="flex h-16 items-center px-6">
+        <Link href="/" onClick={onNavigate} aria-label="kerncms, zur Übersicht" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <Logo className="h-8 w-auto" />
+        </Link>
       </div>
 
       {/* Site switcher */}
@@ -38,42 +78,42 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Menu>
           <MenuTrigger className="flex h-14 w-full items-center gap-3 rounded-xl border border-border px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
             <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-accent">
-              {site.initials}
+              {switching ? <Loader2 className="size-4 animate-spin" /> : initials(site.name)}
             </span>
             <span className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-[15px] font-medium">{site.name}</span>
-              <span className="truncate text-sm text-muted">{site.domain}</span>
+              <span className="truncate text-sm text-muted">{hostOf(site.liveUrl)}</span>
             </span>
             <ChevronsUpDown className="size-4 text-muted" />
           </MenuTrigger>
           <MenuContent align="start" className="w-64">
             <MenuLabel>Websites</MenuLabel>
-            {sites.map((s) => (
-              <MenuItem
-                key={s.domain}
-                onClick={() => {
-                  setSite(s);
-                  toast.info(`Gewechselt zu ${s.name}`);
-                }}
-                className="h-12"
-              >
+            {kern.sites.map((s) => (
+              <MenuItem key={s.id} onClick={() => changeSite(s.id, s.name)} className="h-12">
                 <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent">
-                  {s.initials}
+                  {initials(s.name)}
                 </span>
-                <span className="flex flex-1 flex-col leading-tight">
-                  <span>{s.name}</span>
-                  <span className="text-sm text-muted">{s.domain}</span>
+                <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                  <span className="truncate">{s.name}</span>
+                  <span className="truncate text-sm text-muted">{roleLabels[s.role]}</span>
                 </span>
-                {s.domain === site.domain && <Check className="size-4 text-accent" />}
+                {s.id === site.id && <Check className="size-4 text-accent" />}
               </MenuItem>
             ))}
             <MenuSeparator />
             <MenuItem icon={LayoutGrid} render={<Link href="/sites" onClick={onNavigate} />}>
               Alle Websites
             </MenuItem>
-            <MenuItem icon={Plus} render={<Link href="/onboarding" onClick={onNavigate} />}>
-              Website verbinden
-            </MenuItem>
+            {kern.user.isAdmin && (
+              <MenuItem icon={Plus} render={<Link href="/admin/sites/new" onClick={onNavigate} />}>
+                Website verbinden
+              </MenuItem>
+            )}
+            {kern.user.isAdmin && (
+              <MenuItem icon={Shield} render={<Link href="/admin" onClick={onNavigate} />}>
+                Admin-Bereich
+              </MenuItem>
+            )}
           </MenuContent>
         </Menu>
       </div>
@@ -97,6 +137,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             )}
             {group.items.map((item) => {
               const isActive = (active?.parent ?? active?.href) === item.href;
+              const badge = item.badge ? (status?.[item.badge] ?? 0) : 0;
+              if (item.href === "/approvals" && !site.requireApproval && badge === 0) return null;
               return (
                 <Link
                   key={item.href}
@@ -111,15 +153,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   <item.icon className="size-5 shrink-0" strokeWidth={1.75} />
                   <span className="flex-1">{item.label}</span>
-                  {item.badge ? (
+                  {badge > 0 ? (
                     <span
-                      aria-label={`${item.badge} offen`}
+                      aria-label={`${badge} offen`}
                       className={cn(
                         "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums",
                         isActive ? "bg-accent text-white" : "bg-subtle text-foreground",
                       )}
                     >
-                      {item.badge}
+                      {badge > 99 ? "99+" : badge}
                     </span>
                   ) : null}
                 </Link>
@@ -130,13 +172,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* User menu */}
+      <form id={logoutForm} action={logout} hidden />
       <div className="border-t border-border p-3">
         <Menu>
           <MenuTrigger className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
-            <Avatar name="Anna Schmidt" />
+            <Avatar name={kern.user.name} />
             <span className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-[15px] font-medium">Anna Schmidt</span>
-              <span className="truncate text-sm text-muted">Redakteurin</span>
+              <span className="truncate text-[15px] font-medium">{kern.user.name}</span>
+              <span className="truncate text-sm text-muted">{kern.user.email}</span>
             </span>
             <ChevronsUpDown className="size-4 text-muted" />
           </MenuTrigger>
@@ -159,7 +202,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               Styleguide
             </MenuItem>
             <MenuSeparator />
-            <MenuItem icon={LogOut} render={<Link href="/login" />}>
+            {kern.user.isAdmin && (
+              <MenuItem icon={Shield} render={<Link href="/admin" onClick={onNavigate} />}>
+                Admin-Bereich
+              </MenuItem>
+            )}
+            <MenuItem icon={LogOut} render={<button type="submit" form={logoutForm} className="w-full text-left" />}>
               Abmelden
             </MenuItem>
           </MenuContent>

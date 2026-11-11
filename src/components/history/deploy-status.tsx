@@ -1,37 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { Check, CircleCheck, GitBranch, Loader2 } from "lucide-react";
-import { PublishButton } from "@/components/actions/publish";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Check, CircleAlert, CircleCheck, GitBranch, Loader2, X } from "lucide-react";
+import { PendingList, PublishButton } from "@/components/actions/publish";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlay";
-import { deploySteps, useDeploy } from "@/lib/deploy-store";
+import { toast } from "@/components/ui/toast";
+import type { DeployStep } from "@/db/schema";
+import { formatWhen } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
+import { pendingFiles, useStatus } from "./use-status";
 
-const changes = [
-  { file: "Startseite", detail: "Hero-Überschrift geändert", who: "Anna", when: "vor 12 Min." },
-  { file: "Neue Sauerteigbrote ab Mai", detail: "Neuer Beitrag", who: "Anna", when: "vor 2 Std." },
-  { file: "Navigation", detail: "Menüpunkt hinzugefügt", who: "Jonas", when: "gestern" },
-];
-
-function Steps({ current, done }: { current: number; done: boolean }) {
+function Steps({ steps }: { steps: DeployStep[] }) {
   return (
     <ol className="flex flex-col gap-3 p-5">
-      {deploySteps.map((label, i) => {
-        const finished = done || i < current;
-        const active = !done && i === current;
+      {steps.map((step) => {
+        const done = step.status === "done";
+        const active = step.status === "running";
+        const failed = step.status === "failed";
         return (
-          <li key={label} className="flex items-center gap-3">
-            <span
-              className={cn(
-                "flex size-7 shrink-0 items-center justify-center rounded-full border-2",
-                finished && "border-success bg-success text-white",
-                active && "border-accent text-accent",
-                !finished && !active && "border-border text-muted",
-              )}
-            >
-              {finished ? <Check className="size-4" strokeWidth={3} /> : active ? <Loader2 className="size-4 animate-spin" /> : null}
+          <li key={step.label} className="flex flex-col gap-2">
+            <span className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-full border-2",
+                  done && "border-success bg-success text-white",
+                  active && "border-accent text-accent",
+                  failed && "border-danger bg-danger text-white",
+                  step.status === "pending" && "border-border text-muted",
+                )}
+              >
+                {done ? (
+                  <Check className="size-4" strokeWidth={3} />
+                ) : active ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : failed ? (
+                  <X className="size-4" strokeWidth={3} />
+                ) : null}
+              </span>
+              <span className={cn("text-[15px]", step.status === "pending" && "text-muted", active && "font-medium", failed && "font-medium text-danger")}>
+                {step.label}
+              </span>
             </span>
-            <span className={cn("text-[15px]", !finished && !active && "text-muted", active && "font-medium")}>{label}</span>
+            {failed && step.log && (
+              <pre className="ml-10 max-h-40 overflow-auto rounded-lg bg-subtle p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                {step.log.slice(-1500)}
+              </pre>
+            )}
           </li>
         );
       })}
@@ -39,38 +55,62 @@ function Steps({ current, done }: { current: number; done: boolean }) {
   );
 }
 
-/** Topbar pill: open draft changes, or the running/finished publish. */
+/** Topbar pill: open draft changes, or the running / just finished publish. Polls /api/status. */
 export function DeployStatus() {
-  const deploy = useDeploy();
+  const status = useStatus();
+  const router = useRouter();
+  const deploy = status?.deploy ?? null;
+  const files = pendingFiles(status);
+  const lastStatus = useRef<string | null>(null);
 
-  if (deploy.status === "running" || deploy.status === "success") {
-    const done = deploy.status === "success";
-    const progress = done ? 100 : Math.round(((deploy.step + 0.5) / deploySteps.length) * 100);
+  // Toast once when a running publish finishes.
+  useEffect(() => {
+    if (!deploy) return;
+    const key = `${deploy.id}:${deploy.status}`;
+    const before = lastStatus.current;
+    lastStatus.current = key;
+    if (before === `${deploy.id}:running` && deploy.status !== "running") {
+      if (deploy.status === "done") toast.success("Website ist live", { description: deploy.message });
+      else toast.error("Veröffentlichen fehlgeschlagen", { description: "Details im Verlauf." });
+      router.refresh();
+    }
+  }, [deploy, router]);
+
+  if (!status) return null;
+
+  const recent = Boolean(deploy?.finishedAt && status.fetchedAt - new Date(deploy.finishedAt).getTime() < 60_000);
+  if (deploy && (deploy.status === "running" || recent)) {
+    const running = deploy.status === "running";
+    const failed = deploy.status === "failed";
+    const doneCount = deploy.steps.filter((s) => s.status === "done").length;
+    const progress = running ? Math.round(((doneCount + 0.5) / deploy.steps.length) * 100) : 100;
     return (
       <Popover>
         <PopoverTrigger
           className={cn(
             "hidden h-9 items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-colors sm:inline-flex",
-            done ? "bg-success-soft text-success" : "bg-accent-soft text-accent",
+            failed ? "bg-danger-soft text-danger" : running ? "bg-accent-soft text-accent" : "bg-success-soft text-success",
           )}
         >
-          {done ? <CircleCheck className="size-4" /> : <Loader2 className="size-4 animate-spin" />}
-          {done ? "Live" : `Wird veröffentlicht · ${progress} %`}
+          {failed ? <CircleAlert className="size-4" /> : running ? <Loader2 className="size-4 animate-spin" /> : <CircleCheck className="size-4" />}
+          {failed ? "Fehlgeschlagen" : running ? `Wird veröffentlicht · ${progress} %` : "Live"}
         </PopoverTrigger>
         <PopoverContent>
           <div className="border-b border-border px-5 py-4">
-            <h3 className="text-base font-semibold">{done ? "Veröffentlicht" : "Veröffentlichung läuft"}</h3>
-            <p className="text-sm text-muted">
-              {deploy.changes} {deploy.changes === 1 ? "Änderung" : "Änderungen"} · gestartet von Anna
+            <h3 className="text-base font-semibold">
+              {failed ? "Veröffentlichen fehlgeschlagen" : running ? "Veröffentlichung läuft" : "Veröffentlicht"}
+            </h3>
+            <p suppressHydrationWarning className="truncate text-sm text-muted">
+              {deploy.message} · {formatWhen(deploy.createdAt)}
             </p>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-subtle">
               <div
-                className={cn("h-full rounded-full transition-[width] duration-700", done ? "bg-success" : "bg-accent")}
+                className={cn("h-full rounded-full transition-[width] duration-700", failed ? "bg-danger" : running ? "bg-accent" : "bg-success")}
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
-          <Steps current={deploy.step} done={done} />
+          <Steps steps={deploy.steps} />
           <div className="border-t border-border px-5 py-3">
             <Link href="/history" className="text-sm font-medium text-accent hover:underline">
               Alle Veröffentlichungen ansehen
@@ -81,32 +121,24 @@ export function DeployStatus() {
     );
   }
 
+  if (files.length === 0) return null;
+
   return (
     <Popover>
       <PopoverTrigger className="hidden h-9 items-center gap-2 rounded-full bg-warning-soft px-3.5 text-sm font-medium text-warning transition-colors hover:bg-warning/15 sm:inline-flex">
         <GitBranch className="size-4" />
-        {changes.length} Änderungen im Entwurf
+        {files.length === 1 ? "1 Änderung im Entwurf" : `${files.length} Änderungen im Entwurf`}
       </PopoverTrigger>
       <PopoverContent>
         <div className="border-b border-border px-5 py-4">
           <h3 className="text-base font-semibold">Offene Änderungen</h3>
           <p className="text-sm text-muted">Noch nicht auf der Website sichtbar</p>
         </div>
-        <ul className="flex flex-col gap-1 p-2">
-          {changes.map((change) => (
-            <li key={change.file} className="flex gap-3 rounded-xl px-3 py-2.5">
-              <span className="mt-2 size-2 shrink-0 rounded-full bg-warning" />
-              <span className="flex flex-col">
-                <span className="text-[15px] font-medium">{change.file}</span>
-                <span className="text-sm text-muted">
-                  {change.detail} · {change.who}, {change.when}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="p-3">
+          <PendingList files={files} max={6} />
+        </div>
         <div className="border-t border-border p-4">
-          <PublishButton className="w-full" changes={changes.length} />
+          <PublishButton className="w-full" />
         </div>
       </PopoverContent>
     </Popover>

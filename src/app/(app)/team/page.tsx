@@ -1,23 +1,21 @@
 import { PageContainer } from "@/components/layout/page-container";
-import { RowActions } from "@/components/actions/common";
-import { InviteDialog } from "@/components/actions/create-dialogs";
-import { Avatar, Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
+import { PageHeader } from "@/components/ui/display";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
+import { getTeam } from "@/server/queries";
+import { getSiteContext } from "@/server/sites";
 import { RolesMatrix } from "./roles-matrix";
+import { InviteDialog, TeamTables } from "./team-members";
 
-const members = [
-  { name: "Anna Schmidt", email: "anna@baeckerei-mueller.de", role: "Admin", tone: "accent" as const },
-  { name: "Jonas Weber", email: "jonas@baeckerei-mueller.de", role: "Redakteur", tone: "neutral" as const },
-  { name: "Lena Hoffmann", email: "lena@baeckerei-mueller.de", role: "Redakteurin", tone: "neutral" as const },
-];
+export default async function TeamPage() {
+  const [team, ctx] = await Promise.all([getTeam(), getSiteContext()]);
+  const canManage = team.myRole === "admin" || team.myRole === "owner";
 
-export default function TeamPage() {
   return (
     <PageContainer>
       <PageHeader
         title="Team"
         description="Wer Zugriff auf diese Website hat und was er bearbeiten darf."
-        actions={<InviteDialog />}
+        actions={canManage ? <InviteDialog myRole={team.myRole} /> : undefined}
       />
 
       <Tabs defaultValue="members">
@@ -27,42 +25,11 @@ export default function TeamPage() {
         </TabsList>
 
         <TabPanel value="members" className="pt-5">
-          <Card>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Name</Th>
-                  <Th>Rolle</Th>
-                  <Th className="w-0" aria-label="Aktionen" />
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((member) => (
-                  <tr key={member.email}>
-                    <Td>
-                      <span className="flex items-center gap-4">
-                        <Avatar name={member.name} />
-                        <span className="flex flex-col leading-snug">
-                          <span className="text-base font-medium">{member.name}</span>
-                          <span className="text-sm text-muted">{member.email}</span>
-                        </span>
-                      </span>
-                    </Td>
-                    <Td>
-                      <Badge tone={member.tone}>{member.role}</Badge>
-                    </Td>
-                    <Td>
-                      <RowActions name={member.name} deleteLabel="Entfernen" />
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </Card>
+          <TeamTables me={team.me} myRole={team.myRole} members={team.members} invites={team.invites} />
         </TabPanel>
 
         <TabPanel value="roles" className="pt-5">
-          <RolesMatrix />
+          <RolesMatrix requireApproval={ctx.site.requireApproval} />
         </TabPanel>
       </Tabs>
     </PageContainer>

@@ -1,20 +1,16 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
+import { EditorOnly } from "@/components/collections/editor-only";
 import { EntriesTable } from "@/components/collections/entries-table";
+import { formatChange } from "@/components/collections/format";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
-import { collections, getCollection } from "@/lib/collections";
-
-
-export function generateStaticParams() {
-  return collections.map((collection) => ({ slug: collection.slug }));
-}
+import { getCollection } from "@/server/queries";
 
 export default async function CollectionPage({ params }: PageProps<"/collections/[slug]">) {
   const { slug } = await params;
-  const collection = getCollection(slug);
-  if (!collection) notFound();
+  const { collection, entries } = await getCollection(slug);
+  const rows = entries.map((entry) => ({ ...entry, updatedLabel: formatChange(entry.updatedAt) }));
 
   return (
     <PageContainer>
@@ -28,17 +24,19 @@ export default async function CollectionPage({ params }: PageProps<"/collections
             <ArrowLeft />
           </Link>
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{collection.name}</h1>
-            <p className="text-[15px] text-muted">{collection.description}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{collection.label}</h1>
+            {collection.description && <p className="text-[15px] text-muted">{collection.description}</p>}
           </div>
         </div>
-        <Link href={`/collections/${collection.slug}/new`} className={buttonStyles()}>
-          <Plus />
-          Neuer Eintrag
-        </Link>
+        <EditorOnly>
+          <Link href={`/collections/${collection.key}/new`} className={buttonStyles()}>
+            <Plus />
+            Neu
+          </Link>
+        </EditorOnly>
       </div>
 
-      <EntriesTable slug={collection.slug} />
+      <EntriesTable collection={collection} entries={rows} />
     </PageContainer>
   );
 }

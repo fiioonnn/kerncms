@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   Library,
   MousePointerClick,
-  Newspaper,
   Palette,
   Settings,
   Trash2,
@@ -20,10 +19,10 @@ import {
 } from "lucide-react";
 
 /**
- * `badge`: open items (unread, pending); shown as a count in the sidebar.
+ * `badge`: which live count from /api/status the sidebar shows next to the item.
  * `parent`: for pages that are not in the sidebar, the sidebar entry to highlight.
  */
-export type NavItem = { label: string; href: string; icon: LucideIcon; badge?: number; parent?: string };
+export type NavItem = { label: string; href: string; icon: LucideIcon; badge?: "formsUnread" | "approvalsOpen"; parent?: string };
 export type NavGroup = { label?: string; items: NavItem[] };
 
 /** What the sidebar shows. Kept short on purpose: daily work first. */
@@ -34,7 +33,7 @@ export const navigation: NavGroup[] = [
       { label: "Seiten", href: "/pages", icon: FileText },
       { label: "Inhalte", href: "/collections", icon: Library },
       { label: "Medien", href: "/media", icon: Image },
-      { label: "Formulare", href: "/forms", icon: Inbox, badge: 3 },
+      { label: "Formulare", href: "/forms", icon: Inbox, badge: "formsUnread" },
       { label: "Statistiken", href: "/analytics", icon: ChartLine },
     ],
   },
@@ -42,7 +41,7 @@ export const navigation: NavGroup[] = [
     label: "Website",
     items: [
       { label: "Globals", href: "/globals", icon: Globe },
-      { label: "Freigaben", href: "/approvals", icon: BadgeCheck, badge: 2 },
+      { label: "Freigaben", href: "/approvals", icon: BadgeCheck, badge: "approvalsOpen" },
       { label: "Verlauf", href: "/history", icon: History },
     ],
   },
@@ -50,7 +49,6 @@ export const navigation: NavGroup[] = [
 
 /** Reachable via buttons and the user menu; not listed in the sidebar. */
 export const secondaryItems: NavItem[] = [
-  { label: "Beiträge", href: "/posts", icon: Newspaper, parent: "/collections" },
   { label: "Visueller Editor", href: "/editor", icon: MousePointerClick, parent: "/pages" },
   { label: "Team", href: "/team", icon: Users },
   { label: "Einstellungen", href: "/settings", icon: Settings },

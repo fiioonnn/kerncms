@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { MarkDef } from "@/lib/kern-types";
+import { cleanMarkHtml, createMarkExtensions } from "@/components/kern/marks";
 import { EditorContent, Mark, mergeAttributes, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -159,24 +161,38 @@ export function RichTextEditor({
   label,
   defaultValue = "",
   onValueChange,
+  marks,
+  compact,
   className,
 }: {
   label?: string;
   /** Initial content as HTML. */
   defaultValue?: string;
   onValueChange?: (html: string) => void;
+  /** Highlight styles of the site (kern.config.yaml `marks`). Without them a single "Akzent" mark is offered. */
+  marks?: MarkDef[];
+  /** Smaller minimum height, e.g. in the editor sidebar. */
+  compact?: boolean;
   className?: string;
 }) {
+  // Extensions are created once per editor instance.
+  const [markExtensions] = useState(() => (marks?.length ? createMarkExtensions(marks) : [Accent]));
+  const markButtons = useMemo(
+    () => (marks?.length ? marks.map((m) => ({ name: `kern-${m.id}`, label: m.label })) : [{ name: "accent", label: "Akzentfarbe" }]),
+    [marks],
+  );
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ heading: { levels: [2, 3] }, link: false, underline: false, code: false, codeBlock: false }),
       Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
-      Accent,
+      ...markExtensions,
     ],
     content: defaultValue,
-    editorProps: { attributes: { class: prose, "aria-label": label ?? "Inhalt" } },
-    onUpdate: ({ editor }) => onValueChange?.(editor.getHTML()),
+    editorProps: {
+      attributes: { class: cn(prose, compact && "min-h-40"), "aria-label": label ?? "Inhalt" },
+    },
+    onUpdate: ({ editor }) => onValueChange?.(cleanMarkHtml(editor.getHTML())),
   });
 
   const state = useEditorState({
@@ -188,7 +204,7 @@ export function RichTextEditor({
             h3: editor.isActive("heading", { level: 3 }),
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
-            accent: editor.isActive("accent"),
+            activeMarks: markButtons.filter((m) => editor.isActive(m.name)).map((m) => m.name),
             link: editor.isActive("link"),
             bulletList: editor.isActive("bulletList"),
             orderedList: editor.isActive("orderedList"),
@@ -231,12 +247,15 @@ export function RichTextEditor({
                 active={state.italic}
                 onClick={() => editor.chain().focus().toggleItalic().run()}
               />
-              <ToolbarButton
-                icon={Highlighter}
-                label="Akzentfarbe"
-                active={state.accent}
-                onClick={() => editor.chain().focus().toggleMark("accent").run()}
-              />
+              {markButtons.map((mark) => (
+                <ToolbarButton
+                  key={mark.name}
+                  icon={Highlighter}
+                  label={mark.label}
+                  active={state.activeMarks.includes(mark.name)}
+                  onClick={() => editor.chain().focus().toggleMark(mark.name).run()}
+                />
+              ))}
               <LinkButton editor={editor} active={state.link} />
               <Divider />
               <ToolbarButton
@@ -275,7 +294,7 @@ export function RichTextEditor({
             <div className="h-10" />
           )}
         </div>
-        {editor ? <EditorContent editor={editor} /> : <div className="min-h-80" />}
+        {editor ? <EditorContent editor={editor} /> : <div className={compact ? "min-h-40" : "min-h-80"} />}
       </div>
     </div>
   );

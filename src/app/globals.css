@@ -79,3 +79,9 @@
     background: var(--color-accent-soft);
   }
 }
+
+/* Site highlight marks inside CMS editors (the real look comes from the site's own CSS). */
+[data-kern-mark="0"] { color: var(--color-accent); }
+[data-kern-mark="1"] { background: var(--color-warning-soft); border-radius: 2px; box-decoration-break: clone; padding: 0 2px; }
+[data-kern-mark="2"] { text-decoration: underline wavy var(--color-accent) 2px; text-underline-offset: 4px; }
+[data-kern-mark="3"] { font-weight: 600; font-style: italic; }

@@ -58,8 +58,8 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-start justify-between gap-6 px-6 pt-5", className)}>
-      <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-6 pt-5", className)}>
+      <div className="flex min-w-48 flex-1 flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {description && <p className="text-[15px] text-muted">{description}</p>}
       </div>
@@ -152,7 +152,7 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="max-w-2xl text-[15px] text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-3">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
     </div>
   );
 }

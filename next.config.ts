@@ -2,8 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  cacheComponents: true,
-  partialPrefetching: true,
+  serverExternalPackages: ["sharp"],
+  experimental: {
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {
