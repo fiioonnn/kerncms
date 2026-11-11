@@ -168,10 +168,6 @@ export function EditorTopbar({
                   <Redo2 strokeWidth={1.75} />
                 </Button>
               </Tooltip>
-              <span className="mx-1 h-8 w-px bg-border" />
-              <Button variant="secondary" onClick={onSave} disabled={saveState !== "dirty"}>
-                Speichern
-              </Button>
             </>
           )}
         </div>
@@ -223,17 +219,22 @@ export function EditorTopbar({
           </MenuContent>
         </Menu>
 
+        {/* One primary action that follows the state: save first, then publish. */}
         {canEdit &&
-          (dirty ? (
-            <Tooltip label="Erst speichern, dann veröffentlichen">
-              <span tabIndex={0} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                <Button disabled className="pointer-events-none max-sm:px-3 max-sm:text-sm">
-                  Veröffentlichen
-                </Button>
-              </span>
+          (saveState === "saving" ? (
+            <Button disabled className="min-w-36 max-sm:min-w-0 max-sm:px-3 max-sm:text-sm">
+              <Loader2 className="animate-spin" />
+              Speichert…
+            </Button>
+          ) : dirty ? (
+            <Tooltip label={`Speichern (${mod}S)`}>
+              <Button onClick={onSave} className="min-w-36 max-sm:min-w-0 max-sm:px-3 max-sm:text-sm">
+                <Save />
+                Speichern
+              </Button>
             </Tooltip>
           ) : (
-            <PublishButton className="max-sm:px-3 max-sm:text-sm" />
+            <PublishButton showDone className="min-w-36 max-sm:min-w-0 max-sm:px-3 max-sm:text-sm" />
           ))}
       </div>
     </header>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Check, Loader2, Send } from "lucide-react";
 import { useKern, useOptionalKern } from "@/components/kern/kern-provider";
 import { pendingFiles, refreshStatus, useStatus } from "@/components/history/use-status";
 import { Button, buttonStyles, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
@@ -45,8 +45,11 @@ export function PublishButton({
   variant = "primary",
   size = "md",
   className,
+  showDone,
 }: {
   label?: string;
+  /** With nothing to publish, show a quiet "Veröffentlicht ✓" instead of a disabled button. */
+  showDone?: boolean;
   /** @deprecated The count now comes from /api/status. */
   changes?: number;
   variant?: ButtonVariant;
@@ -101,6 +104,22 @@ export function PublishButton({
   }
 
   const count = files.length;
+
+  if (showDone && status !== null && count === 0) {
+    return (
+      <span
+        role="status"
+        className={buttonStyles({
+          variant: "secondary",
+          size,
+          className: cn(className, "pointer-events-none border-success/30 bg-success-soft text-success"),
+        })}
+      >
+        <Check />
+        Veröffentlicht
+      </span>
+    );
+  }
 
   return (
     <Dialog
