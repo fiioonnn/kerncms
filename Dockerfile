@@ -1,48 +1,24 @@
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
+RUN corepack enable
+WORKDIR /app
 
 FROM base AS deps
-RUN apk add --no-cache python3 make g++
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
-FROM deps AS dev
-WORKDIR /app
-ENV NODE_ENV=development
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-EXPOSE 3000
-CMD ["sh", "-c", "mkdir -p data && npm run db:migrate && npm run ch:migrate && npm run dev"]
-
-FROM base AS builder
-WORKDIR /app
+FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN mkdir -p data && npm run build
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
 
-FROM base AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-RUN addgroup --system --gid 1001 kern && \
-    adduser --system --uid 1001 kern
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/drizzle.config.ts ./
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/src/db/migrate.ts ./src/db/migrate.ts
-COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder /app/node_modules/bindings ./node_modules/bindings
-COPY --from=builder /app/node_modules/prebuild-install ./node_modules/prebuild-install
-COPY --from=builder /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
-COPY --from=builder /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-
-RUN apk add --no-cache su-exec && \
-    mkdir -p data public/kern/media
-
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+COPY --from=build --chown=nextjs:nodejs /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-CMD sh -c "chown -R kern:kern data public/kern/media && exec su-exec kern sh -c 'node -e \"require(\\\"drizzle-orm/better-sqlite3/migrator\\\").migrate(require(\\\"drizzle-orm/better-sqlite3\\\").drizzle(require(\\\"better-sqlite3\\\")(\\\"data/cms.db\\\")),{migrationsFolder:\\\"drizzle\\\"})\" && node server.js'"
+CMD ["node", "server.js"]

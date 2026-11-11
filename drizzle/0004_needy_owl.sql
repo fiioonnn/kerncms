@@ -1,1 +1,0 @@
-ALTER TABLE `invitations` ADD `system_role` text;

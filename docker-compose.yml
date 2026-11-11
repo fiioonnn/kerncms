@@ -1,60 +1,75 @@
 services:
-  kern:
-    build:
-      context: .
-      target: dev
-    ports:
-      - "1212:3000"
-    volumes:
-      - .:/app:cached
-      - /app/node_modules
-      - /app/.next
-      - kern-data:/app/data
-      - kern-media:/app/public/kern/media
-      - kern-screenshots:/app/data/screenshots
-    env_file:
-      - .env
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
     environment:
-      NODE_ENV: development
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-kern}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-kern}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
-      SCREENSHOT_URL: http://screenshot:3000
+      POSTGRES_USER: ${POSTGRES_USER:-kern}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kern}
+      POSTGRES_DB: ${POSTGRES_DB:-kern}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage:
+    image: rustfs/rustfs:1.0.5
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-kernadmin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-kernadmin-secret}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the bucket once storage is healthy, then exits.
+  storage-init:
+    image: amazon/aws-cli:2.27.0
     depends_on:
-      - clickhouse
-      - screenshot
-    restart: unless-stopped
-
-  screenshot:
-    build:
-      context: ./screenshot-service
-    ports:
-      - "1215:3000"
-    restart: unless-stopped
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    ports:
-      - "1213:8123"
-      - "1214:9000"
-    volumes:
-      - clickhouse-data:/var/lib/clickhouse
-      - clickhouse-logs:/var/log/clickhouse-server
+      storage:
+        condition: service_healthy
     environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-kern}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-kern}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-kernadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-kernadmin-secret}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-kern}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        aws --endpoint-url http://storage:9000 s3api head-bucket --bucket "$$S3_BUCKET" 2>/dev/null
+        || aws --endpoint-url http://storage:9000 s3 mb "s3://$$S3_BUCKET"
+    restart: "no"
+
+  app:
+    build: .
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-kern}:${POSTGRES_PASSWORD:-kern}@postgres:5432/${POSTGRES_DB:-kern}
+      S3_ENDPOINT: http://storage:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-kernadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-kernadmin-secret}
+      S3_BUCKET: ${S3_BUCKET:-kern}
+    ports:
+      - "${APP_PORT:-3000}:3000"
 
 volumes:
-  kern-data:
-  kern-media:
-  kern-screenshots:
-  clickhouse-data:
-  clickhouse-logs:
+  postgres-data:
+  storage-data:

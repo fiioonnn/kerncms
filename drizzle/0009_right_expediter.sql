@@ -1,1 +1,0 @@
-ALTER TABLE `project_analytics` ADD `app_url` text;

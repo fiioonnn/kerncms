@@ -1,33 +1,48 @@
-# Kern CMS
+# kerncms
 
-A self-hosted, Git-based headless CMS. Connect your GitHub repo, define content types, and manage structured content through a visual editor — all changes are committed back to your repository.
+Next.js 16 (App Router) · Tailwind CSS 4 · Base UI (headless) · Drizzle ORM + Postgres · S3 storage (RustFS)
 
-[Website](https://kerncms.com) | [Documentation](https://kerncms.com/docs)
-
-## Quick Start
+## Setup
 
 ```bash
 cp .env.example .env
-npm install
-npm run db:push
-npm run dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and follow the setup wizard.
+## Development
 
-## Docker
+Start Postgres and storage in Docker, run the app locally:
 
 ```bash
-docker compose up
+docker compose up -d postgres storage storage-init
+pnpm dev
 ```
 
-## Tech Stack
+- App: http://localhost:3000
+- S3 API: http://localhost:9000
+- Storage console: http://localhost:9001 (credentials: `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 
-- **Next.js** (App Router)
-- **SQLite** + Drizzle ORM
-- **GitHub App** integration for repo access
-- **Better Auth** for authentication
+## Full stack in Docker
 
-## License
+```bash
+docker compose up -d --build
+```
 
-[AGPL-3.0](LICENSE)
+## Database
+
+Tables live in `src/db/schema.ts`, the client in `src/db/index.ts`.
+
+```bash
+pnpm db:generate   # create a migration from the schema
+pnpm db:migrate    # apply migrations
+pnpm db:push       # push the schema directly (prototyping)
+pnpm db:studio     # Drizzle Studio
+```
+
+## Storage
+
+`src/lib/s3.ts` exports a preconfigured `S3Client` and the bucket name. The bucket is created by the `storage-init` service.
+
+## UI
+
+Headless primitives come from [`@base-ui/react`](https://base-ui.com); styled wrappers go in `src/components/ui` (see `button.tsx`). Use `cn()` from `src/lib/utils.ts` to merge classes.

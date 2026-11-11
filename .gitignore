@@ -10,8 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-.playwright-mcp
-
 # testing
 /coverage
 
@@ -34,17 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-# database
-/data/
-*.db
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# superpowers brainstorming sessions
-.superpowers/
