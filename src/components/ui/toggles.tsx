@@ -32,24 +32,42 @@ export function Switch({
 
 export function Checkbox({
   label,
+  hideLabel,
   defaultChecked,
+  checked,
+  onCheckedChange,
+  disabled,
   className,
 }: {
   label: string;
+  /** Keep the label for screen readers only (e.g. inside a table cell). */
+  hideLabel?: boolean;
   defaultChecked?: boolean;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
   className?: string;
 }) {
   return (
-    <label className={cn("flex cursor-pointer items-center gap-3 text-[15px]", className)}>
+    <label
+      className={cn(
+        "flex items-center gap-3 text-[15px]",
+        disabled ? "cursor-not-allowed" : "cursor-pointer",
+        className,
+      )}
+    >
       <BaseCheckbox.Root
         defaultChecked={defaultChecked}
-        className="flex size-6 items-center justify-center rounded-md border border-border-strong bg-surface transition-colors outline-none focus-visible:ring-4 focus-visible:ring-accent/20 data-checked:border-accent data-checked:bg-accent"
+        checked={checked}
+        onCheckedChange={onCheckedChange ? (next) => onCheckedChange(next) : undefined}
+        disabled={disabled}
+        className="flex size-6 items-center justify-center rounded-md border border-border-strong bg-surface transition-colors outline-none focus-visible:ring-4 focus-visible:ring-accent/20 data-checked:border-accent data-checked:bg-accent data-disabled:opacity-50"
       >
         <BaseCheckbox.Indicator className="text-white data-unchecked:hidden">
           <Check className="size-4" strokeWidth={3} />
         </BaseCheckbox.Indicator>
       </BaseCheckbox.Root>
-      {label}
+      {hideLabel ? <span className="sr-only">{label}</span> : label}
     </label>
   );
 }

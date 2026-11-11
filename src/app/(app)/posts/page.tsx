@@ -1,19 +1,43 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarClock, Plus } from "lucide-react";
 import { RowActions } from "@/components/actions/common";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar, Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 
-const posts = [
+type PostStatus = "draft" | "scheduled" | "live";
+
+const posts: { title: string; category: string; author: string; status: PostStatus; date: string }[] = [
+  { title: "Adventsgebäck: Stollen vorbestellen", category: "Neuigkeiten", author: "Jonas Weber", status: "scheduled", date: "24. Nov., 08:00" },
   { title: "Neue Sauerteigbrote ab Mai", category: "Neuigkeiten", author: "Anna Schmidt", status: "draft", date: "Heute" },
   { title: "Unser Stand auf dem Wochenmarkt", category: "Events", author: "Jonas Weber", status: "live", date: "3. Nov." },
   { title: "Rezept: Dinkel-Vollkornbrot", category: "Rezepte", author: "Anna Schmidt", status: "live", date: "21. Okt." },
   { title: "Ausbildung bei uns", category: "Karriere", author: "Lena Hoffmann", status: "live", date: "9. Okt." },
 ];
 
-function PostTable({ filter }: { filter?: "draft" | "live" }) {
+function StatusBadge({ status }: { status: PostStatus }) {
+  if (status === "draft")
+    return (
+      <Badge tone="warning" dot>
+        Entwurf
+      </Badge>
+    );
+  if (status === "scheduled")
+    return (
+      <Badge tone="accent">
+        <CalendarClock className="size-3.5" strokeWidth={2} />
+        Geplant
+      </Badge>
+    );
+  return (
+    <Badge tone="success" dot>
+      Veröffentlicht
+    </Badge>
+  );
+}
+
+function PostTable({ filter }: { filter?: PostStatus }) {
   const rows = filter ? posts.filter((post) => post.status === filter) : posts;
   return (
     <Card>
@@ -44,15 +68,7 @@ function PostTable({ filter }: { filter?: "draft" | "live" }) {
                 </span>
               </Td>
               <Td>
-                {post.status === "draft" ? (
-                  <Badge tone="warning" dot>
-                    Entwurf
-                  </Badge>
-                ) : (
-                  <Badge tone="success" dot>
-                    Veröffentlicht
-                  </Badge>
-                )}
+                <StatusBadge status={post.status} />
               </Td>
               <Td className="text-muted">{post.date}</Td>
               <Td>
@@ -84,6 +100,7 @@ export default function PostsPage() {
         <TabsList>
           <Tab value="all">Alle</Tab>
           <Tab value="live">Veröffentlicht</Tab>
+          <Tab value="scheduled">Geplant</Tab>
           <Tab value="draft">Entwürfe</Tab>
         </TabsList>
         <TabPanel value="all">
@@ -91,6 +108,9 @@ export default function PostsPage() {
         </TabPanel>
         <TabPanel value="live">
           <PostTable filter="live" />
+        </TabPanel>
+        <TabPanel value="scheduled">
+          <PostTable filter="scheduled" />
         </TabPanel>
         <TabPanel value="draft">
           <PostTable filter="draft" />

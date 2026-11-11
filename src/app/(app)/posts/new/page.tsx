@@ -1,30 +1,14 @@
 import Link from "next/link";
-import { ArrowLeft, Bold, Heading2, Italic, Link2, List } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { SaveButton } from "@/components/actions/common";
 import { ImageField } from "@/components/media/media-picker";
 import { PublishButton } from "@/components/actions/publish";
-import { Button, buttonStyles } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/overlay";
+import { PostPublishCard } from "@/components/posts/post-publish-card";
+import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label, Textarea } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
-import { Switch } from "@/components/ui/toggles";
-
-const categories = [
-  { label: "Neuigkeiten", value: "news" },
-  { label: "Events", value: "events" },
-  { label: "Rezepte", value: "recipes" },
-  { label: "Karriere", value: "jobs" },
-];
-
-const toolbar = [
-  { icon: Heading2, label: "Zwischenüberschrift" },
-  { icon: Bold, label: "Fett" },
-  { icon: Italic, label: "Kursiv" },
-  { icon: Link2, label: "Link" },
-  { icon: List, label: "Liste" },
-];
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 export default function NewPostPage() {
   return (
@@ -54,36 +38,12 @@ export default function NewPostPage() {
               <Textarea rows={3} />
               <Description>Erscheint in der Beitragsübersicht und in Suchmaschinen.</Description>
             </Field>
-            <div className="flex flex-col gap-2">
-              <span className="text-[15px] font-medium">Inhalt</span>
-              <div className="overflow-hidden rounded-xl border border-border-strong">
-                <div className="flex gap-1 border-b border-border bg-subtle/60 p-2">
-                  {toolbar.map(({ icon: Icon, label }) => (
-                    <Tooltip key={label} label={label}>
-                      <Button variant="ghost" size="icon" className="size-10" aria-label={label}>
-                        <Icon strokeWidth={1.75} />
-                      </Button>
-                    </Tooltip>
-                  ))}
-                </div>
-                <div className="min-h-80 bg-surface p-5" />
-              </div>
-            </div>
+            <RichTextEditor label="Inhalt" />
           </CardContent>
         </Card>
 
         <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader title="Veröffentlichung" />
-            <CardContent className="flex flex-col gap-6">
-              <Select label="Kategorie" items={categories} defaultValue="news" />
-              <Field>
-                <Label>Slug</Label>
-                <Input />
-              </Field>
-              <Switch label="Auf Startseite zeigen" description="Erscheint im Bereich „Aktuelles“." />
-            </CardContent>
-          </Card>
+          <PostPublishCard />
 
           <Card>
             <CardHeader title="Beitragsbild" />

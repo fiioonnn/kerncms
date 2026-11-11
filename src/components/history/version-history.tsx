@@ -8,7 +8,7 @@ import { Avatar, Badge } from "@/components/ui/display";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
-type Change = { field: string; before?: string; after?: string };
+export type Change = { field: string; before?: string; after?: string };
 export type Version = {
   id: string;
   message: string;
@@ -77,7 +77,7 @@ export const versions: Version[] = [
   },
 ];
 
-function Diff({ change }: { change: Change }) {
+export function Diff({ change }: { change: Change }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
       <div className="border-b border-border bg-subtle/60 px-4 py-2 text-sm font-medium">{change.field}</div>

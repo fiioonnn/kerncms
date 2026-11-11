@@ -8,6 +8,7 @@ import { PublishButton } from "@/components/actions/publish";
 import { buttonStyles } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger, Tooltip } from "@/components/ui/overlay";
 import { CommandPalette } from "./command-palette";
+import { MobileNav } from "./sidebar";
 import { findNavItem } from "./nav";
 
 
@@ -34,14 +35,25 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-6 border-b border-border bg-surface/85 px-8 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur sm:gap-6 sm:px-8">
+      <MobileNav />
       <div className="flex min-w-0 items-center gap-2 text-[15px]">
-        <span className="text-muted">Bäckerei Müller</span>
-        <span className="text-border-strong">/</span>
+        <span className="hidden text-muted sm:inline">Bäckerei Müller</span>
+        <span className="hidden text-border-strong sm:inline">/</span>
         <span className="truncate font-medium">{current?.label ?? "Übersicht"}</span>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+        <Tooltip label="Suchen (⌘K)">
+          <button
+            type="button"
+            aria-label="Suchen"
+            onClick={() => setSearchOpen(true)}
+            className={buttonStyles({ variant: "ghost", size: "icon", className: "md:hidden" })}
+          >
+            <Search strokeWidth={1.75} />
+          </button>
+        </Tooltip>
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
@@ -87,7 +99,7 @@ export function Topbar() {
           </PopoverContent>
         </Popover>
 
-        <PublishButton changes={3} />
+        <PublishButton changes={3} className="max-sm:px-3.5" />
       </div>
     </header>
   );

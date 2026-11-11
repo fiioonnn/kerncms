@@ -116,14 +116,25 @@ export function ImageField({
   label,
   description,
   defaultValue,
+  value: controlledValue,
+  onChange,
   aspect = "aspect-[16/9]",
 }: {
   label: string;
   description?: string;
   defaultValue?: string;
+  /** Controlled value; the field is controlled whenever `onChange` is passed (undefined = no image). */
+  value?: string;
+  onChange?: (value: string | undefined) => void;
   aspect?: string;
 }) {
-  const [value, setValue] = useState<string | undefined>(defaultValue);
+  const [innerValue, setInnerValue] = useState<string | undefined>(defaultValue);
+  const controlled = onChange !== undefined;
+  const value = controlled ? controlledValue : innerValue;
+  const setValue = (next: string | undefined) => {
+    if (!controlled) setInnerValue(next);
+    onChange?.(next);
+  };
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const file = mediaFiles.find((f) => f.name === value);

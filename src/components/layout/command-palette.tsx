@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CornerDownLeft, FileText, Newspaper, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navigation } from "./nav";
+import { allNavItems } from "./nav";
 
 type Entry = { label: string; hint: string; href: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> };
 
 const entries: Entry[] = [
-  ...navigation.flatMap((group) =>
-    group.items.map((item) => ({ label: item.label, hint: "Bereich", href: item.href, icon: item.icon })),
-  ),
+  ...allNavItems.map((item) => ({ label: item.label, hint: "Bereich", href: item.href, icon: item.icon })),
   { label: "Startseite", hint: "Seite", href: "/editor", icon: FileText },
   { label: "Über uns", hint: "Seite", href: "/editor", icon: FileText },
   { label: "Sortiment", hint: "Seite", href: "/editor", icon: FileText },

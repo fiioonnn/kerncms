@@ -1,6 +1,8 @@
 import { GitBranch, ShieldCheck } from "lucide-react";
 import { CopyButton, SaveButton } from "@/components/actions/common";
+import { Redirects } from "./redirects";
 import { RepoChangeButton } from "./repo-change";
+import { Schema } from "./schema";
 import { PageContainer } from "@/components/layout/page-container";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label } from "@/components/ui/field";
@@ -27,7 +29,7 @@ const branches = [
 export default function SettingsPage() {
   return (
     <PageContainer className="max-w-4xl">
-      <PageHeader title="Einstellungen" description="Allgemeine Angaben, Repository, Veröffentlichung und Tracking." />
+      <PageHeader title="Einstellungen" description="Allgemeine Angaben, Repository, Veröffentlichung, Tracking, Weiterleitungen und Schema." />
 
       <Tabs defaultValue="general">
         <TabsList>
@@ -35,6 +37,8 @@ export default function SettingsPage() {
           <Tab value="repository">Repository</Tab>
           <Tab value="publishing">Veröffentlichung</Tab>
           <Tab value="tracking">Tracking</Tab>
+          <Tab value="redirects">Weiterleitungen</Tab>
+          <Tab value="schema">Schema</Tab>
         </TabsList>
 
         <TabPanel value="general">
@@ -158,6 +162,14 @@ export default function SettingsPage() {
               </p>
             </CardContent>
           </Card>
+        </TabPanel>
+
+        <TabPanel value="redirects" className="pt-5">
+          <Redirects />
+        </TabPanel>
+
+        <TabPanel value="schema">
+          <Schema />
         </TabPanel>
       </Tabs>
     </PageContainer>
