@@ -69,7 +69,7 @@ export function DialogContent({
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-6 px-6 pt-5">
+        <div className={cn("flex items-start justify-between gap-6 px-6 pt-5", !children && "pb-5")}>
           <div className="flex flex-col gap-1">
             <BaseDialog.Title className="text-xl font-semibold tracking-tight">{title}</BaseDialog.Title>
             {description && (
@@ -89,7 +89,7 @@ export function DialogContent({
           </div>
         )}
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-border px-6 py-4">{footer}</div>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">{footer}</div>
         )}
       </BaseDialog.Popup>
     </BaseDialog.Portal>

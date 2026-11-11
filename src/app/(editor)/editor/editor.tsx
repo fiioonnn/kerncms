@@ -726,15 +726,19 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
               ? `„${data.title}“ hat ungespeicherte Änderungen. Speichere sie, bevor du zu „${pages.find((p) => p.name === guard.name)?.title ?? guard.name}“ wechselst, oder verwirf sie.`
               : `„${data.title}“ hat ungespeicherte Änderungen. Speichere sie, bevor du den Editor verlässt, oder verwirf sie.`
           }
-          size="sm"
           footer={
             <>
-              <DialogClose className={buttonStyles({ variant: "secondary", className: "mr-auto" })} disabled={guardBusy}>
-                Weiter bearbeiten
-              </DialogClose>
-              <Button variant="danger" disabled={guardBusy} onClick={() => void resolveGuard("discard")}>
+              <Button
+                variant="ghost"
+                className="mr-auto -ml-2 text-danger hover:bg-danger-soft hover:text-danger"
+                disabled={guardBusy}
+                onClick={() => void resolveGuard("discard")}
+              >
                 Verwerfen
               </Button>
+              <DialogClose className={buttonStyles({ variant: "secondary" })} disabled={guardBusy}>
+                Weiter bearbeiten
+              </DialogClose>
               <Button disabled={guardBusy} onClick={() => void resolveGuard("save")}>
                 {guardBusy && <Loader2 className="animate-spin" />}
                 Speichern
