@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { ArrowLeft, Check, ChevronRight, Eye, History, Redo2, Settings2, Trash2, Undo2 } from "lucide-react";
 import { PublishButton } from "@/components/actions/publish";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog, Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/display";
 import { SegmentedControl, Tooltip } from "@/components/ui/overlay";
-import { Select } from "@/components/ui/select";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { VersionHistory } from "@/components/history/version-history";
@@ -19,15 +18,8 @@ import { BlockOutline } from "./block-outline";
 import { blockMeta, createBlock, initialBlocks, type Block, type BlockType } from "./blocks";
 import { AddBlockDialog, Canvas, devices } from "./canvas";
 import { EditorLoader } from "./editor-loader";
+import { pageLabel, PagePicker } from "./page-picker";
 
-/* ---------- Example content ---------- */
-
-const pages = [
-  { label: "Startseite", value: "home" },
-  { label: "Über uns", value: "about" },
-  { label: "Sortiment", value: "products" },
-  { label: "Kontakt", value: "contact" },
-];
 
 type SidebarTab = "properties" | "blocks";
 
@@ -43,7 +35,8 @@ function scrollToBlock(id: string) {
 
 /* ---------- Topbar ---------- */
 
-function EditorPageTools() {
+function EditorPageTools({ path }: { path: string }) {
+  const title = pageLabel(path);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   return (
@@ -58,10 +51,10 @@ function EditorPageTools() {
           <History strokeWidth={1.75} />
         </Button>
       </Tooltip>
-      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} title="Startseite" path="/" />
+      <PageSettingsDialog key={path} open={settingsOpen} onOpenChange={setSettingsOpen} title={title} path={path} />
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent title="Verlauf: Startseite" description="Alle gespeicherten Versionen dieser Seite." size="xl" className="[&>div:nth-child(2)]:p-0">
-          <VersionHistory scope="Startseite" className="h-[460px] border-t border-border" />
+        <DialogContent title={`Verlauf: ${title}`} description="Alle gespeicherten Versionen dieser Seite." size="xl" className="[&>div:nth-child(2)]:p-0">
+          <VersionHistory scope={title} className="h-[460px] border-t border-border" />
         </DialogContent>
       </Dialog>
     </>
@@ -117,6 +110,7 @@ function BackButton({ dirty, onDiscard }: { dirty: boolean; onDiscard: () => voi
 }
 
 function EditorTopbar({
+  pagePath,
   device,
   dirty,
   onDeviceChange,
@@ -124,6 +118,7 @@ function EditorTopbar({
   onSave,
   onDiscard,
 }: {
+  pagePath: string;
   device: string;
   dirty: boolean;
   onDeviceChange: (value: string) => void;
@@ -135,7 +130,7 @@ function EditorTopbar({
     <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-surface px-4">
       <BackButton dirty={dirty} onDiscard={onDiscard} />
       <span className="h-8 w-px bg-border" />
-      <Select items={pages} defaultValue="home" onValueChange={onPageChange} className="w-56" />
+      <PagePicker current={pagePath} dirty={dirty} onSelect={onPageChange} />
       <Badge tone="warning" dot>
         Entwurf
       </Badge>
@@ -150,7 +145,7 @@ function EditorTopbar({
       />
 
       <div className="flex items-center gap-2">
-        <EditorPageTools />
+        <EditorPageTools path={pagePath} />
         <span className="mx-1 h-8 w-px bg-border" />
         <Tooltip label="Rückgängig (⌘Z)">
           <Button variant="ghost" size="icon" aria-label="Rückgängig" onClick={() => toast.info("Rückgängig gemacht")}>
@@ -325,6 +320,8 @@ export default function EditorPage() {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [selectedId, setSelectedId] = useState<string | null>(initialBlocks[0]?.id ?? null);
   const [dirty, setDirty] = useState(false);
+  const [pagePath, setPagePath] = useState("/");
+  const router = useRouter();
   const duration = loadingText ? 700 : 1200;
   const selected = blocks.find((b) => b.id === selectedId);
 
@@ -415,16 +412,23 @@ export default function EditorPage() {
         duration={duration}
         {...(loadingText && { title: `${loadingText} wird geladen`, detail: "Einen Moment…" })}
       />
+      <Suspense fallback={null}>
+        <PageFromUrl onPath={(path) => path !== pagePath && setPagePath(path)} />
+      </Suspense>
       <EditorTopbar
+        pagePath={pagePath}
         device={device}
         dirty={dirty}
         onDeviceChange={setDevice}
         onSave={save}
         onDiscard={discard}
-        onPageChange={(value) => {
-          setLoadingText(pages.find((p) => p.value === value)?.label);
+        onPageChange={(path) => {
+          if (dirty) discard();
+          setPagePath(path);
+          setLoadingText(pageLabel(path));
           setSelectedId(blocks[0]?.id ?? null);
           setLoadRun((n) => n + 1);
+          router.replace(path === "/" ? "/editor" : `/editor?page=${encodeURIComponent(path)}`, { scroll: false });
         }}
       />
       <div className="flex min-h-0 flex-1">
@@ -453,4 +457,11 @@ export default function EditorPage() {
       </div>
     </div>
   );
+}
+
+/** Reads ?page= from the URL (deep links from the page list) and hands it to the editor. */
+function PageFromUrl({ onPath }: { onPath: (path: string) => void }) {
+  const path = useSearchParams().get("page") ?? "/";
+  useEffect(() => onPath(path), [path, onPath]);
+  return null;
 }

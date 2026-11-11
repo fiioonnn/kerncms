@@ -36,7 +36,7 @@ export function PageRowActions({ title, path }: { title: string; path: string })
           </MenuTrigger>
         </Tooltip>
         <MenuContent>
-          <MenuItem icon={Pencil} render={<Link href="/editor" />}>
+          <MenuItem icon={Pencil} render={<Link href={path === "/" ? "/editor" : `/editor?page=${encodeURIComponent(path)}`} />}>
             Bearbeiten
           </MenuItem>
           <MenuItem icon={Settings2} onClick={() => setSettingsOpen(true)}>

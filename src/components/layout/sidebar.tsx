@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu as MenuIcon, Palette, Plus, Settings, Trash2, UserRound, Users, X } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Settings, Trash2, UserRound, Users, X } from "lucide-react";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/display";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
@@ -76,6 +76,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             </MenuItem>
           </MenuContent>
         </Menu>
+      </div>
+
+      {/* Primary action: open the visual editor */}
+      <div className="px-4 pt-2">
+        <Link href="/editor" onClick={onNavigate} className={buttonStyles({ className: "w-full" })}>
+          <MousePointerClick />
+          Website bearbeiten
+        </Link>
       </div>
 
       {/* Navigation */}

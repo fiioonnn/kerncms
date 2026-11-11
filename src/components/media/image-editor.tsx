@@ -45,13 +45,20 @@ type Adjust = {
   vignette: number;
 };
 
+type CropRect = { left: number; top: number; width: number; height: number };
+type Handle = "move" | "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
+
+const MIN_CROP = 8;
+const IMAGE_PX = { w: 3000, h: 2000 };
+
 type EditState = {
   aspect: string;
   rotation: number;
   straighten: number;
   flipX: boolean;
   flipY: boolean;
-  crop: { x: number; y: number };
+  /** Crop frame in percent of the image: left, top, width, height. */
+  crop: CropRect;
   adjust: Adjust;
   filter: string;
   focus: { x: number; y: number };
@@ -63,7 +70,7 @@ const initialState: EditState = {
   straighten: 0,
   flipX: false,
   flipY: false,
-  crop: { x: 0, y: 0 },
+  crop: { left: 6, top: 6, width: 88, height: 88 },
   adjust: { brightness: 0, contrast: 0, saturation: 0, warmth: 0, highlights: 0, shadows: 0, sharpness: 0, vignette: 0 },
   filter: "none",
   focus: { x: 50, y: 50 },
@@ -140,16 +147,54 @@ function filterCss(s: EditState) {
   return [...parts, preset].join(" ");
 }
 
-function cropRect(aspect: string) {
+/** Height/width factor in percent units for a locked aspect ratio, or undefined when free. */
+function lockFactor(aspect: string) {
   const ratio = aspects.find((a) => a.value === aspect)?.ratio;
-  if (!ratio) return { w: 88, h: 88 };
-  let w = 88;
-  let h = (88 * IMAGE_RATIO) / ratio;
-  if (h > 88) {
-    h = 88;
-    w = (88 * ratio) / IMAGE_RATIO;
+  return ratio ? IMAGE_RATIO / ratio : undefined;
+}
+
+/** Largest centred crop frame for an aspect ratio. */
+function fitCrop(aspect: string): CropRect {
+  const k = lockFactor(aspect);
+  if (!k) return { left: 6, top: 6, width: 88, height: 88 };
+  let width = 92;
+  let height = width * k;
+  if (height > 92) {
+    height = 92;
+    width = height / k;
   }
-  return { w, h };
+  return { left: (100 - width) / 2, top: (100 - height) / 2, width, height };
+}
+
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+/** New frame after dragging `handle` by dx/dy (percent), respecting bounds and the aspect lock. */
+function resizeCrop(r: CropRect, handle: Handle, dx: number, dy: number, k: number | undefined): CropRect {
+  if (handle === "move") {
+    return { ...r, left: clamp(r.left + dx, 0, 100 - r.width), top: clamp(r.top + dy, 0, 100 - r.height) };
+  }
+  const west = handle.includes("w");
+  const east = handle.includes("e");
+  const north = handle.includes("n");
+  const south = handle.includes("s");
+  const right = r.left + r.width;
+  const bottom = r.top + r.height;
+
+  if (k) {
+    // Locked: corners only. Width follows the pointer, height follows the ratio.
+    const anchorX = east ? r.left : right;
+    const anchorY = south ? r.top : bottom;
+    const maxW = Math.min(east ? 100 - anchorX : anchorX, (south ? 100 - anchorY : anchorY) / k);
+    const width = clamp(east ? r.width + dx : r.width - dx, MIN_CROP, maxW);
+    const height = width * k;
+    return { left: east ? anchorX : anchorX - width, top: south ? anchorY : anchorY - height, width, height };
+  }
+
+  const left = west ? clamp(r.left + dx, 0, right - MIN_CROP) : r.left;
+  const newRight = east ? clamp(right + dx, r.left + MIN_CROP, 100) : right;
+  const top = north ? clamp(r.top + dy, 0, bottom - MIN_CROP) : r.top;
+  const newBottom = south ? clamp(bottom + dy, r.top + MIN_CROP, 100) : bottom;
+  return { left, top, width: newRight - left, height: newBottom - top };
 }
 
 /* ---------- Component ---------- */
@@ -173,7 +218,7 @@ export function ImageEditor({
   const [zoom, setZoom] = useState(100);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ x: number; y: number; start: { x: number; y: number } } | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const s = draft;
 
@@ -223,33 +268,39 @@ export function ImageEditor({
   const fill = 1 + Math.abs(shown.straighten) / 30;
   const scale = (quarterTurn ? 1 / IMAGE_RATIO : 1) * fill * (zoom / 100);
   const transform = `rotate(${shown.rotation + shown.straighten}deg) scale(${shown.flipX ? -scale : scale}, ${shown.flipY ? -scale : scale})`;
-  const rect = cropRect(s.aspect);
-  const maxX = (100 - rect.w) / 2;
-  const maxY = (100 - rect.h) / 2;
-  const cropX = Math.max(-maxX, Math.min(maxX, s.crop.x));
-  const cropY = Math.max(-maxY, Math.min(maxY, s.crop.y));
+  const crop = s.crop;
+  const locked = lockFactor(s.aspect);
 
-  function onCropPointerDown(e: React.PointerEvent) {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { x: e.clientX, y: e.clientY, start: { x: cropX, y: cropY } };
-  }
-
-  function onCropPointerMove(e: React.PointerEvent) {
-    const drag = dragRef.current;
-    const stage = stageRef.current;
-    if (!drag || !stage) return;
+  /** Drag a handle (or the frame itself); listeners live on window so fast moves don’t get lost. */
+  function startCropDrag(handle: Handle, e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const stage = (e.currentTarget as HTMLElement).closest("[data-crop-stage]");
+    if (!stage) return;
     const box = stage.getBoundingClientRect();
-    preview({
-      crop: {
-        x: drag.start.x + ((e.clientX - drag.x) / box.width) * 100,
-        y: drag.start.y + ((e.clientY - drag.y) / box.height) * 100,
-      },
-    });
-  }
+    const origin = { x: e.clientX, y: e.clientY };
+    const startRect = crop;
+    let latest = startRect;
+    setDragging(true);
 
-  function onCropPointerUp() {
-    if (dragRef.current) commit({ crop: { x: cropX, y: cropY } });
-    dragRef.current = null;
+    const onMove = (ev: PointerEvent) => {
+      latest = resizeCrop(
+        startRect,
+        handle,
+        ((ev.clientX - origin.x) / box.width) * 100,
+        ((ev.clientY - origin.y) / box.height) * 100,
+        locked,
+      );
+      preview({ crop: latest });
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setDragging(false);
+      if (latest !== startRect) commit({ crop: latest });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   function onStageClick(e: React.MouseEvent) {
@@ -346,6 +397,7 @@ export function ImageEditor({
                 <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8">
                   <div
                     ref={stageRef}
+                    data-crop-stage
                     onClick={onStageClick}
                     className={cn("relative aspect-[3/2] w-full max-w-4xl", tool === "focus" && "cursor-crosshair")}
                     style={{ maxHeight: "100%" }}
@@ -367,24 +419,62 @@ export function ImageEditor({
                     {/* Crop overlay */}
                     {tool === "crop" && !compare && (
                       <div
-                        onPointerDown={onCropPointerDown}
-                        onPointerMove={onCropPointerMove}
-                        onPointerUp={onCropPointerUp}
-                        className="absolute cursor-move touch-none border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] transition-[width,height] duration-200"
-                        style={{
-                          width: `${rect.w}%`,
-                          height: `${rect.h}%`,
-                          left: `${50 - rect.w / 2 + cropX}%`,
-                          top: `${50 - rect.h / 2 + cropY}%`,
-                        }}
+                        onPointerDown={(e) => startCropDrag("move", e)}
+                        className={cn(
+                          "absolute cursor-move touch-none border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]",
+                          !dragging && "transition-[left,top,width,height] duration-200",
+                        )}
+                        style={{ left: `${crop.left}%`, top: `${crop.top}%`, width: `${crop.width}%`, height: `${crop.height}%` }}
                       >
-                        <span className="absolute inset-x-0 top-1/3 h-px bg-white/50" />
-                        <span className="absolute inset-x-0 top-2/3 h-px bg-white/50" />
-                        <span className="absolute inset-y-0 left-1/3 w-px bg-white/50" />
-                        <span className="absolute inset-y-0 left-2/3 w-px bg-white/50" />
-                        {["-top-1 -left-1 border-t-4 border-l-4", "-top-1 -right-1 border-t-4 border-r-4", "-bottom-1 -left-1 border-b-4 border-l-4", "-bottom-1 -right-1 border-b-4 border-r-4"].map((pos) => (
-                          <span key={pos} className={cn("absolute size-5 border-white", pos)} />
+                        <span className="pointer-events-none absolute inset-x-0 top-1/3 h-px bg-white/50" />
+                        <span className="pointer-events-none absolute inset-x-0 top-2/3 h-px bg-white/50" />
+                        <span className="pointer-events-none absolute inset-y-0 left-1/3 w-px bg-white/50" />
+                        <span className="pointer-events-none absolute inset-y-0 left-2/3 w-px bg-white/50" />
+
+                        {/* Corner handles: large hit area, visible L-shaped mark */}
+                        {(
+                          [
+                            ["nw", "-top-3 -left-3 cursor-nwse-resize", "top-2 left-2 border-t-4 border-l-4"],
+                            ["ne", "-top-3 -right-3 cursor-nesw-resize", "top-2 right-2 border-t-4 border-r-4"],
+                            ["sw", "-bottom-3 -left-3 cursor-nesw-resize", "bottom-2 left-2 border-b-4 border-l-4"],
+                            ["se", "-bottom-3 -right-3 cursor-nwse-resize", "bottom-2 right-2 border-b-4 border-r-4"],
+                          ] as const
+                        ).map(([handle, hit, mark]) => (
+                          <span
+                            key={handle}
+                            aria-hidden
+                            onPointerDown={(e) => startCropDrag(handle, e)}
+                            className={cn("absolute z-10 size-9 touch-none", hit)}
+                          >
+                            <span className={cn("absolute size-5 border-white", mark)} />
+                          </span>
                         ))}
+
+                        {/* Edge handles (only when the ratio is free) */}
+                        {!locked &&
+                          (
+                            [
+                              ["n", "-top-3 left-1/2 h-6 w-14 -translate-x-1/2 cursor-ns-resize", "h-1.5 w-8"],
+                              ["s", "-bottom-3 left-1/2 h-6 w-14 -translate-x-1/2 cursor-ns-resize", "h-1.5 w-8"],
+                              ["w", "top-1/2 -left-3 h-14 w-6 -translate-y-1/2 cursor-ew-resize", "h-8 w-1.5"],
+                              ["e", "top-1/2 -right-3 h-14 w-6 -translate-y-1/2 cursor-ew-resize", "h-8 w-1.5"],
+                            ] as const
+                          ).map(([handle, hit, bar]) => (
+                            <span
+                              key={handle}
+                              aria-hidden
+                              onPointerDown={(e) => startCropDrag(handle, e)}
+                              className={cn("absolute z-10 flex touch-none items-center justify-center", hit)}
+                            >
+                              <span className={cn("rounded-full bg-white shadow", bar)} />
+                            </span>
+                          ))}
+
+                        {dragging && (
+                          <span className="pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 rounded-md bg-black/70 px-2 py-1 text-xs font-medium whitespace-nowrap text-white tabular-nums">
+                            {Math.round((crop.width / 100) * IMAGE_PX.w)} × {Math.round((crop.height / 100) * IMAGE_PX.h)} px
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -442,7 +532,7 @@ export function ImageEditor({
               {/* Tool panel */}
               <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border">
                 {tool === "crop" && (
-                  <Panel title="Zuschneiden" hint="Seitenverhältnis wählen und den Rahmen verschieben.">
+                  <Panel title="Zuschneiden" hint="An Ecken und Kanten ziehen, um die Größe zu ändern. Den Rahmen selbst zum Verschieben ziehen.">
                     <div className="flex flex-col gap-2">
                       <span className="text-[15px] font-medium">Seitenverhältnis</span>
                       <div className="grid grid-cols-4 gap-1.5">
@@ -450,7 +540,7 @@ export function ImageEditor({
                           <button
                             key={a.value}
                             type="button"
-                            onClick={() => commit({ aspect: a.value, crop: { x: 0, y: 0 } })}
+                            onClick={() => commit({ aspect: a.value, crop: fitCrop(a.value) })}
                             className={cn(
                               "h-10 rounded-lg border text-sm font-medium transition-colors",
                               s.aspect === a.value ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-subtle",

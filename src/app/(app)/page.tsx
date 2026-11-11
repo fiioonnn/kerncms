@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, FileText, Image, Newspaper, PenLine, TrendingUp } from "lucide-react";
+import { ArrowRight, FileText, Image, MousePointerClick, Newspaper, PenLine, TrendingUp } from "lucide-react";
 import { BarList } from "@/components/charts/bar-list";
 import { VisitorsChart } from "@/components/charts/visitors-chart";
 import { analyticsKpis, dailyVisitors, topPages } from "@/lib/example-analytics";
@@ -35,9 +35,15 @@ export default function DashboardPage() {
         title="Guten Morgen, Anna"
         description="Hier siehst du, was sich auf deiner Website zuletzt getan hat."
         actions={
-          <Link href="/posts/new" className={buttonStyles()}>
-            Neuer Beitrag
-          </Link>
+          <>
+            <Link href="/posts/new" className={buttonStyles({ variant: "secondary" })}>
+              Neuer Beitrag
+            </Link>
+            <Link href="/editor" className={buttonStyles()}>
+              <MousePointerClick />
+              Website bearbeiten
+            </Link>
+          </>
         }
       />
 

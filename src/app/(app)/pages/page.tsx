@@ -14,6 +14,8 @@ const pages = [
   { title: "Impressum", path: "/impressum", status: "live", updated: "2. Sep." },
 ];
 
+const editorHref = (path: string) => (path === "/" ? "/editor" : `/editor?page=${encodeURIComponent(path)}`);
+
 export default function PagesPage() {
   return (
     <PageContainer>
@@ -40,7 +42,7 @@ export default function PagesPage() {
             {pages.map((page) => (
               <tr key={page.path} className="transition-colors hover:bg-subtle/50">
                 <Td>
-                  <Link href="/editor" className="text-base font-medium hover:text-accent">
+                  <Link href={editorHref(page.path)} className="text-base font-medium hover:text-accent">
                     {page.title}
                   </Link>
                 </Td>
@@ -59,7 +61,7 @@ export default function PagesPage() {
                 <Td className="text-muted">{page.updated}</Td>
                 <Td>
                   <div className="flex items-center gap-1">
-                    <Link href="/editor" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+                    <Link href={editorHref(page.path)} className={buttonStyles({ variant: "secondary", size: "sm" })}>
                       Bearbeiten
                     </Link>
                     <PageRowActions title={page.title} path={page.path} />
