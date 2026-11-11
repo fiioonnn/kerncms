@@ -24,7 +24,7 @@ function Row({ title, description, children }: { title: string; description: str
   );
 }
 
-export function DangerZone({ siteName, role }: { siteName: string; role: RoleName }) {
+export function DangerZone({ siteName, role, platformAdmin }: { siteName: string; role: RoleName; platformAdmin: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isAdmin = role === "admin" || role === "owner";
@@ -72,7 +72,8 @@ export function DangerZone({ siteName, role }: { siteName: string; role: RoleNam
             }
           />
         </Row>
-        {role === "owner" && (
+        {/* Only the agency (platform admins) can remove a site; customers can't, even as owners. */}
+        {platformAdmin && (
           <Row title="Website trennen" description="Entfernt die Website aus kerncms, mit Team, Statistik und Nachrichten. Das Repository selbst bleibt unverändert.">
             <DisconnectDialog siteName={siteName} />
           </Row>

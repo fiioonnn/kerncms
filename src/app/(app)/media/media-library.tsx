@@ -192,12 +192,17 @@ export function MediaLibrary() {
 
       {/* Selection bar */}
       {selected.size > 0 && (
-        <div className="sticky top-20 z-20 mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-popover">
-          <span className="text-[15px] font-medium">{selected.size === 1 ? "1 Datei ausgewählt" : `${selected.size} Dateien ausgewählt`}</span>
+        // Floating at the bottom centre of the content area (the sidebar is 18rem wide from lg).
+        <div
+          role="toolbar"
+          aria-label="Auswahl"
+          className="fixed bottom-6 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-2xl border border-border bg-surface p-2 pl-5 shadow-popover lg:left-[calc(50%+9rem)] lg:max-w-[calc(100vw-20rem)]"
+        >
+          <span className="mr-1 text-[15px] font-medium whitespace-nowrap">{selected.size === 1 ? "1 Datei ausgewählt" : `${selected.size} Dateien ausgewählt`}</span>
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set(filtered.map((i) => i.name)))}>
             Alle sichtbaren auswählen
           </Button>
-          <div className="ml-auto flex gap-2">
+          <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setSelected(new Set())}>
               <X />
               Auswahl aufheben

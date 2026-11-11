@@ -28,6 +28,7 @@ export default async function SettingsPage() {
   const github = ctx.site.source === "github" && ctx.site.githubRepo ? ctx.site.githubRepo : null;
   const { site, role, config } = settings;
   const isAdmin = role === "admin" || role === "owner";
+  const platformAdmin = ctx.user.isAdmin;
 
   return (
     <PageContainer className="max-w-5xl">
@@ -109,7 +110,7 @@ export default async function SettingsPage() {
         </TabPanel>
 
         <TabPanel value="danger">
-          <DangerZone siteName={site.name} role={role} />
+          <DangerZone siteName={site.name} role={role} platformAdmin={platformAdmin} />
         </TabPanel>
       </Tabs>
     </PageContainer>

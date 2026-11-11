@@ -15,7 +15,7 @@ import { startPublish } from "../deploy";
 import { commit, discard, DRAFT_BRANCH, git, uncommittedFiles, unpublishedFiles, withSiteLock, worktreeDir } from "../git";
 import { markAllRead, notify } from "../notifications";
 import { ensurePreview, getPreview, stopPreview } from "../preview";
-import { getSiteContext, getWorkspace, requireRole, SITE_COOKIE, type Workspace } from "../sites";
+import { ForbiddenError, getSiteContext, getWorkspace, requireRole, SITE_COOKIE, type Workspace } from "../sites";
 
 function author(ws: Workspace) {
   return { id: ws.user.id, name: ws.user.name, email: ws.user.email };
@@ -53,7 +53,9 @@ export async function updateSiteSettings(input: { name: string; liveUrl: string;
 
 export async function disconnectSite(confirmName: string) {
   const result = await run(async () => {
-    const ctx = await requireRole("owner");
+    const ctx = await getSiteContext();
+    // Customers can't remove their own site, not even as owners; that is up to the agency.
+    if (!ctx.user.isAdmin) throw new ForbiddenError("Nur Plattform-Admins können eine Website trennen.");
     if (confirmName.trim() !== ctx.site.name) throw new Error("Der Name stimmt nicht überein.");
     stopPreview(ctx.site.id);
     const dir = worktreeDir(ctx.site);
