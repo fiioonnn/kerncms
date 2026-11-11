@@ -1,37 +1,17 @@
 import Link from "next/link";
 import { ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
 import { BarList } from "@/components/charts/bar-list";
-import { VisitorsChart, type DailyPoint } from "@/components/charts/visitors-chart";
+import { VisitorsChart } from "@/components/charts/visitors-chart";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
+import { analyticsKpis, dailyVisitors, topPages } from "@/lib/example-analytics";
 import { cn } from "@/lib/utils";
 
 /* ---- Example data (UI only, nothing is tracked yet) ---- */
 
-const daily: DailyPoint[] = [
-  132, 148, 141, 120, 96, 88, 139, 151, 162, 158, 149, 110, 102, 155, 171, 168, 176, 160, 121, 115, 182, 190, 186,
-  201, 194, 138, 129, 205, 214, 221,
-].map((value, i) => ({
-  date: new Date(Date.UTC(2026, 9, 13 + i)).toISOString().slice(0, 10),
-  value,
-}));
-
-const kpis = [
-  { label: "Besucher", value: "4.812", delta: "+12 %", up: true },
-  { label: "Seitenaufrufe", value: "13.540", delta: "+8 %", up: true },
-  { label: "Ø Besuchsdauer", value: "1:48 min", delta: "+6 %", up: true },
-  { label: "Absprungrate", value: "41 %", delta: "−3 Pkt.", up: true },
-];
-
-const topPages = [
-  { label: "Startseite", hint: "/", value: 5210 },
-  { label: "Sortiment", hint: "/sortiment", value: 2980 },
-  { label: "Neue Sauerteigbrote ab Mai", hint: "/aktuelles/…", value: 1640 },
-  { label: "Kontakt", hint: "/kontakt", value: 1230 },
-  { label: "Catering", hint: "/catering", value: 880 },
-];
-
+const daily = dailyVisitors;
+const kpis = analyticsKpis;
 const sources = [
   { label: "Google", value: 2410 },
   { label: "Direkt", value: 1320 },

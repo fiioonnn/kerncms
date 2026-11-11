@@ -5,7 +5,6 @@ import { useState } from "react";
 export type DailyPoint = { date: string; value: number };
 
 const W = 1000;
-const H = 260;
 
 function niceMax(max: number) {
   const step = 10 ** Math.floor(Math.log10(max));
@@ -21,8 +20,17 @@ function formatDay(iso: string) {
  * Single-series area chart (visitors per day) with a crosshair tooltip.
  * Purely presentational: it renders whatever points it gets.
  */
-export function VisitorsChart({ data, label }: { data: DailyPoint[]; label: string }) {
+export function VisitorsChart({
+  data,
+  label,
+  height = 260,
+}: {
+  data: DailyPoint[];
+  label: string;
+  height?: number;
+}) {
   const [hover, setHover] = useState<number | null>(null);
+  const H = height;
 
   const max = niceMax(Math.max(...data.map((p) => p.value)));
   const ticks = [0, max / 4, max / 2, (max * 3) / 4, max];

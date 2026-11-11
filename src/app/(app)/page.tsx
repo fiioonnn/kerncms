@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, FileText, Image, Newspaper, PenLine } from "lucide-react";
+import { ArrowRight, FileText, Image, Newspaper, PenLine, TrendingUp } from "lucide-react";
+import { BarList } from "@/components/charts/bar-list";
+import { VisitorsChart } from "@/components/charts/visitors-chart";
+import { analyticsKpis, dailyVisitors, topPages } from "@/lib/example-analytics";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
@@ -50,6 +53,42 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="mt-8">
+        <CardHeader
+          title="Besucher"
+          description="Letzte 30 Tage · cookielos erfasst"
+          action={
+            <Link href="/analytics" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+              Alle Statistiken
+              <ArrowRight />
+            </Link>
+          }
+        />
+        <CardContent className="grid gap-10 pt-6 xl:grid-cols-[1fr_340px]">
+          <div className="flex min-w-0 flex-col gap-8">
+            <div className="flex flex-wrap gap-x-12 gap-y-4">
+              {analyticsKpis.slice(0, 3).map((kpi) => (
+                <div key={kpi.label} className="flex flex-col">
+                  <span className="text-[15px] text-muted">{kpi.label}</span>
+                  <span className="flex items-baseline gap-2.5">
+                    <span className="text-2xl font-semibold tracking-tight">{kpi.value}</span>
+                    <span className="flex items-center gap-1 text-sm font-medium text-success">
+                      <TrendingUp className="size-4" />
+                      {kpi.delta}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <VisitorsChart data={dailyVisitors} height={180} label="Besucher pro Tag, letzte 30 Tage" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-[15px] font-medium">Beliebteste Seiten</h3>
+            <BarList items={topPages.slice(0, 4)} valueLabel="Aufrufe" />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
         <Card>
