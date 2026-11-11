@@ -1,4 +1,5 @@
 import {
+  ChartLine,
   FileText,
   Globe,
   Image,
@@ -27,7 +28,10 @@ export const navigation: NavGroup[] = [
   },
   {
     label: "Website",
-    items: [{ label: "Visueller Editor", href: "/editor", icon: MousePointerClick }],
+    items: [
+      { label: "Visueller Editor", href: "/editor", icon: MousePointerClick },
+      { label: "Statistiken", href: "/analytics", icon: ChartLine },
+    ],
   },
   {
     label: "Verwaltung",

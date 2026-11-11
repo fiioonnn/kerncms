@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react";
+import { Copy, GitBranch, ShieldCheck } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
@@ -12,6 +12,12 @@ const languages = [
   { label: "Englisch", value: "en" },
 ];
 
+const retention = [
+  { label: "12 Monate", value: "12" },
+  { label: "24 Monate", value: "24" },
+  { label: "36 Monate", value: "36" },
+];
+
 const branches = [
   { label: "main", value: "main" },
   { label: "staging", value: "staging" },
@@ -20,13 +26,14 @@ const branches = [
 export default function SettingsPage() {
   return (
     <PageContainer className="max-w-4xl">
-      <PageHeader title="Einstellungen" description="Allgemeine Angaben, Repository und Veröffentlichung." />
+      <PageHeader title="Einstellungen" description="Allgemeine Angaben, Repository, Veröffentlichung und Tracking." />
 
       <Tabs defaultValue="general">
         <TabsList>
           <Tab value="general">Allgemein</Tab>
           <Tab value="repository">Repository</Tab>
           <Tab value="publishing">Veröffentlichung</Tab>
+          <Tab value="tracking">Tracking</Tab>
         </TabsList>
 
         <TabPanel value="general">
@@ -92,6 +99,67 @@ export default function SettingsPage() {
               />
               <Switch label="Entwürfe als eigener Branch" description="Jede Person arbeitet auf einem eigenen Branch." defaultChecked />
               <Switch label="Vorschau-Links teilen" description="Entwürfe per Link ohne Anmeldung ansehen." />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="tracking" className="flex flex-col gap-6">
+          <Card>
+            <CardHeader
+              title="Besucherstatistik"
+              description="Cookielos und ohne personenbezogene Daten, daher ohne Cookie-Banner nutzbar."
+              action={
+                <Badge tone="success" dot>
+                  Aktiv
+                </Badge>
+              }
+            />
+            <CardContent className="flex flex-col gap-7">
+              <Switch label="Statistik erfassen" description="Zählt Besucher und Seitenaufrufe dieser Website." defaultChecked />
+              <Switch
+                label="„Do Not Track“ respektieren"
+                description="Browser mit aktivierter DNT-Einstellung werden nicht gezählt."
+                defaultChecked
+              />
+              <Switch
+                label="Opt-out-Link für die Datenschutzerklärung"
+                description="Besucher können die Zählung für ihren Browser abschalten."
+                defaultChecked
+              />
+              <Switch label="Eigene Aufrufe ausschließen" description="Angemeldete CMS-Nutzer werden nicht gezählt." defaultChecked />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader title="Speicherung" description="Wo und wie lange die Statistik aufbewahrt wird." />
+            <CardContent className="flex flex-col gap-6">
+              <div className="flex items-center gap-4 rounded-xl border border-border bg-subtle/50 px-5 py-4">
+                <ShieldCheck className="size-6 shrink-0 text-success" strokeWidth={1.75} />
+                <span className="flex flex-col">
+                  <span className="text-[15px] font-medium">Rechenzentrum in Frankfurt am Main</span>
+                  <span className="text-sm text-muted">Keine Übermittlung in Drittländer, IP-Adressen werden nie gespeichert.</span>
+                </span>
+              </div>
+              <Select label="Aufbewahrung" items={retention} defaultValue="24" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader title="Einbindung" description="Bei Astro-Seiten fügt die kerncms-Integration das Skript automatisch ein." />
+            <CardContent className="flex flex-col gap-3">
+              <span className="text-[15px] font-medium">Manuelles Snippet</span>
+              <div className="flex items-start gap-3 rounded-xl border border-border bg-subtle/50 p-4">
+                <code className="min-w-0 flex-1 font-mono text-sm leading-relaxed break-all">
+                  {'<script defer src="/_kern/t.js"></script>'}
+                </code>
+                <Button variant="secondary" size="sm">
+                  <Copy />
+                  Kopieren
+                </Button>
+              </div>
+              <p className="text-sm text-muted">
+                Das Skript wird über die eigene Domain ausgeliefert, damit keine Daten an Dritte gehen.
+              </p>
             </CardContent>
           </Card>
         </TabPanel>
