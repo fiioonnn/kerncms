@@ -1,19 +1,65 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/*
+ * kerncms design tokens
+ * Light mode only. Every colour used in the UI comes from here;
+ * see /styleguide for how they look and when to use them.
+ */
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Surfaces */
+  --color-background: #f6f6f4; /* app background behind content */
+  --color-surface: #ffffff; /* cards, sidebar, topbar, inputs */
+  --color-subtle: #efefec; /* hover fills, table headers, wells */
+
+  /* Lines */
+  --color-border: #e4e4e0;
+  --color-border-strong: #d0d0cb;
+
+  /* Text */
+  --color-foreground: #18181b;
+  --color-muted: #6b6b72;
+
+  /* Brand */
+  --color-accent: #2f5bea;
+  --color-accent-hover: #2449c7;
+  --color-accent-soft: #edf1fe;
+  --color-accent-foreground: #ffffff;
+
+  /* Status */
+  --color-success: #15803d;
+  --color-success-soft: #eaf7ef;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf4e3;
+  --color-danger: #c42b2b;
+  --color-danger-soft: #fdeded;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 1px 3px rgb(24 24 27 / 0.04);
+  --shadow-popover: 0 8px 24px rgb(24 24 27 / 0.12), 0 2px 6px rgb(24 24 27 / 0.06);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+  }
 }
