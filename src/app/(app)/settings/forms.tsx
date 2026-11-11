@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Bell, Inbox, Loader2, Mail, Reply, Send } from "lucide-react";
+import { Braces, ChevronDown, Inbox, Loader2, Mail, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Textarea } from "@/components/ui/field";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/toggles";
-import { builtinVariables, fillTemplate, notificationSubject, replyMailto } from "@/lib/form-template";
+import { builtinVariables, cleanLabel, fillTemplate, notificationSubject } from "@/lib/form-template";
 import type { FormDef } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
 import { saveFormSettings, type FormSettingsInput } from "@/server/actions/forms";
-import { SettingsRow, SettingsSection } from "./settings-ui";
+
+type Variable = { name: string; label: string };
 
 /** Per form: e-mail notification and the prefilled "Per Mail antworten" mail. */
 export function FormsSettings({
@@ -50,11 +52,11 @@ export function FormsSettings({
   return (
     <div className="flex flex-col gap-6">
       {forms.map((form) => (
-        <FormSection
+        <FormCard
           key={form.key}
           form={form}
           initial={settings[form.key] ?? { notify: false, recipients: [], subject: "", replySubject: "", replyBody: "" }}
-          sender={sender}
+          sender={sender.replace(/"/g, "")}
           siteName={siteName}
           canEdit={canEdit}
         />
@@ -63,7 +65,7 @@ export function FormsSettings({
   );
 }
 
-/** Example values so the preview reads like a real request. */
+/** Example values so previews read like a real request. */
 function sampleData(form: FormDef) {
   const data: Record<string, string> = {};
   for (const f of form.fields) {
@@ -72,12 +74,12 @@ function sampleData(form: FormDef) {
     else if (f.type === "select") data[f.name] = f.options?.[0]?.value ?? "";
     else if (/name/i.test(f.name)) data[f.name] = "Erika Muster";
     else if (f.type === "textarea") data[f.name] = "Wir brauchen ein Frühstücksbuffet für 20 Personen.";
-    else data[f.name] = f.label.replace(/[.:]\s*$/, "");
+    else data[f.name] = cleanLabel(f.label);
   }
   return data;
 }
 
-function FormSection({
+function FormCard({
   form,
   initial,
   sender,
@@ -93,14 +95,17 @@ function FormSection({
   const [values, setValues] = useState(initial);
   const [saved, setSaved] = useState(initial);
   const [tagKey, setTagKey] = useState(0);
+  const [replyOpen, setReplyOpen] = useState(Boolean(initial.replySubject || initial.replyBody));
   const [pending, startTransition] = useTransition();
   const dirty = JSON.stringify(values) !== JSON.stringify(saved);
   const set = (patch: Partial<FormSettingsInput>) => setValues((v) => ({ ...v, ...patch }));
 
-  const fieldVariables = form.fields.filter((f) => f.type !== "boolean").map((f) => ({ name: f.name, label: f.label.replace(/[.:]\s*$/, "") }));
-  const variables = [...fieldVariables, ...builtinVariables];
+  const fieldVariables: Variable[] = form.fields.filter((f) => f.type !== "boolean").map((f) => ({ name: f.name, label: cleanLabel(f.label) }));
   const sample = { form, data: sampleData(form), siteName };
   const hasEmailField = form.fields.some((f) => f.type === "email");
+  const notifySubject = notificationSubject(values.subject, sample);
+  const replySubject = fillTemplate(values.replySubject, sample, { singleLine: true }) || `Re: ${notifySubject}`;
+  const replyBody = fillTemplate(values.replyBody, sample);
 
   function save() {
     startTransition(async () => {
@@ -119,114 +124,139 @@ function FormSection({
     setTagKey((k) => k + 1);
   }
 
-  const previewHref = replyMailto(sample, values);
-
   return (
-    <div id={`form-${form.key}`} className="scroll-mt-28">
-      <SettingsSection
-        title={form.label}
-        description={`${form.fields.length} Felder · Schlüssel „${form.key}“`}
-        action={
-          canEdit && dirty ? (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={reset} disabled={pending}>
-                Verwerfen
-              </Button>
-              <Button size="sm" onClick={save} disabled={pending}>
-                {pending && <Loader2 className="animate-spin" />}
-                Speichern
-              </Button>
-            </div>
-          ) : null
-        }
-      >
-        <fieldset disabled={!canEdit} className="contents">
-          {/* Notification */}
-          <SettingsRow icon={Bell} label="Benachrichtigung" description={`Jede neue Nachricht per E-Mail. Absender: ${sender.replace(/"/g, "")}`} compact>
-            <Switch label="Per E-Mail benachrichtigen" checked={values.notify} onCheckedChange={(notify) => set({ notify })} disabled={!canEdit} className="[&>span:first-child]:sr-only" />
-          </SettingsRow>
-          <div className={cn("divide-y divide-border", !values.notify && "pointer-events-none opacity-50")} aria-disabled={!values.notify}>
-            <SettingsRow icon={Mail} label="Empfänger" description="Mit Enter bestätigen, höchstens 10 Adressen.">
-              <TagInput key={tagKey} defaultValue={values.recipients} onValueChange={(recipients) => set({ recipients })} />
-            </SettingsRow>
-            <SettingsRow label="Betreff der Benachrichtigung" description={`Leer lassen für „Anfrage über das ${form.label}“.`} stacked>
-              <TemplateField value={values.subject} onChange={(subject) => set({ subject })} variables={fieldVariables} preview={notificationSubject(values.subject, sample)} />
-            </SettingsRow>
+    <section id={`form-${form.key}`} className="scroll-mt-28 overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+      <fieldset disabled={!canEdit || pending} className="contents">
+        {/* Header: name and the main switch */}
+        <header className="flex items-center gap-4 px-6 py-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <Mail className="size-5" strokeWidth={1.75} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <h2 className="truncate text-lg font-semibold tracking-tight">{form.label}</h2>
+            <p className="text-sm text-muted">{values.notify ? "Neue Nachrichten kommen per E-Mail" : "Nachrichten nur im CMS"}</p>
           </div>
+          <Switch
+            label="Per E-Mail benachrichtigen"
+            checked={values.notify}
+            onCheckedChange={(notify) => set({ notify })}
+            disabled={!canEdit}
+            className="[&>span:first-child]:sr-only"
+          />
+        </header>
 
-          {/* Reply template */}
-          <SettingsRow
-            icon={Reply}
-            label="Vorlage für „Per Mail antworten“"
-            description={
-              hasEmailField
-                ? "So öffnet sich die Antwort im Mailprogramm, im CMS und in der Benachrichtigung. Platzhalter werden mit den Angaben aus dem Formular gefüllt."
-                : "Dieses Formular hat kein E-Mail-Feld. Ohne Adresse des Besuchers gibt es keinen Antworten-Button."
-            }
-            stacked
+        {/* Notification */}
+        {values.notify && (
+          <div className="grid gap-5 border-t border-border px-6 py-5 md:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-2">
+              <span className="text-sm font-medium">An</span>
+              <TagInput key={tagKey} defaultValue={values.recipients} onValueChange={(recipients) => set({ recipients })} />
+            </div>
+            <TemplateInput
+              label="Betreff"
+              value={values.subject}
+              onChange={(subject) => set({ subject })}
+              variables={fieldVariables}
+              example={notifySubject}
+            />
+            <p className="text-sm text-muted md:col-span-2">
+              Absender: <span className="text-foreground">{sender}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Reply template, collapsed until needed */}
+        <div className="border-t border-border">
+          <button
+            type="button"
+            onClick={() => setReplyOpen((o) => !o)}
+            aria-expanded={replyOpen}
+            className="flex w-full items-center gap-3 px-6 py-4 text-left transition-colors outline-none hover:bg-subtle/50 focus-visible:bg-subtle/50"
           >
-            <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Betreff</span>
-                <TemplateField
+            <Reply className="size-4 shrink-0 text-muted" strokeWidth={2} />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[15px] font-medium">Antwort-Vorlage</span>
+              <span className="truncate text-sm text-muted">
+                {!hasEmailField
+                  ? "Ohne E-Mail-Feld im Formular gibt es keinen Antworten-Button."
+                  : values.replySubject || values.replyBody
+                    ? `„${replySubject}“`
+                    : "Vorausgefüllte Mail für „Per Mail antworten“"}
+              </span>
+            </span>
+            <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", replyOpen && "rotate-180")} />
+          </button>
+
+          {replyOpen && (
+            <div className="grid gap-6 px-6 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+              <div className="flex min-w-0 flex-col gap-5">
+                <TemplateInput
+                  label="Betreff"
                   value={values.replySubject}
                   onChange={(replySubject) => set({ replySubject })}
-                  variables={variables}
-                  preview={fillTemplate(values.replySubject, sample, { singleLine: true }) || `Re: ${notificationSubject(values.subject, sample)}`}
-                  hint="Leer lassen für „Re:“ und den Betreff der Benachrichtigung."
+                  variables={[...fieldVariables, ...builtinVariables]}
+                  hint="Leer: „Re:“ + Betreff der Benachrichtigung"
                 />
-              </div>
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Text</span>
-                <TemplateField
+                <TemplateInput
                   multiline
+                  label="Text"
                   value={values.replyBody}
                   onChange={(replyBody) => set({ replyBody })}
-                  variables={variables}
-                  placeholderHint
+                  variables={[...fieldVariables, ...builtinVariables]}
+                  hint="Leer: die Mail öffnet sich ohne Text"
                 />
               </div>
-              <ReplyPreview
-                to="erika@example.com"
-                subject={fillTemplate(values.replySubject, sample, { singleLine: true }) || `Re: ${notificationSubject(values.subject, sample)}`}
-                body={fillTemplate(values.replyBody, sample)}
-                href={previewHref}
-              />
+              <MailPreview subject={replySubject} body={replyBody} />
             </div>
-          </SettingsRow>
-        </fieldset>
-      </SettingsSection>
-    </div>
+          )}
+        </div>
+
+        {/* Save bar, only when something changed */}
+        {canEdit && dirty && (
+          <div className="flex items-center justify-end gap-3 border-t border-border bg-subtle/50 px-6 py-3">
+            <span className="mr-auto text-sm text-muted">Ungespeicherte Änderungen</span>
+            <Button variant="ghost" size="sm" onClick={reset}>
+              Verwerfen
+            </Button>
+            <Button size="sm" onClick={save}>
+              {pending && <Loader2 className="animate-spin" />}
+              Speichern
+            </Button>
+          </div>
+        )}
+      </fieldset>
+    </section>
   );
 }
 
-/** Input or textarea with clickable {platzhalter} chips that insert at the cursor. */
-function TemplateField({
+/** Input or textarea with a "Platzhalter" menu that inserts {feld} at the cursor. */
+function TemplateInput({
+  label,
   value,
   onChange,
   variables,
-  preview,
+  example,
   hint,
   multiline,
-  placeholderHint,
 }: {
+  label: string;
   value: string;
   onChange: (value: string) => void;
-  variables: { name: string; label: string }[];
-  preview?: string;
+  variables: readonly Variable[];
+  example?: string;
   hint?: string;
   multiline?: boolean;
-  placeholderHint?: boolean;
 }) {
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const fields = variables.filter((v) => !builtinVariables.some((b) => b.name === v.name));
+  const builtins = variables.filter((v) => builtinVariables.some((b) => b.name === v.name));
 
   function insert(name: string) {
     const el = ref.current;
     const token = `{${name}}`;
     const start = el?.selectionStart ?? value.length;
     const end = el?.selectionEnd ?? value.length;
-    const next = value.slice(0, start) + token + value.slice(end);
-    onChange(next);
+    onChange(value.slice(0, start) + token + value.slice(end));
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(start + token.length, start + token.length);
@@ -234,60 +264,63 @@ function TemplateField({
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {multiline ? (
-        <Textarea ref={ref} rows={7} value={value} onChange={(e) => onChange(e.target.value)} aria-label="Text der Antwort" />
-      ) : (
-        <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} aria-label="Betreff" />
-      )}
-      {placeholderHint && !value && (
-        <p className="text-sm text-muted">Leer lassen, dann öffnet sich eine leere Mail. Zum Beispiel: „Hallo {"{name}"}, vielen Dank für Ihre Anfrage …“</p>
-      )}
-      {hint && <p className="text-sm text-muted">{hint}</p>}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-sm text-muted">Einfügen:</span>
-        {variables.map((v) => (
-          <button
-            key={v.name}
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => insert(v.name)}
-            title={v.label}
-            className="rounded-md bg-subtle px-2 py-1 font-mono text-xs text-foreground transition-colors outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
-          >
-            {`{${v.name}}`}
-          </button>
-        ))}
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium">{label}</span>
+        <Menu>
+          <MenuTrigger className="-my-1 flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
+            <Braces className="size-3.5" />
+            Platzhalter
+          </MenuTrigger>
+          <MenuContent className="w-72">
+            <MenuLabel>Aus dem Formular</MenuLabel>
+            {fields.map((v) => (
+              <MenuItem key={v.name} onClick={() => insert(v.name)}>
+                <span className="flex-1 truncate">{v.label}</span>
+                <span className="font-mono text-xs text-muted">{`{${v.name}}`}</span>
+              </MenuItem>
+            ))}
+            {builtins.length > 0 && (
+              <>
+                <MenuSeparator />
+                <MenuLabel>Allgemein</MenuLabel>
+                {builtins.map((v) => (
+                  <MenuItem key={v.name} onClick={() => insert(v.name)}>
+                    <span className="flex-1 truncate">{v.label}</span>
+                    <span className="font-mono text-xs text-muted">{`{${v.name}}`}</span>
+                  </MenuItem>
+                ))}
+              </>
+            )}
+          </MenuContent>
+        </Menu>
       </div>
-      {preview !== undefined && value && (
-        <p className="text-sm text-muted">
-          Beispiel: <span className="text-foreground">{preview}</span>
-        </p>
+      {multiline ? (
+        <Textarea ref={ref} rows={6} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+      ) : (
+        <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} />
       )}
+      {value && example ? (
+        <p className="truncate text-sm text-muted">
+          Wird zu: <span className="text-foreground">{example}</span>
+        </p>
+      ) : !value && hint ? (
+        <p className="truncate text-sm text-muted">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
-function ReplyPreview({ to, subject, body, href }: { to: string; subject: string; body: string; href: string | null }) {
+function MailPreview({ subject, body }: { subject: string; body: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border">
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-subtle/60 px-4 py-2.5">
-        <span className="text-sm font-medium text-muted">Vorschau mit Beispieldaten</span>
-        {href && (
-          <a href={href} className="flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            <Send className="size-3.5" />
-            Im Mailprogramm testen
-          </a>
-        )}
-      </div>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 px-4 py-3 text-sm">
-        <dt className="text-muted">An</dt>
-        <dd>{to}</dd>
-        <dt className="text-muted">Betreff</dt>
-        <dd className="font-medium">{subject}</dd>
-      </dl>
-      <div className={cn("border-t border-border px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap", !body && "text-muted italic")}>
-        {body || "Leere Nachricht"}
+    <div className="flex min-w-0 flex-col gap-2">
+      <span className="text-sm font-medium">Vorschau</span>
+      <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-subtle/40">
+        <div className="flex flex-col gap-0.5 border-b border-border px-4 py-3 text-sm">
+          <span className="text-muted">An: erika@example.com</span>
+          <span className="truncate font-medium">{subject}</span>
+        </div>
+        <p className={cn("flex-1 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap", !body && "text-muted italic")}>{body || "Leere Nachricht"}</p>
       </div>
     </div>
   );
