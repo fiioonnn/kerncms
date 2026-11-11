@@ -166,9 +166,9 @@ function PropertiesSidebar() {
 
 function Canvas() {
   return (
-    <div className="flex-1 overflow-auto bg-background p-10">
+    <div className="flex-1 overflow-auto bg-white">
       {/* Mock of the customer's site as it would appear in the iframe */}
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-border bg-white shadow-popover">
+      <div>
         <div className="flex items-center justify-between border-b border-neutral-100 px-12 py-6">
           <span className="text-lg font-bold">Bäckerei Müller</span>
           <span className="flex gap-7 text-[15px] text-neutral-500">
@@ -193,7 +193,7 @@ function Canvas() {
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-5 px-12 pt-4 pb-16">
+        <div className="grid grid-cols-3 gap-5 px-12 pt-4 pb-10">
           {["Brote", "Brötchen", "Kuchen"].map((label) => (
             <div
               key={label}
@@ -203,13 +203,12 @@ function Canvas() {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="mx-auto mt-6 flex max-w-5xl justify-center">
-        <Button variant="secondary">
-          <Plus />
-          Block hinzufügen
-        </Button>
+        <div className="flex justify-center px-12 pb-16">
+          <Button variant="secondary">
+            <Plus />
+            Block hinzufügen
+          </Button>
+        </div>
       </div>
     </div>
   );
