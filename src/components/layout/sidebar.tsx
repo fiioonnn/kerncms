@@ -207,7 +207,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 Admin-Bereich
               </MenuItem>
             )}
-            <MenuItem icon={LogOut} render={<button type="submit" form={logoutForm} className="w-full text-left" />}>
+            <MenuItem icon={LogOut} nativeButton render={<button type="submit" form={logoutForm} className="w-full text-left" />}>
               Abmelden
             </MenuItem>
           </MenuContent>
