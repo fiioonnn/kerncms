@@ -2,18 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, GitBranch, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
+import { DeployStatus } from "@/components/history/deploy-status";
 import { PublishButton } from "@/components/actions/publish";
 import { buttonStyles } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger, Tooltip } from "@/components/ui/overlay";
 import { CommandPalette } from "./command-palette";
 import { findNavItem } from "./nav";
 
-const changes = [
-  { file: "Startseite", detail: "Hero-Überschrift geändert", who: "Anna", when: "vor 12 Min." },
-  { file: "Neue Sauerteigbrote ab Mai", detail: "Neuer Beitrag", who: "Anna", when: "vor 2 Std." },
-  { file: "Navigation", detail: "Menüpunkt hinzugefügt", who: "Jonas", when: "gestern" },
-];
 
 const notifications = [
   { title: "Jonas hat „Navigation“ geändert", when: "gestern, 16:20", unread: true },
@@ -57,35 +53,7 @@ export function Topbar() {
         </button>
         <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
 
-        {/* Draft changes */}
-        <Popover>
-          <PopoverTrigger className="hidden h-9 items-center gap-2 rounded-full bg-warning-soft px-3.5 text-sm font-medium text-warning transition-colors hover:bg-warning/15 sm:inline-flex">
-            <GitBranch className="size-4" />
-            {changes.length} Änderungen im Entwurf
-          </PopoverTrigger>
-          <PopoverContent>
-            <div className="border-b border-border px-5 py-4">
-              <h3 className="text-base font-semibold">Offene Änderungen</h3>
-              <p className="text-sm text-muted">Noch nicht auf der Website sichtbar</p>
-            </div>
-            <ul className="flex flex-col gap-1 p-2">
-              {changes.map((change) => (
-                <li key={change.file} className="flex gap-3 rounded-xl px-3 py-2.5">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-warning" />
-                  <span className="flex flex-col">
-                    <span className="text-[15px] font-medium">{change.file}</span>
-                    <span className="text-sm text-muted">
-                      {change.detail} · {change.who}, {change.when}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="border-t border-border p-4">
-              <PublishButton className="w-full" changes={changes.length} />
-            </div>
-          </PopoverContent>
-        </Popover>
+        <DeployStatus />
 
         {/* Notifications */}
         <Popover>
@@ -119,7 +87,7 @@ export function Topbar() {
           </PopoverContent>
         </Popover>
 
-        <PublishButton changes={changes.length} />
+        <PublishButton changes={3} />
       </div>
     </header>
   );

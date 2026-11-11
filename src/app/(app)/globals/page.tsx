@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, Clock, Menu, PanelBottom, Phone, Search, type LucideIcon } from "lucide-react";
 import { SaveButton } from "@/components/actions/common";
+import { NavigationEditor } from "@/components/navigation/navigation-editor";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ui/display";
@@ -112,6 +113,9 @@ export default function GlobalsPage() {
           })}
         </Card>
 
+        {active.id === "nav" ? (
+          <NavigationEditor />
+        ) : (
         <Card key={active.id}>
           <CardHeader title={active.label} description={active.usage} />
           <CardContent className="grid gap-6 sm:grid-cols-2">
@@ -130,6 +134,7 @@ export default function GlobalsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
 
       <ConfirmDialog

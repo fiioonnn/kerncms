@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
+  History,
+  Settings2,
   Eye,
   Images,
   LayoutTemplate,
@@ -27,7 +29,10 @@ import { Description, Field, Input, Label, Textarea } from "@/components/ui/fiel
 import { SegmentedControl, Tooltip } from "@/components/ui/overlay";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { Switch } from "@/components/ui/toggles";
+import { ImageField } from "@/components/media/media-picker";
+import { SampleImage } from "@/components/media/sample-image";
+import { VersionHistory } from "@/components/history/version-history";
+import { PageSettingsDialog } from "@/components/pages/page-settings-dialog";
 import { cn } from "@/lib/utils";
 import { EditorLoader } from "./editor-loader";
 
@@ -70,6 +75,31 @@ type BlockId = "hero" | "categories";
 
 /* ---------- Topbar ---------- */
 
+function EditorPageTools() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  return (
+    <>
+      <Tooltip label="Seiteneinstellungen und SEO">
+        <Button variant="ghost" size="icon" aria-label="Seiteneinstellungen" onClick={() => setSettingsOpen(true)}>
+          <Settings2 strokeWidth={1.75} />
+        </Button>
+      </Tooltip>
+      <Tooltip label="Verlauf dieser Seite">
+        <Button variant="ghost" size="icon" aria-label="Verlauf" onClick={() => setHistoryOpen(true)}>
+          <History strokeWidth={1.75} />
+        </Button>
+      </Tooltip>
+      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} title="Startseite" path="/" />
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent title="Verlauf: Startseite" description="Alle gespeicherten Versionen dieser Seite." size="xl" className="[&>div:nth-child(2)]:p-0">
+          <VersionHistory scope="Startseite" className="h-[460px] border-t border-border" />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function EditorTopbar({
   device,
   onDeviceChange,
@@ -101,6 +131,8 @@ function EditorTopbar({
       />
 
       <div className="flex items-center gap-2">
+        <EditorPageTools />
+        <span className="mx-1 h-8 w-px bg-border" />
         <Tooltip label="Rückgängig (⌘Z)">
           <Button variant="ghost" size="icon" aria-label="Rückgängig" onClick={() => toast.info("Rückgängig gemacht")}>
             <Undo2 strokeWidth={1.75} />
@@ -184,7 +216,7 @@ function HeroFields({ mark, onMarkChange }: { mark: MarkId; onMarkChange: (mark:
       <div className="flex flex-col gap-5 border-t border-border pt-7">
         <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Darstellung</h3>
         <Select label="Layout" items={layouts} defaultValue="left" />
-        <Switch label="Hintergrundbild" description="Bild hinter der Überschrift anzeigen." />
+        <ImageField label="Hintergrundbild" description="Optional. Wird hinter der Überschrift abgedunkelt angezeigt." />
       </div>
     </>
   );
@@ -196,6 +228,7 @@ function CategoryFields() {
       {["Brote", "Brötchen", "Kuchen"].map((label, i) => (
         <div key={label} className={cn("flex flex-col gap-5", i > 0 && "border-t border-border pt-7")}>
           <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Kachel {i + 1}</h3>
+          <ImageField label="Bild" aspect="aspect-[4/3]" defaultValue={["dinkelbrot.jpg", "croissants.jpg", "sauerteig.jpg"].at(i)} />
           <Field>
             <Label>Titel</Label>
             <Input defaultValue={label} />
@@ -357,9 +390,14 @@ function Canvas({
             </span>
           )}
           <div className={cn("grid gap-5 p-9", narrow ? "grid-cols-1 p-5" : "grid-cols-3")}>
-            {["Brote", "Brötchen", "Kuchen"].map((label) => (
-              <div key={label} className="flex aspect-[4/3] items-end rounded-xl bg-neutral-100 p-4 text-[15px] font-medium">
-                {label}
+            {[
+              { label: "Brote", image: "dinkelbrot.jpg" },
+              { label: "Brötchen", image: "croissants.jpg" },
+              { label: "Kuchen", image: "sauerteig.jpg" },
+            ].map((tile) => (
+              <div key={tile.label} className="flex flex-col gap-3">
+                <SampleImage name={tile.image} className="aspect-[4/3] rounded-xl" />
+                <span className="text-[15px] font-medium">{tile.label}</span>
               </div>
             ))}
           </div>

@@ -1,10 +1,12 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { buttonStyles, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { startDeploy, useDeploy } from "@/lib/deploy-store";
 
-/** "Veröffentlichen" with a confirmation step and a success toast. UI only. */
+/** "Veröffentlichen" with a confirmation step; starts the (simulated) build. */
 export function PublishButton({
   label = "Veröffentlichen",
   changes = 3,
@@ -18,16 +20,25 @@ export function PublishButton({
   size?: ButtonSize;
   className?: string;
 }) {
+  const deploy = useDeploy();
+
+  if (deploy.status === "running") {
+    return (
+      <button type="button" disabled className={buttonStyles({ variant, size, className: `${className ?? ""} disabled:opacity-70` })}>
+        <Loader2 className="animate-spin" />
+        Wird veröffentlicht…
+      </button>
+    );
+  }
+
   return (
     <ConfirmDialog
       trigger={label}
       triggerClassName={buttonStyles({ variant, size, className })}
-      title={`${changes} Änderungen veröffentlichen?`}
+      title={`${changes} ${changes === 1 ? "Änderung" : "Änderungen"} veröffentlichen?`}
       description="Die Änderungen werden in das Repository übernommen und die Website wird neu gebaut. Das dauert meist unter einer Minute."
       confirmLabel="Jetzt veröffentlichen"
-      onConfirm={() =>
-        toast.success("Veröffentlicht", { description: "Die Website wird gerade neu gebaut." })
-      }
+      onConfirm={() => startDeploy(changes)}
     />
   );
 }

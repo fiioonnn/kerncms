@@ -29,8 +29,8 @@ export function SampleImage({
 }) {
   if (name.endsWith(".svg")) {
     return (
-      <div className={cn("flex items-center justify-center bg-white", className)} style={style}>
-        <span className="flex size-[38%] items-center justify-center rounded-[22%] bg-foreground text-[clamp(14px,6cqw,64px)] font-bold text-white">
+      <div className={cn("@container flex items-center justify-center bg-white", className)} style={style}>
+        <span className="flex aspect-square w-[38%] items-center justify-center rounded-[22%] bg-foreground text-[14cqw] font-bold text-white">
           BM
         </span>
       </div>

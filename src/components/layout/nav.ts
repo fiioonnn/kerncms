@@ -2,6 +2,7 @@ import {
   ChartLine,
   FileText,
   Globe,
+  History,
   Image,
   LayoutDashboard,
   MousePointerClick,
@@ -31,6 +32,7 @@ export const navigation: NavGroup[] = [
     items: [
       { label: "Visueller Editor", href: "/editor", icon: MousePointerClick },
       { label: "Statistiken", href: "/analytics", icon: ChartLine },
+      { label: "Verlauf", href: "/history", icon: History },
     ],
   },
   {

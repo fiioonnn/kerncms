@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, Bold, Heading2, ImagePlus, Italic, Link2, List } from "lucide-react";
+import { ArrowLeft, Bold, Heading2, Italic, Link2, List } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
-import { SaveButton, UploadDialog } from "@/components/actions/common";
+import { SaveButton } from "@/components/actions/common";
+import { ImageField } from "@/components/media/media-picker";
 import { PublishButton } from "@/components/actions/publish";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/overlay";
@@ -86,16 +87,8 @@ export default function NewPostPage() {
 
           <Card>
             <CardHeader title="Beitragsbild" />
-            <CardContent>
-              <UploadDialog
-                triggerClassName="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border-strong text-muted transition-colors hover:border-accent hover:text-accent"
-                trigger={
-                  <>
-                    <ImagePlus className="size-8" strokeWidth={1.5} />
-                    <span className="text-[15px] font-medium">Bild hochladen</span>
-                  </>
-                }
-              />
+            <CardContent className="pt-4">
+              <ImageField label="Bild" aspect="aspect-[4/3]" description="Erscheint in der Übersicht und beim Teilen." />
             </CardContent>
           </Card>
         </div>

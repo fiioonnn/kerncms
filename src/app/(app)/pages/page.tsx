@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
-import { RowActions } from "@/components/actions/common";
+import { PageRowActions } from "@/components/pages/page-row-actions";
 import { NewPageDialog } from "@/components/actions/create-dialogs";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
@@ -58,11 +58,11 @@ export default function PagesPage() {
                 </Td>
                 <Td className="text-muted">{page.updated}</Td>
                 <Td>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Link href="/editor" className={buttonStyles({ variant: "secondary", size: "sm" })}>
                       Bearbeiten
                     </Link>
-                    <RowActions name={page.title} editHref="/editor" path={page.path} />
+                    <PageRowActions title={page.title} path={page.path} />
                   </div>
                 </Td>
               </tr>
