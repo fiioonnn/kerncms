@@ -8,7 +8,7 @@ import { Badge, Card, Table, Td, Th } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
-import { SegmentedControl, Tooltip } from "@/components/ui/overlay";
+import { SegmentedControl } from "@/components/ui/overlay";
 import { toast } from "@/components/ui/toast";
 
 type Redirect = { id: string; from: string; to: string; type: "301" | "302"; hits: number; auto?: boolean };
@@ -81,37 +81,35 @@ export function Redirects() {
             <thead>
               <tr>
                 <Th>Von</Th>
-                <Th className="w-0 px-0" aria-label="nach" />
-                <Th>Nach</Th>
+                <Th className="w-0 px-2" aria-label="nach" />
+                <Th className="pl-2">Nach</Th>
                 <Th>Typ</Th>
-                <Th className="text-right">Aufrufe</Th>
-                <Th className="w-0" aria-label="Aktionen" />
+                <Th className="hidden text-right xl:table-cell">Aufrufe</Th>
+                <Th className="w-0 pr-3 pl-0" aria-label="Aktionen" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} className="transition-colors hover:bg-subtle/50">
                   <Td>
-                    <span className="flex items-center gap-2">
-                      <span className="font-mono text-sm">{r.from}</span>
+                    <span className="flex flex-col leading-tight">
+                      <span className="font-mono text-sm whitespace-nowrap">{r.from}</span>
                       {r.auto && (
-                        <Tooltip label="Beim Ändern des Seitenpfads angelegt">
-                          <span tabIndex={0}>
-                            <Badge className="h-6 px-2.5 text-xs">automatisch</Badge>
-                          </span>
-                        </Tooltip>
+                        <span className="mt-0.5 text-xs text-muted">automatisch beim Umbenennen angelegt</span>
                       )}
                     </span>
                   </Td>
-                  <Td className="px-0 text-muted">
+                  <Td className="px-2 text-muted">
                     <ArrowRight className="size-4" strokeWidth={1.75} />
                   </Td>
-                  <Td className="max-w-64 truncate font-mono text-sm text-muted">{r.to}</Td>
+                  <Td className="max-w-48 truncate pl-2 font-mono text-sm text-muted" title={r.to}>
+                    {r.to}
+                  </Td>
                   <Td>
                     <Badge tone={r.type === "301" ? "accent" : "warning"}>{r.type}</Badge>
                   </Td>
-                  <Td className="text-right tabular-nums text-muted">{numberFormat.format(r.hits)}</Td>
-                  <Td>
+                  <Td className="hidden text-right tabular-nums text-muted xl:table-cell">{numberFormat.format(r.hits)}</Td>
+                  <Td className="w-0 pr-3 pl-0 text-right">
                     <Menu>
                       <MenuTrigger
                         aria-label={`Aktionen für ${r.from}`}

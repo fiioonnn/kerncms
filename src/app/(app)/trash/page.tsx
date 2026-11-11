@@ -101,11 +101,9 @@ export default function TrashPage() {
             <thead>
               <tr>
                 <Th>Name</Th>
-                <Th>Typ</Th>
-                <Th>Gelöscht von</Th>
-                <Th>Gelöscht am</Th>
+                <Th>Gelöscht</Th>
                 <Th>Endgültige Löschung</Th>
-                <Th className="w-0" aria-label="Aktionen" />
+                <Th className="w-0 pr-3 pl-0" aria-label="Aktionen" />
               </tr>
             </thead>
             <tbody>
@@ -120,25 +118,26 @@ export default function TrashPage() {
                         </span>
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate text-base font-medium">{item.name}</span>
-                          <span className={cn("truncate text-sm text-muted", item.kind === "page" && "font-mono")}>
-                            {item.detail}
+                          <span className="truncate text-sm text-muted">
+                            {label} · <span className={cn(item.kind === "page" && "font-mono")}>{item.detail}</span>
                           </span>
                         </span>
                       </span>
                     </Td>
-                    <Td className="text-muted">{label}</Td>
                     <Td>
                       <span className="flex items-center gap-3 whitespace-nowrap">
                         <Avatar name={item.deletedBy} size="sm" />
-                        {item.deletedBy}
+                        <span className="flex flex-col leading-tight">
+                          <span>{item.deletedBy}</span>
+                          <span className="text-sm text-muted">{item.deletedAt}</span>
+                        </span>
                       </span>
                     </Td>
-                    <Td className="whitespace-nowrap text-muted">{item.deletedAt}</Td>
                     <Td>
                       <DaysLeft age={item.age} />
                     </Td>
-                    <Td>
-                      <div className="flex items-center gap-1">
+                    <Td className="w-0 pr-3 pl-0">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="secondary"
                           size="sm"

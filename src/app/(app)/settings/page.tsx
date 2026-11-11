@@ -28,7 +28,7 @@ const branches = [
 
 export default function SettingsPage() {
   return (
-    <PageContainer className="max-w-4xl">
+    <PageContainer className="max-w-5xl">
       <PageHeader title="Einstellungen" description="Allgemeine Angaben, Repository, Veröffentlichung, Tracking, Weiterleitungen und Schema." />
 
       <Tabs defaultValue="general">
