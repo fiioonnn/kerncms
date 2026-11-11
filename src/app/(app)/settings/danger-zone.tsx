@@ -2,25 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import { refreshStatus } from "@/components/history/use-status";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog, Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader } from "@/components/ui/display";
+import { Loader2, LogOut, RotateCcw, Unplug } from "lucide-react";
 import { Field, Input, Label } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import type { RoleName } from "@/lib/kern-types";
+import { SettingsRow, SettingsSection } from "./settings-ui";
 import { disconnectSite, discardAllChanges, leaveSite } from "@/server/actions/site";
 
-function Row({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Row({ icon, title, description, children }: { icon: typeof LogOut; title: string; description: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-4 py-5 first:pt-0 last:pb-0">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[15px] font-medium">{title}</span>
-        <span className="text-sm text-muted">{description}</span>
-      </div>
+    <SettingsRow icon={icon} label={title} description={description} compact>
       {children}
-    </div>
+    </SettingsRow>
   );
 }
 
@@ -30,11 +26,9 @@ export function DangerZone({ siteName, role, platformAdmin }: { siteName: string
   const isAdmin = role === "admin" || role === "owner";
 
   return (
-    <Card className="border-danger/30">
-      <CardHeader title="Gefahrenzone" description="Diese Aktionen lassen sich nicht rückgängig machen." />
-      <CardContent className="flex flex-col divide-y divide-border">
+    <SettingsSection tone="danger" title="Gefahrenzone" description="Diese Aktionen lassen sich nicht rückgängig machen.">
         {isAdmin && (
-          <Row title="Alle Änderungen verwerfen" description="Setzt den Entwurf auf den veröffentlichten Stand zurück. Gespeicherte, aber unveröffentlichte Änderungen gehen verloren.">
+          <Row icon={RotateCcw} title="Alle Änderungen verwerfen" description="Setzt den Entwurf auf den veröffentlichten Stand zurück. Gespeicherte, aber unveröffentlichte Änderungen gehen verloren.">
             <ConfirmDialog
               trigger={pending ? "Wird verworfen…" : "Verwerfen"}
               triggerClassName={buttonStyles({ variant: "secondary" })}
@@ -56,7 +50,7 @@ export function DangerZone({ siteName, role, platformAdmin }: { siteName: string
             />
           </Row>
         )}
-        <Row title="Website verlassen" description="Du verlierst den Zugriff. Ein Admin kann dich wieder einladen.">
+        <Row icon={LogOut} title="Website verlassen" description="Du verlierst den Zugriff. Ein Admin kann dich wieder einladen.">
           <ConfirmDialog
             trigger="Verlassen"
             triggerClassName={buttonStyles({ variant: "secondary" })}
@@ -74,12 +68,11 @@ export function DangerZone({ siteName, role, platformAdmin }: { siteName: string
         </Row>
         {/* Only the agency (platform admins) can remove a site; customers can't, even as owners. */}
         {platformAdmin && (
-          <Row title="Website trennen" description="Entfernt die Website aus kerncms, mit Team, Statistik und Nachrichten. Das Repository selbst bleibt unverändert.">
+          <Row icon={Unplug} title="Website trennen" description="Entfernt die Website aus kerncms, mit Team, Statistik und Nachrichten. Das Repository selbst bleibt unverändert.">
             <DisconnectDialog siteName={siteName} />
           </Row>
         )}
-      </CardContent>
-    </Card>
+    </SettingsSection>
   );
 }
 
