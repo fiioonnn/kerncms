@@ -4,7 +4,7 @@ import path from "node:path";
 import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { approvals, deploys, formSubmissions, invites, memberships, sessions, trash, users } from "@/db/schema";
+import { approvals, deploys, formSettings, formSubmissions, invites, memberships, sessions, trash, users } from "@/db/schema";
 import type { Role } from "@/db/schema";
 import { analyticsSummary } from "./analytics";
 import { hashToken } from "./auth";
@@ -13,6 +13,7 @@ import { getChangeSet, listEntries, listPages, readEntry, readGlobal, readPage, 
 import { git, log, showFile, uncommittedFiles, unpublishedFiles } from "./git";
 import { listMedia } from "./media";
 import { listNotifications } from "./notifications";
+import { notificationFrom } from "./site-mail";
 import { getSiteContext, getWorkspace } from "./sites";
 
 /* All functions here are for Server Components. They check access themselves. */
@@ -225,8 +226,25 @@ export async function getForms() {
     .where(eq(formSubmissions.siteId, ws.site.id))
     .orderBy(desc(formSubmissions.createdAt))
     .limit(500);
+  const settingsRows = await db.select().from(formSettings).where(eq(formSettings.siteId, ws.site.id));
   return {
     forms: ws.config.forms,
+    canConfigure: ws.role === "admin" || ws.role === "owner",
+    /** Sender shown in notification mails, e.g. "Bäckerei Müller über kerncms <info@kerncms.com>". */
+    sender: notificationFrom(ws.site.name),
+    settings: Object.fromEntries(
+      ws.config.forms.map((f) => {
+        const row = settingsRows.find((r) => r.form === f.key);
+        return [
+          f.key,
+          {
+            notify: row?.notify ?? false,
+            recipients: row?.recipients ?? [],
+            subject: row?.subject ?? "",
+          },
+        ];
+      }),
+    ),
     submissions: rows.map((r) => ({
       id: r.id,
       form: r.form,
@@ -234,6 +252,9 @@ export async function getForms() {
       page: r.page,
       read: r.read,
       archived: r.archived,
+      mailStatus: r.mailStatus,
+      mailError: r.mailError,
+      mailedAt: r.mailedAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),
     })),
   };
@@ -287,6 +308,8 @@ export async function getSettings() {
       liveUrl: ws.site.liveUrl,
       requireApproval: ws.site.requireApproval,
       analyticsEnabled: ws.site.analyticsEnabled,
+      publicKey: ws.site.publicKey,
+      allowedOrigins: ws.site.allowedOrigins,
     },
     role: ws.role,
     config: ws.config,

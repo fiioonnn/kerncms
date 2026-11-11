@@ -151,14 +151,21 @@ Die Website kennt das CMS über zwei öffentliche Variablen (`.env`):
 
 ```
 PUBLIC_KERN_URL=http://localhost:3000
-PUBLIC_KERN_SITE=baeckerei-mueller
+PUBLIC_KERN_SITE=pk_…   # öffentlicher Schlüssel aus kerncms: Einstellungen → Einbindung
 ```
 
-- Formular: `POST {PUBLIC_KERN_URL}/api/public/{site}/forms/{form}` mit JSON oder `FormData`.
+Der Schlüssel ist nicht geheim (er steht im HTML), aber zufällig und im CMS austauschbar.
+Formulare werden nur von der Live-Adresse der Website (mit/ohne www), von eingetragenen weiteren Domains
+und lokal von localhost angenommen.
+
+- Formular: `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/forms/{form}` mit JSON oder `FormData`.
   Antwort `{ ok: true }` oder `{ ok: false, errors: { feld: "Meldung" } }`. CORS ist offen.
   Ein Honeypot-Feld `_gotcha` muss leer bleiben.
+  Jede Einsendung erscheint im CMS unter Formulare. Optional schickt das CMS eine Benachrichtigung per E-Mail
+  (Empfänger und Betreff pro Formular im CMS einstellbar, Versand über den SMTP des CMS, ohne Reply-To;
+  die Mail enthält einen Button, der eine neue Mail an den Besucher öffnet).
 - Statistik (ohne Cookies, ohne IP-Speicherung):
-  `POST {PUBLIC_KERN_URL}/api/public/{site}/collect` mit `{ "path": "/", "referrer": "…", "width": 1280 }`,
+  `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/collect` mit `{ "path": "/", "referrer": "…", "width": 1280 }`,
   gesendet per `navigator.sendBeacon` beim Laden jeder Seite. Nicht senden, wenn `KERN_PREVIEW` aktiv ist
   oder `navigator.doNotTrack === "1"`.
 

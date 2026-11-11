@@ -3,7 +3,8 @@ import { formSubmissions } from "@/db/schema";
 import { loadConfig } from "@/server/config";
 import { ensureWorktree } from "@/server/git";
 import { notify } from "@/server/notifications";
-import { clientIp, corsHeaders, json, rateLimited, siteByKey } from "@/server/public";
+import { clientIp, corsHeaders, json, originAllowed, rateLimited, siteByPublicKey } from "@/server/public";
+import { sendSubmissionMails } from "@/server/site-mail";
 import { validateValues } from "@/server/sanitize";
 
 export function OPTIONS() {
@@ -22,8 +23,9 @@ async function readBody(request: Request): Promise<Record<string, string>> {
 
 export async function POST(request: Request, ctx: RouteContext<"/api/public/[site]/forms/[form]">) {
   const { site: key, form: formKey } = await ctx.params;
-  const site = await siteByKey(key);
+  const site = await siteByPublicKey(key);
   if (!site) return json({ ok: false, error: "Unbekannte Website." }, 404);
+  if (!originAllowed(request, site)) return json({ ok: false, error: "Diese Domain darf das Formular nicht verwenden." }, 403);
   const config = await loadConfig(await ensureWorktree(site));
   const form = config.forms.find((f) => f.key === formKey);
   if (!form) return json({ ok: false, error: "Unbekanntes Formular." }, 404);
@@ -51,8 +53,11 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
   } catch {
     page = null;
   }
-  await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page });
+  const [submission] = await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page }).returning({ id: formSubmissions.id });
   const who = data.name || data.email || "Jemand";
   await notify(site.id, null, "form", `Neue Nachricht von ${who} über „${form.label}“`, "/forms");
+  // Mail in the background: the visitor gets the answer right away.
+  const cmsUrl = process.env.KERN_PUBLIC_URL ?? new URL(request.url).origin;
+  void sendSubmissionMails({ site, form, submissionId: submission.id, data, page, cmsUrl });
   return json({ ok: true });
 }

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { pageViews } from "@/db/schema";
 import { browserOf, deviceOf, isBot, referrerHost, visitorHash } from "@/server/analytics";
-import { clientIp, corsHeaders, rateLimited, siteByKey } from "@/server/public";
+import { clientIp, corsHeaders, originAllowed, rateLimited, siteByPublicKey } from "@/server/public";
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -13,8 +13,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
   const { site: key } = await ctx.params;
   const userAgent = request.headers.get("user-agent") ?? "";
   if (isBot(userAgent) || request.headers.get("dnt") === "1") return done();
-  const site = await siteByKey(key);
-  if (!site || !site.analyticsEnabled) return done();
+  const site = await siteByPublicKey(key);
+  if (!site || !site.analyticsEnabled || !originAllowed(request, site)) return done();
   const ip = clientIp(request);
   if (rateLimited(`collect:${site.id}:${ip}`, 120, 60_000)) return done();
 

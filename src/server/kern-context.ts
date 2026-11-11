@@ -20,6 +20,7 @@ export async function loadKernClientData(): Promise<KernClientData> {
       branch: ws.site.branch,
       requireApproval: ws.site.requireApproval,
       source: ws.site.source,
+      publicKey: ws.site.publicKey,
       githubRepo: ws.site.githubRepo,
     },
     sites: ws.sites,

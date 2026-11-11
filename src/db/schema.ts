@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["owner", "admin", "editor", "viewer"]);
@@ -88,6 +89,16 @@ export const sites = pgTable("sites", {
   /** Changes need approval by an admin before they go live. */
   requireApproval: boolean().notNull().default(false),
   analyticsEnabled: boolean().notNull().default(true),
+  /**
+   * Random public key the website uses for forms and analytics (/api/public/<key>/…).
+   * Not secret (it is in the site's HTML), but not guessable and can be replaced.
+   */
+  publicKey: text()
+    .notNull()
+    .unique()
+    .default(sql`'pk_' || substr(md5(random()::text || clock_timestamp()::text), 1, 20)`),
+  /** Extra origins allowed to post forms, besides the live URL (e.g. a staging domain). */
+  allowedOrigins: jsonb().$type<string[]>().notNull().default([]),
   createdAt: timestamp().notNull().defaultNow(),
 });
 
@@ -151,11 +162,32 @@ export const formSubmissions = pgTable(
     form: text().notNull(),
     data: jsonb().$type<Record<string, string>>().notNull(),
     page: text(),
+    /** Notification mail: "sent", "failed" or "off" (no notification configured). */
+    mailStatus: text().$type<"sent" | "failed" | "off">(),
+    mailError: text(),
+    mailedAt: timestamp(),
     read: boolean().notNull().default(false),
     archived: boolean().notNull().default(false),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.siteId, t.createdAt)],
+);
+
+/** Per-form notification settings. */
+export const formSettings = pgTable(
+  "form_settings",
+  {
+    siteId: uuid()
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    form: text().notNull(),
+    notify: boolean().notNull().default(false),
+    recipients: jsonb().$type<string[]>().notNull().default([]),
+    /** May contain {feldname} placeholders, e.g. "Neue Anfrage: {topic}". */
+    subject: text().notNull().default(""),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.form] })],
 );
 
 /** Cookieless page views. `visitor` is a daily-rotating salted hash, never the IP. */

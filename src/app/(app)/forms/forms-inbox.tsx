@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Archive, ArchiveRestore, ChevronDown, Download, Inbox, Mail, MailOpen, Reply, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, Reply, Settings2, Trash2 } from "lucide-react";
 import { refreshStatus } from "@/components/history/use-status";
 import { useKern } from "@/components/kern/kern-provider";
 import { PageContainer } from "@/components/layout/page-container";
@@ -15,7 +15,10 @@ import { toast } from "@/components/ui/toast";
 import type { FormDef } from "@/lib/kern-types";
 import { formatWhen } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
+import { resendSubmissionMail, type FormSettingsInput } from "@/server/actions/forms";
 import { deleteSubmissions, updateSubmissions } from "@/server/actions/site";
+import { Tooltip } from "@/components/ui/overlay";
+import { FormSettingsDialog } from "./form-settings-dialog";
 
 type Submission = {
   id: string;
@@ -24,6 +27,9 @@ type Submission = {
   page: string | null;
   read: boolean;
   archived: boolean;
+  mailStatus: "sent" | "failed" | "off" | null;
+  mailError: string | null;
+  mailedAt: string | null;
   createdAt: string;
 };
 
@@ -39,8 +45,22 @@ function summarize(s: Submission, form: FormDef | undefined) {
   return { sender: name || email || "Unbekannt", email, subject };
 }
 
-export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Submission[] }) {
+export function FormsInbox({
+  forms,
+  initial,
+  settings: initialSettings,
+  canConfigure,
+  sender,
+}: {
+  forms: FormDef[];
+  initial: Submission[];
+  settings: Record<string, FormSettingsInput>;
+  canConfigure: boolean;
+  sender: string;
+}) {
   const kern = useKern();
+  const [settings, setSettings] = useState(initialSettings);
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [items, setItems] = useState(initial);
   const [formKey, setFormKey] = useState<string | null>(null);
   const [tab, setTab] = useState<"inbox" | "archive">("inbox");
@@ -94,7 +114,8 @@ export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Subm
     if (s && !s.read) change([id], { read: true });
   }
 
-  const endpoint = `/api/public/${kern.site.key}/forms/${formKey ?? forms[0]?.key ?? "<formular>"}`;
+  const endpoint = `/api/public/${kern.site.publicKey}/forms/${formKey ?? forms[0]?.key ?? "<formular>"}`;
+  const settingsForm = forms.find((f) => f.key === settingsFor);
 
   if (forms.length === 0) {
     return (
@@ -167,6 +188,11 @@ export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Subm
                     <Inbox className={cn("size-5 shrink-0", active ? "text-accent" : "text-muted")} strokeWidth={1.75} />
                   )}
                   <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{form.label}</span>
+                  {form.key && settings[form.key]?.notify && (
+                    <Tooltip label="Benachrichtigung per E-Mail ist an">
+                      <Bell className="size-4 shrink-0 text-muted" strokeWidth={1.75} aria-label="Benachrichtigung an" />
+                    </Tooltip>
+                  )}
                   {count > 0 && (
                     <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-2 text-xs font-semibold text-accent-foreground">
                       {count}
@@ -176,6 +202,23 @@ export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Subm
               );
             })}
           </nav>
+          {canConfigure && (
+            <div className="mt-1 border-t border-border p-2 pt-3">
+              {forms.length === 1 || formKey ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setSettingsFor(formKey ?? forms[0].key)}
+                >
+                  <Settings2 />
+                  Benachrichtigung einstellen
+                </Button>
+              ) : (
+                <p className="px-2 text-sm text-muted">Formular wählen, um die E-Mail-Benachrichtigung einzustellen.</p>
+              )}
+            </div>
+          )}
         </Card>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "inbox" | "archive")}>
@@ -220,6 +263,7 @@ export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Subm
       <Dialog open={dialogOpen && Boolean(open)} onOpenChange={setDialogOpen}>
         {open && (
           <SubmissionDialog
+            onResent={(patch) => setItems((list) => list.map((s) => (s.id === open.id ? { ...s, ...patch } : s)))}
             submission={open}
             form={formOf(open.form)}
             onDelete={() => setConfirmOpen(true)}
@@ -234,6 +278,17 @@ export function FormsInbox({ forms, initial }: { forms: FormDef[]; initial: Subm
           />
         )}
       </Dialog>
+
+      {settingsForm && (
+        <FormSettingsDialog
+          form={settingsForm}
+          initial={settings[settingsForm.key] ?? { notify: false, recipients: [], subject: "" }}
+          sender={sender}
+          open={settingsFor !== null}
+          onOpenChange={(next) => !next && setSettingsFor(null)}
+          onSaved={(saved) => setSettings((s) => ({ ...s, [settingsForm.key]: saved }))}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmOpen}
@@ -306,18 +361,62 @@ function SubmissionTable({
   );
 }
 
+function MailStatus({ submission, onResent }: { submission: Submission; onResent: (patch: Partial<Submission>) => void }) {
+  const [pending, startTransition] = useTransition();
+  const resend = () =>
+    startTransition(async () => {
+      const result = await resendSubmissionMail(submission.id);
+      if (!result.ok) {
+        toast.error("Nicht verschickt", { description: result.error });
+        onResent({ mailStatus: "failed", mailError: result.error });
+        return;
+      }
+      toast.success("Benachrichtigung verschickt");
+      onResent({ mailStatus: "sent", mailError: null, mailedAt: new Date().toISOString() });
+    });
+
+  if (submission.mailStatus === "sent") {
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted">
+        <CircleCheck className="size-4 text-success" strokeWidth={2} />
+        Benachrichtigung per E-Mail verschickt
+      </p>
+    );
+  }
+  if (submission.mailStatus === "failed") {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+        <CircleAlert className="size-4 shrink-0" strokeWidth={2} />
+        <span className="min-w-0 flex-1">Benachrichtigung fehlgeschlagen{submission.mailError ? `: ${submission.mailError}` : ""}</span>
+        <Button variant="secondary" size="sm" onClick={resend} disabled={pending}>
+          {pending && <Loader2 className="animate-spin" />}
+          Erneut senden
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted">
+      <BellOff className="size-4" strokeWidth={1.75} />
+      Keine E-Mail-Benachrichtigung eingerichtet
+    </p>
+  );
+}
+
 function SubmissionDialog({
   submission,
   form,
   onDelete,
   onArchive,
   onUnread,
+  onResent,
 }: {
   submission: Submission;
   form: FormDef | undefined;
   onDelete: () => void;
   onArchive: () => void;
   onUnread: () => void;
+  onResent: (patch: Partial<Submission>) => void;
 }) {
   const { subject, email } = summarize(submission, form);
   const known = new Set(form?.fields.map((f) => f.name));
@@ -349,12 +448,15 @@ function SubmissionDialog({
           {email && (
             <a href={`mailto:${email}?subject=${encodeURIComponent(`Re: ${subject}`)}`} className={buttonStyles()}>
               <Reply />
-              Antworten
+              Per Mail antworten
             </a>
           )}
         </>
       }
     >
+      <div className="mb-4">
+        <MailStatus submission={submission} onResent={onResent} />
+      </div>
       <dl className="flex flex-col divide-y divide-border rounded-xl border border-border">
         {rows.map((field) => (
           <div key={field.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[180px_1fr] sm:gap-4">

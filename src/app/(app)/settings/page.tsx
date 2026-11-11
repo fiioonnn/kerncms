@@ -7,6 +7,7 @@ import {
   GitBranch,
   GitMerge,
   History,
+  KeyRound,
   Route,
   Settings2,
   TriangleAlert,
@@ -18,7 +19,9 @@ import { Badge } from "@/components/ui/display";
 import { cn } from "@/lib/utils";
 import { getSettings } from "@/server/queries";
 import { getSiteContext } from "@/server/sites";
+import { headers } from "next/headers";
 import { DangerZone } from "./danger-zone";
+import { EmbedSettings } from "./embed";
 import { GeneralSettings } from "./general";
 import { Redirects } from "./redirects";
 import { Schema } from "./schema";
@@ -29,6 +32,7 @@ export const metadata = { title: "Einstellungen · kerncms" };
 const sections: { id: string; label: string; description: string; icon: LucideIcon }[] = [
   { id: "general", label: "Allgemein", description: "Name, Adresse, Freigaben", icon: Settings2 },
   { id: "redirects", label: "Weiterleitungen", description: "Alte Adressen umleiten", icon: Route },
+  { id: "embed", label: "Einbindung", description: "Schlüssel und Domains", icon: KeyRound },
   { id: "schema", label: "Schema", description: "Was bearbeitbar ist", icon: FileCode },
   { id: "repository", label: "Repository", description: "Git und Veröffentlichen", icon: FolderGit2 },
   { id: "danger", label: "Gefahrenzone", description: "Verwerfen, verlassen", icon: TriangleAlert },
@@ -156,6 +160,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           )}
 
           {active === "redirects" && <Redirects initial={settings.redirects} file={config.redirects} canEdit={isAdmin} />}
+
+          {active === "embed" && (
+            <EmbedSettings
+              publicKey={site.publicKey}
+              allowedOrigins={site.allowedOrigins}
+              liveUrl={site.liveUrl}
+              cmsUrl={process.env.KERN_PUBLIC_URL ?? `${(await headers()).get("x-forwarded-proto") ?? "http"}://${(await headers()).get("host")}`}
+              canEdit={isAdmin}
+            />
+          )}
 
           {active === "schema" && <Schema config={config} source={settings.configSource} file={settings.configFile} />}
 

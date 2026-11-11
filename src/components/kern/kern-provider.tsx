@@ -14,6 +14,8 @@ export type KernClientData = {
     branch: string;
     requireApproval: boolean;
     source: "github" | "local";
+    /** Public key for forms and analytics (/api/public/<key>/…). */
+    publicKey: string;
     githubRepo: string | null;
   };
   sites: { id: string; name: string; liveUrl: string | null; role: RoleName }[];
