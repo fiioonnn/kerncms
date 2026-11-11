@@ -58,7 +58,7 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-start justify-between gap-6 px-7 pt-6", className)}>
+    <div className={cn("flex items-start justify-between gap-6 px-6 pt-5", className)}>
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {description && <p className="text-[15px] text-muted">{description}</p>}
@@ -69,7 +69,7 @@ export function CardHeader({
 }
 
 export function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("px-7 py-6", className)} {...props} />;
+  return <div className={cn("px-6 py-5", className)} {...props} />;
 }
 
 /* ---------- Avatar ---------- */
@@ -118,7 +118,7 @@ export function Th({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "h-12 border-b border-border bg-subtle/60 px-7 text-sm font-medium text-muted first:rounded-tl-2xl last:rounded-tr-2xl",
+        "h-11 border-b border-border bg-subtle/60 px-6 text-sm font-medium text-muted first:rounded-tl-2xl last:rounded-tr-2xl",
         className,
       )}
       {...props}
@@ -129,7 +129,7 @@ export function Th({ className, ...props }: React.ComponentProps<"th">) {
 export function Td({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
-      className={cn("h-16 border-b border-border px-7 align-middle [tr:last-child_&]:border-0", className)}
+      className={cn("h-14 border-b border-border px-6 align-middle [tr:last-child_&]:border-0", className)}
       {...props}
     />
   );
@@ -147,10 +147,10 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="max-w-2xl text-base text-muted">{description}</p>}
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {description && <p className="max-w-2xl text-[15px] text-muted">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>

@@ -45,7 +45,7 @@ const colorGroups = [
 ];
 
 const typeScale = [
-  { name: "Seitentitel", spec: "30 px · Semibold", className: "text-3xl font-semibold tracking-tight" },
+  { name: "Seitentitel", spec: "24 px · Semibold", className: "text-2xl font-semibold tracking-tight" },
   { name: "Kartentitel", spec: "18 px · Semibold", className: "text-lg font-semibold tracking-tight" },
   { name: "Fließtext", spec: "16 px · Regular", className: "text-base" },
   { name: "Bedienelemente", spec: "15 px · Medium", className: "text-[15px] font-medium" },
@@ -57,16 +57,16 @@ const sizes = [
   { name: "Buttons und Felder", value: "44 px hoch (h-11)" },
   { name: "Große Buttons", value: "48 px hoch (h-12)" },
   { name: "Navigationseinträge", value: "44 px hoch" },
-  { name: "Topbar", value: "64 px hoch" },
+  { name: "Topbar", value: "56 px hoch" },
   { name: "Sidebar", value: "288 px breit" },
-  { name: "Tabellenzeilen", value: "64 px hoch" },
+  { name: "Tabellenzeilen", value: "56 px hoch" },
   { name: "Radien", value: "Felder 12 px · Karten 16 px" },
-  { name: "Abstände", value: "4-px-Raster, Karten innen 28 px" },
+  { name: "Abstände", value: "4-px-Raster, Karten innen 24 px" },
 ];
 
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-6 border-t border-border py-12 lg:grid-cols-[260px_1fr]">
+    <section className="grid gap-6 border-t border-border py-8 lg:grid-cols-[260px_1fr]">
       <div className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         <p className="text-[15px] text-muted">{description}</p>
@@ -85,7 +85,7 @@ export default function StyleguidePage() {
       />
 
       <Section title="Farben" description="Alle Farben sind Tokens in globals.css. Im Code nur die Token-Namen verwenden, nie Hex-Werte.">
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           {colorGroups.map((group) => (
             <div key={group.title} className="flex flex-col gap-3">
               <h3 className="text-[15px] font-medium">{group.title}</h3>
@@ -108,7 +108,7 @@ export default function StyleguidePage() {
       <Section title="Typografie" description="Geist für alles, Geist Mono für Pfade und Code. Fließtext ist 16 px, nie kleiner als 14 px.">
         <Card className="divide-y divide-border">
           {typeScale.map((type) => (
-            <div key={type.name} className="flex flex-wrap items-baseline justify-between gap-4 px-7 py-5">
+            <div key={type.name} className="flex flex-wrap items-baseline justify-between gap-4 px-6 py-4">
               <span className={type.className}>{type.name}</span>
               <span className="font-mono text-sm text-muted">{type.spec}</span>
             </div>
@@ -205,7 +205,7 @@ export default function StyleguidePage() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader title="Kartentitel" description="Optionale Beschreibung unter dem Titel" action={<Button size="sm" variant="secondary">Aktion</Button>} />
-            <CardContent className="text-muted">Karteninhalt mit 28 px Innenabstand.</CardContent>
+            <CardContent className="text-muted">Karteninhalt mit 24 px Innenabstand.</CardContent>
           </Card>
           <Card>
             <Table>

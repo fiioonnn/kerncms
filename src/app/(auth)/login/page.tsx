@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-6">
-      <div className="flex w-full max-w-md flex-col items-center gap-8">
+      <div className="flex w-full max-w-md flex-col items-center gap-6">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-xl bg-foreground text-lg font-bold text-white">
             k

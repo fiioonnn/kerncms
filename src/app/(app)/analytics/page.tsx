@@ -41,19 +41,18 @@ export default function AnalyticsPage() {
       <PageHeader
         title="Statistiken"
         description="Wie viele Menschen deine Website besuchen und was sie sich ansehen. Ohne Cookies und ohne Cookie-Banner."
+        actions={
+          <Badge tone="success" className="h-9 gap-2 px-3.5">
+            <ShieldCheck className="size-4" />
+            Cookielos · Daten in der EU
+          </Badge>
+        }
       />
-
-      <div className="mb-8 flex justify-end">
-        <Badge tone="success" className="h-9 gap-2 px-3.5">
-          <ShieldCheck className="size-4" />
-          Cookielos · Daten in der EU
-        </Badge>
-      </div>
 
       {/* KPIs */}
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className="flex flex-col gap-2 p-6">
+          <Card key={kpi.label} className="flex flex-col gap-1.5 p-5">
             <span className="text-[15px] text-muted">{kpi.label}</span>
             <span className="text-3xl font-semibold tracking-tight">{kpi.value}</span>
             <span className={cn("flex items-center gap-1.5 text-sm font-medium", kpi.up ? "text-success" : "text-danger")}>
@@ -67,7 +66,7 @@ export default function AnalyticsPage() {
       <VisitorsCard data={daily} />
 
       {/* Breakdowns */}
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="Beliebteste Seiten" />
           <CardContent>
@@ -95,7 +94,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Privacy note */}
-      <Card className="mt-8 flex flex-wrap items-center gap-6 p-7">
+      <Card className="mt-6 flex flex-wrap items-center gap-5 p-6">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
           <ShieldCheck className="size-6" strokeWidth={1.75} />
         </span>

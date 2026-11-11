@@ -28,12 +28,12 @@ const toolbar = [
 export default function NewPostPage() {
   return (
     <PageContainer>
-      <div className="mb-10 flex flex-wrap items-center justify-between gap-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/posts" className={buttonStyles({ variant: "secondary", size: "icon" })} aria-label="Zurück">
             <ArrowLeft />
           </Link>
-          <h1 className="text-3xl font-semibold tracking-tight">Neuer Beitrag</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Neuer Beitrag</h1>
         </div>
         <div className="flex gap-3">
           <SaveButton variant="secondary" label="Als Entwurf speichern" message="Entwurf gespeichert" />
@@ -41,9 +41,9 @@ export default function NewPostPage() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <Card>
-          <CardContent className="flex flex-col gap-7 py-8">
+          <CardContent className="flex flex-col gap-6 py-6">
             <Field>
               <Label>Titel</Label>
               <Input className="h-14 text-xl font-medium" />

@@ -17,13 +17,13 @@ export function VisitorsCard({ data }: { data: DailyPoint[] }) {
   const visible = data.slice(-days);
 
   return (
-    <Card className="mt-8">
+    <Card className="mt-6">
       <CardHeader
         title="Besucher pro Tag"
         description={`Letzte ${days} Tage, eindeutige Besucher je Tag`}
         action={<SegmentedControl label="Zeitraum" items={ranges} value={range} onValueChange={setRange} />}
       />
-      <CardContent className="pt-8">
+      <CardContent className="pt-4">
         <VisitorsChart data={visible} label={`Besucher pro Tag, letzte ${days} Tage`} />
       </CardContent>
     </Card>

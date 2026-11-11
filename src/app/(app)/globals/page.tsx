@@ -87,7 +87,7 @@ export default function GlobalsPage() {
         description="Inhalte, die auf jeder Seite gleich sind. Eine Änderung hier wirkt überall."
       />
 
-      <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <Card className="h-fit p-2">
           {groups.map((group) => {
             const isActive = group.id === active.id;

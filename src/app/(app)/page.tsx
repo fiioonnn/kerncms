@@ -43,7 +43,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.label} className="flex items-center gap-5 p-6">
+          <Card key={stat.label} className="flex items-center gap-4 p-5">
             <span className="flex size-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
               <stat.icon className="size-6" strokeWidth={1.75} />
             </span>
@@ -55,7 +55,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <Card className="mt-8">
+      <Card className="mt-6">
         <CardHeader
           title="Besucher"
           description="Letzte 30 Tage · cookielos erfasst"
@@ -67,7 +67,7 @@ export default function DashboardPage() {
           }
         />
         <CardContent className="grid gap-10 pt-6 xl:grid-cols-[1fr_340px]">
-          <div className="flex min-w-0 flex-col gap-8">
+          <div className="flex min-w-0 flex-col gap-6">
             <div className="flex flex-wrap gap-x-12 gap-y-4">
               {analyticsKpis.slice(0, 3).map((kpi) => (
                 <div key={kpi.label} className="flex flex-col">
@@ -91,7 +91,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
         <Card>
           <CardHeader title="Zuletzt bearbeitet" description="Seiten, Beiträge und Globals" />
           <CardContent className="flex flex-col gap-1 px-4">

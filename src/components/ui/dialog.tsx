@@ -51,7 +51,7 @@ export function DialogContent({
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-6 px-7 pt-6">
+        <div className="flex items-start justify-between gap-6 px-6 pt-5">
           <div className="flex flex-col gap-1">
             <BaseDialog.Title className="text-xl font-semibold tracking-tight">{title}</BaseDialog.Title>
             {description && (
@@ -65,9 +65,9 @@ export function DialogContent({
             <X strokeWidth={1.75} />
           </BaseDialog.Close>
         </div>
-        {children && <div className="overflow-y-auto px-7 py-6">{children}</div>}
+        {children && <div className="overflow-y-auto px-6 py-5">{children}</div>}
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-border px-7 py-5">{footer}</div>
+          <div className="flex justify-end gap-3 border-t border-border px-6 py-4">{footer}</div>
         )}
       </BaseDialog.Popup>
     </BaseDialog.Portal>
@@ -104,7 +104,7 @@ export function ConfirmDialog({
       {trigger && <AlertDialog.Trigger className={triggerClassName}>{trigger}</AlertDialog.Trigger>}
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className={backdrop} />
-        <AlertDialog.Popup className={cn(popup, "gap-6 p-7 sm:max-w-md")}>
+        <AlertDialog.Popup className={cn(popup, "gap-5 p-6 sm:max-w-md")}>
           <div className="flex flex-col gap-2">
             <AlertDialog.Title className="text-xl font-semibold tracking-tight">{title}</AlertDialog.Title>
             <AlertDialog.Description className="text-[15px] text-muted">{description}</AlertDialog.Description>

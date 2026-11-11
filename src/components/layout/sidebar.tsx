@@ -74,7 +74,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-4 py-5">
+      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-3">
         {navigation.map((group) => (
           <div key={group.label} className="flex flex-col gap-1">
             <span className="px-3 pb-1.5 text-xs font-semibold tracking-wider text-muted uppercase">
