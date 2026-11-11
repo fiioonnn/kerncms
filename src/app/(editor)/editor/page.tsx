@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -416,21 +416,32 @@ function Canvas({
 export default function EditorPage() {
   const [loading, setLoading] = useState(true);
   const [loadingText, setLoadingText] = useState<string | undefined>();
+  const [loadRun, setLoadRun] = useState(0);
   const [device, setDevice] = useState("desktop");
   const [block, setBlock] = useState<BlockId>("hero");
   const [mark, setMark] = useState<MarkId>("accent");
+  const duration = loadingText ? 700 : 1200;
 
   // Simulates the site preview starting up; later this waits for the iframe.
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => setLoading(false), loadingText ? 600 : 1200);
-    return () => clearTimeout(timer);
-  }, [loading, loadingText]);
+  // Next.js keeps visited routes alive in a hidden <Activity>, so the cleanup
+  // (which also runs when the route is hidden) puts the loader back: it then
+  // shows again every time the editor is opened, not only on the first visit.
+  useLayoutEffect(() => {
+    const timer = setTimeout(() => setLoading(false), duration);
+    return () => {
+      clearTimeout(timer);
+      setLoading(true);
+    };
+  }, [loadRun, duration]);
+
+  // When the editor is left, the next visit should show the default loader text.
+  useLayoutEffect(() => () => setLoadingText(undefined), []);
 
   return (
     <div className="flex h-dvh flex-col">
       <EditorLoader
         visible={loading}
+        duration={duration}
         {...(loadingText && { title: `${loadingText} wird geladen`, detail: "Einen Moment…" })}
       />
       <EditorTopbar
@@ -439,7 +450,7 @@ export default function EditorPage() {
         onPageChange={(value) => {
           setLoadingText(pages.find((p) => p.value === value)?.label);
           setBlock("hero");
-          setLoading(true);
+          setLoadRun((n) => n + 1);
         }}
       />
       <div className="flex min-h-0 flex-1">

@@ -2,14 +2,18 @@ import { cn } from "@/lib/utils";
 
 /**
  * Full-page loader shown while the visual editor (and later the site preview
- * iframe) is starting. Fades out when `visible` turns false.
+ * iframe) is starting. The bar fills once over `duration`; the overlay fades
+ * out when `visible` turns false. Without a duration (route-level loading
+ * state) the bar fills slowly and stops just short of the end.
  */
 export function EditorLoader({
   visible,
+  duration,
   title = "Visueller Editor wird geladen",
   detail = "Vorschau der Website wird vorbereitet…",
 }: {
   visible: boolean;
+  duration?: number;
   title?: string;
   detail?: string;
 }) {
@@ -31,7 +35,17 @@ export function EditorLoader({
         <span className="text-[15px] text-muted">{detail}</span>
       </div>
       <div className="h-1.5 w-64 overflow-hidden rounded-full bg-subtle">
-        <div className="h-full w-2/5 animate-progress rounded-full bg-accent" />
+        <div
+          className="h-full origin-left rounded-full bg-accent"
+          style={{
+            // Re-applied each time the loader becomes visible, which restarts the animation.
+            animation: visible
+              ? duration
+                ? `kern-loader-fill ${duration}ms cubic-bezier(0.25, 0.6, 0.35, 1) forwards`
+                : "kern-loader-fill 8s cubic-bezier(0.1, 0.7, 0.2, 0.92) forwards"
+              : undefined,
+          }}
+        />
       </div>
     </div>
   );
