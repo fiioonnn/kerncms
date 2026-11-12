@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { memberships, sites, type Role, type Site } from "@/db/schema";
 import { CONFIG_FILE, findCollection, findGlobal, loadConfig, parseConfig } from "./config";
 import { getChangeSet, listEntries, listPages, readEntry, readGlobal, readPage } from "./content";
+import { appOrigin } from "./custom-domains";
 import { ensureWorktree } from "./git";
 import type { TokenUser } from "./oauth";
 import { readSkillFile } from "./skill";
@@ -220,7 +221,13 @@ export async function handleRpc(user: TokenUser, message: RpcRequest): Promise<R
       return ok(message.id, {
         protocolVersion: PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "kerncms", title: "kerncms", version: "1.0.0" },
+        serverInfo: {
+          name: "kerncms",
+          title: "kerncms",
+          version: "1.0.0",
+          // Shown by MCP clients such as Claude next to the connector.
+          ...(appOrigin() ? { icons: [{ src: `${appOrigin()}/kern-icon-512.png`, mimeType: "image/png", sizes: ["512x512"] }] } : {}),
+        },
         instructions: INSTRUCTIONS,
       });
     }
