@@ -96,6 +96,25 @@ function LogTail({ lines }: { lines: string[] }) {
   );
 }
 
+/** One short line about what the dev server is doing, guessed from its latest output. */
+function startPhase(status: PreviewState["status"] | undefined, lines: string[]) {
+  const last = lines.filter((l) => l.trim()).at(-1)?.toLowerCase() ?? "";
+  if (status === "installing") return "Pakete werden installiert…";
+  if (/ready in|watching for file changes|local\s+http/.test(last)) return "Fast fertig, die Seite wird geladen…";
+  if (/\[content\]/.test(last)) return "Inhalte werden eingelesen…";
+  if (/\[types\]|\[vite\]|optimiz/.test(last)) return "Website wird vorbereitet…";
+  return "Server wird gestartet…";
+}
+
+/** Fixed-height status line, so the loader does not jump while the server starts. */
+function PhaseLine({ text }: { text: string }) {
+  return (
+    <p className="h-5 w-[min(40rem,100%)] truncate text-center text-sm text-muted" aria-live="polite">
+      {text}
+    </p>
+  );
+}
+
 /** Full-page loader while the preview server starts, or its error with a restart button. */
 export function PreviewLoader({
   preview,
@@ -141,7 +160,7 @@ export function PreviewLoader({
       title={title ?? (ready ? "Visueller Editor wird geladen" : status === "installing" ? "Abhängigkeiten werden installiert" : "Vorschau wird gestartet")}
       detail={ready || title ? "Einen Moment…" : "Die Website wird im Entwurf gestartet. Das dauert beim ersten Mal etwas länger."}
     >
-      {!ready && !title && <LogTail lines={preview?.log ?? []} />}
+      {!ready && !title && <PhaseLine text={startPhase(status, preview?.log ?? [])} />}
     </EditorLoader>
   );
 }
