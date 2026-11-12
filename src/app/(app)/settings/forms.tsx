@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Braces, ChevronDown, Inbox, Loader2, Mail, Reply } from "lucide-react";
+import { Braces, ChevronDown, Inbox, Loader2, Mail, Reply, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,10 +10,10 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } fr
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/toggles";
-import { builtinVariables, cleanLabel, fillTemplate, notificationSubject } from "@/lib/form-template";
+import { builtinVariables, cleanLabel, fillTemplate, notificationSubject, sampleFormData } from "@/lib/form-template";
 import type { FormDef } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
-import { saveFormSettings, type FormSettingsInput } from "@/server/actions/forms";
+import { saveFormSettings, sendTestFormMail, type FormSettingsInput } from "@/server/actions/forms";
 
 type Variable = { name: string; label: string };
 
@@ -65,20 +65,6 @@ export function FormsSettings({
   );
 }
 
-/** Example values so previews read like a real request. */
-function sampleData(form: FormDef) {
-  const data: Record<string, string> = {};
-  for (const f of form.fields) {
-    if (f.type === "email") data[f.name] = "erika@example.com";
-    else if (f.type === "boolean") data[f.name] = "true";
-    else if (f.type === "select") data[f.name] = f.options?.[0]?.value ?? "";
-    else if (/name/i.test(f.name)) data[f.name] = "Erika Muster";
-    else if (f.type === "textarea") data[f.name] = "Wir brauchen ein Frühstücksbuffet für 20 Personen.";
-    else data[f.name] = cleanLabel(f.label);
-  }
-  return data;
-}
-
 function FormCard({
   form,
   initial,
@@ -97,11 +83,12 @@ function FormCard({
   const [tagKey, setTagKey] = useState(0);
   const [replyOpen, setReplyOpen] = useState(Boolean(initial.replySubject || initial.replyBody));
   const [pending, startTransition] = useTransition();
+  const [testing, startTest] = useTransition();
   const dirty = JSON.stringify(values) !== JSON.stringify(saved);
   const set = (patch: Partial<FormSettingsInput>) => setValues((v) => ({ ...v, ...patch }));
 
   const fieldVariables: Variable[] = form.fields.filter((f) => f.type !== "boolean").map((f) => ({ name: f.name, label: cleanLabel(f.label) }));
-  const sample = { form, data: sampleData(form), siteName };
+  const sample = { form, data: sampleFormData(form), siteName };
   const hasEmailField = form.fields.some((f) => f.type === "email");
   const notifySubject = notificationSubject(values.subject, sample);
   const replySubject = fillTemplate(values.replySubject, sample, { singleLine: true }) || `Re: ${notifySubject}`;
@@ -116,6 +103,17 @@ function FormCard({
       }
       setSaved(values);
       toast.success(`${form.label} gespeichert`);
+    });
+  }
+
+  function sendTest() {
+    startTest(async () => {
+      const result = await sendTestFormMail(form.key, values);
+      if (!result.ok) {
+        toast.error("Testmail nicht gesendet", { description: result.error });
+        return;
+      }
+      toast.success("Testmail gesendet", { description: `An ${result.data.recipients.join(", ")}` });
     });
   }
 
@@ -173,6 +171,13 @@ function FormCard({
                   ? "Nicht auf die Benachrichtigung antworten, sie kommt von kerncms. Jede Mail hat einen Knopf „Antworten an …“, der eine neue Mail an den Besucher öffnet."
                   : "Die Mail kommt von kerncms. Das Formular hat kein E-Mail-Feld, deshalb gibt es keinen Knopf zum Antworten."}
               </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="secondary" size="sm" onClick={sendTest} disabled={testing || values.recipients.length === 0}>
+                {testing ? <Loader2 className="animate-spin" /> : <Send />}
+                Testmail senden
+              </Button>
+              <span className="text-sm text-muted">Mit Beispielwerten und den Einstellungen von oben, auch ungespeichert.</span>
             </div>
           </div>
         )}

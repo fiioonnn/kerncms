@@ -22,6 +22,46 @@ export function notificationFrom(siteName: string, formLabel = "Kontaktformular"
   return `"${name}" <${address}>`;
 }
 
+/** The notification for one submission: sender, recipients, subject, text and HTML. */
+export function notificationMail(input: {
+  site: Pick<Site, "name">;
+  createdAt?: Date;
+  form: FormDef;
+  data: Record<string, string>;
+  page: string | null;
+  cmsUrl: string;
+  settings: { recipients: string[]; subject: string; replySubject: string; replyBody: string };
+}) {
+  const { site, form, data, page, cmsUrl, createdAt, settings } = input;
+  const ctx = { form, data, siteName: site.name, createdAt };
+  const visitorEmail = findVisitorEmail(form, data);
+  const filled = form.fields.filter((f) => data[f.name] !== undefined && data[f.name] !== "");
+  const rows = filled.map((f) => ({ label: cleanLabel(f.label), value: displayValue(form, f.name, data[f.name]) }));
+  const text = filled.map((f) => `${cleanLabel(f.label)}: ${displayValue(form, f.name, data[f.name])}`).join("\n");
+  // Neutral wording: the visitor sees subject and content again when the customer replies.
+  const subject = notificationSubject(settings.subject, ctx);
+  const visitorName = (data.name ?? "").trim() || visitorEmail;
+  const replyHref = replyMailto(ctx, settings);
+  return {
+    from: notificationFrom(site.name, form.label),
+    to: settings.recipients,
+    subject,
+    text: `${text}\n\n${visitorEmail ? `Antworten: schreib eine neue Mail an ${visitorEmail}.\n` : ""}Bitte nicht auf diese Benachrichtigung antworten.\n\n—\nGesendet über das ${form.label}${page ? ` auf ${page}` : ""} · Im CMS ansehen: ${cmsUrl}/forms`,
+    html: mailLayout(
+      escapeHtml(form.label),
+      `${mailText(`Neue Nachricht${page ? ` von <span style="white-space:nowrap">${escapeHtml(page)}</span>` : ""}.`, { muted: true, top: 6 })}
+${mailFields(rows)}
+${
+  replyHref
+    ? `${mailButton(replyHref, visitorName ? `Antworten an ${visitorName}` : "Antworten")}
+${mailText(`Öffnet eine neue Mail an ${escapeHtml(visitorEmail!)}. Bitte nicht auf diese Benachrichtigung antworten.`, { muted: true, small: true, top: 12 })}`
+    : mailText("Bitte nicht auf diese Benachrichtigung antworten.", { muted: true, small: true, top: 24 })
+}`,
+      { brand: site.name, footer: `<a href="${cmsUrl}/forms" style="color:#a1a1aa">Im CMS ansehen</a>`, preheader: `${form.label}: ${visitorName || "neue Nachricht"}` },
+    ),
+  };
+}
+
 /** Sends the notification for one submission and records the result. Never throws. */
 export async function sendSubmissionMails(input: {
   site: Pick<Site, "id" | "name">;
@@ -45,33 +85,7 @@ export async function sendSubmissionMails(input: {
   }
 
   try {
-    const ctx = { form, data, siteName: site.name, createdAt };
-    const visitorEmail = findVisitorEmail(form, data);
-    const filled = form.fields.filter((f) => data[f.name] !== undefined && data[f.name] !== "");
-    const rows = filled.map((f) => ({ label: cleanLabel(f.label), value: displayValue(form, f.name, data[f.name]) }));
-    const text = filled.map((f) => `${cleanLabel(f.label)}: ${displayValue(form, f.name, data[f.name])}`).join("\n");
-    // Neutral wording: the visitor sees subject and content again when the customer replies.
-    const subject = notificationSubject(settings.subject, ctx);
-    const visitorName = (data.name ?? "").trim() || visitorEmail;
-    const replyHref = replyMailto(ctx, settings);
-    await defaultTransport.sendMail({
-      from: notificationFrom(site.name, form.label),
-      to: settings.recipients,
-      subject,
-      text: `${text}\n\n${visitorEmail ? `Antworten: schreib eine neue Mail an ${visitorEmail}.\n` : ""}Bitte nicht auf diese Benachrichtigung antworten.\n\n—\nGesendet über das ${form.label}${page ? ` auf ${page}` : ""} · Im CMS ansehen: ${cmsUrl}/forms`,
-      html: mailLayout(
-        escapeHtml(form.label),
-        `${mailText(`Neue Nachricht${page ? ` von <span style="white-space:nowrap">${escapeHtml(page)}</span>` : ""}.`, { muted: true, top: 6 })}
-${mailFields(rows)}
-${
-  replyHref
-    ? `${mailButton(replyHref, visitorName ? `Antworten an ${visitorName}` : "Antworten")}
-${mailText(`Öffnet eine neue Mail an ${escapeHtml(visitorEmail!)}. Bitte nicht auf diese Benachrichtigung antworten.`, { muted: true, small: true, top: 12 })}`
-    : mailText("Bitte nicht auf diese Benachrichtigung antworten.", { muted: true, small: true, top: 24 })
-}`,
-        { brand: site.name, footer: `<a href="${cmsUrl}/forms" style="color:#a1a1aa">Im CMS ansehen</a>`, preheader: `${form.label}: ${visitorName || "neue Nachricht"}` },
-      ),
-    });
+    await defaultTransport.sendMail(notificationMail({ site, form, data, page, cmsUrl, createdAt, settings }));
     await db.update(formSubmissions).set({ mailStatus: "sent", mailError: null, mailedAt: new Date() }).where(eq(formSubmissions.id, submissionId));
   } catch (error) {
     console.error("[kern] Formular-Mail fehlgeschlagen:", error);

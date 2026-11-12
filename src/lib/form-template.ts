@@ -87,3 +87,17 @@ export function replyMailto(ctx: TemplateContext, settings: ReplyTemplate & { su
   if (body) params.push(`body=${encodeURIComponent(body.replace(/\r?\n/g, "\r\n"))}`);
   return `mailto:${encodeURIComponent(to).replace(/%40/g, "@")}?${params.join("&")}`;
 }
+
+/** Example values so previews read like a real request. */
+export function sampleFormData(form: FormDef) {
+  const data: Record<string, string> = {};
+  for (const f of form.fields) {
+    if (f.type === "email") data[f.name] = "erika@example.com";
+    else if (f.type === "boolean") data[f.name] = "true";
+    else if (f.type === "select") data[f.name] = f.options?.[0]?.value ?? "";
+    else if (/name/i.test(f.name)) data[f.name] = "Erika Muster";
+    else if (f.type === "textarea") data[f.name] = "Wir brauchen ein Frühstücksbuffet für 20 Personen.";
+    else data[f.name] = cleanLabel(f.label);
+  }
+  return data;
+}

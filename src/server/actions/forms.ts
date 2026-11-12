@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { formSettings, formSubmissions, sites } from "@/db/schema";
 import { run } from "../action";
-import { sendSubmissionMails } from "../site-mail";
+import { sampleFormData } from "@/lib/form-template";
+import { defaultTransport } from "../mail";
+import { notificationMail, sendSubmissionMails } from "../site-mail";
 import { cmsOrigin } from "../custom-domains";
 import { getWorkspace, requireRole } from "../sites";
 
@@ -26,13 +28,46 @@ export type FormSettingsInput = {
   replyBody: string;
 };
 
+function cleanRecipients(list: string[]) {
+  const recipients = [...new Set(list.map((r) => r.trim().toLowerCase()).filter(Boolean))];
+  const invalid = recipients.find((r) => !EMAIL.test(r));
+  if (invalid) throw new Error(`„${invalid}“ ist keine gültige E-Mail-Adresse.`);
+  return recipients;
+}
+
+/** Sends the notification with example values, using the settings as currently entered (saved or not). */
+export async function sendTestFormMail(form: string, input: FormSettingsInput) {
+  return run(async () => {
+    const ws = await getWorkspace("admin");
+    const def = ws.config.forms.find((f) => f.key === form);
+    if (!def) throw new Error("Unbekanntes Formular.");
+    const recipients = cleanRecipients(input.recipients);
+    if (recipients.length === 0) throw new Error("Bitte gib mindestens einen Empfänger an.");
+    if (recipients.length > 10) throw new Error("Höchstens 10 Empfänger.");
+    const cmsUrl = await cmsOrigin(ws.site.customerId);
+    const mail = notificationMail({
+      site: ws.site,
+      form: def,
+      data: sampleFormData(def),
+      page: null,
+      cmsUrl,
+      settings: { ...input, recipients },
+    });
+    try {
+      await defaultTransport.sendMail({ ...mail, subject: `[Test] ${mail.subject}` });
+    } catch (error) {
+      console.error("[kern] Testmail fehlgeschlagen:", error);
+      throw new Error(`Versand fehlgeschlagen: ${(error as Error).message.slice(0, 300)}`);
+    }
+    return { recipients };
+  });
+}
+
 export async function saveFormSettings(form: string, input: FormSettingsInput) {
   return run(async () => {
     const ws = await getWorkspace("admin");
     if (!ws.config.forms.some((f) => f.key === form)) throw new Error("Unbekanntes Formular.");
-    const recipients = [...new Set(input.recipients.map((r) => r.trim().toLowerCase()).filter(Boolean))];
-    const invalid = recipients.find((r) => !EMAIL.test(r));
-    if (invalid) throw new Error(`„${invalid}“ ist keine gültige E-Mail-Adresse.`);
+    const recipients = cleanRecipients(input.recipients);
     if (input.notify && recipients.length === 0) throw new Error("Bitte gib mindestens einen Empfänger an.");
     if (recipients.length > 10) throw new Error("Höchstens 10 Empfänger.");
     const values = {
