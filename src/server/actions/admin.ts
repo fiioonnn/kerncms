@@ -10,8 +10,9 @@ import { customers, githubApp, invites, memberships, sessions, sites, users, typ
 import { roleLabels } from "@/lib/kern-types";
 import { run } from "../action";
 import { hashToken, newToken, requireAdmin } from "../auth";
-import { parseConfig } from "../config";
-import { git, worktreeDir } from "../git";
+import { CONFIG_FILE, parseConfig } from "../config";
+import { restartDraft } from "../draft-reset";
+import { DRAFT_BRANCH, git, showFile, worktreeDir } from "../git";
 import { fetchRemote, listBranches, listRepos, readRemoteConfig } from "../github";
 import { sendDomainInstructions, sendInvite, type DnsRecordMail } from "../mail";
 import { stopPreview } from "../preview";
@@ -235,6 +236,70 @@ export async function syncSiteNow(siteId: string) {
     await fetchRemote(site);
     refresh();
     return null;
+  });
+}
+
+/** Branches the site's live branch can be switched to (the CMS's own kern/* branches left out). */
+export async function siteBranches(siteId: string) {
+  return run(async () => {
+    await requireAdmin();
+    const [site] = await db.select().from(sites).where(eq(sites.id, siteId));
+    if (!site) throw new Error("Unbekannte Website.");
+    if (site.source === "github" && site.githubInstallationId && site.githubRepo) return listBranches(site.githubInstallationId, site.githubRepo);
+    const out = await git(site.repoPath, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]);
+    return out.split("\n").map((b) => b.trim()).filter((b) => b && !b.startsWith("kern/"));
+  });
+}
+
+export type SiteAdminInput = { name: string; liveUrl: string; branch: string; requireApproval: boolean };
+
+/** Admin settings of a site. A new live branch must have kern.config.yaml. */
+export async function updateSiteAdmin(siteId: string, input: SiteAdminInput) {
+  return run(async () => {
+    await requireAdmin();
+    const [site] = await db.select().from(sites).where(eq(sites.id, siteId));
+    if (!site) throw new Error("Unbekannte Website.");
+    const name = input.name.trim();
+    const liveUrl = input.liveUrl.trim().replace(/\/+$/, "");
+    const branch = input.branch.trim();
+    if (!name) throw new Error("Die Website braucht einen Namen.");
+    if (liveUrl && !/^https?:\/\/[^\s]+$/.test(liveUrl)) throw new Error("Die Live-Adresse muss mit http:// oder https:// beginnen.");
+    if (!branch || branch === DRAFT_BRANCH || branch.startsWith("kern/")) throw new Error("Bitte wähle einen Branch.");
+    const branchChanged = branch !== site.branch;
+    if (branchChanged) {
+      if (site.source === "github") {
+        if (!site.githubInstallationId || !site.githubRepo) throw new Error("GitHub-Repository fehlt.");
+        parseConfig(await readRemoteConfig(site.githubInstallationId, site.githubRepo, branch));
+      } else {
+        const source = await showFile(site.repoPath, branch, CONFIG_FILE);
+        if (source === null) throw new Error(`Auf dem Branch ${branch} fehlt ${CONFIG_FILE}.`);
+        parseConfig(source);
+      }
+    }
+    const [updated] = await db
+      .update(sites)
+      .set({ name, liveUrl: liveUrl || null, branch, requireApproval: input.requireApproval })
+      .where(eq(sites.id, site.id))
+      .returning();
+    if (branchChanged) {
+      stopPreview(site.id);
+      if (updated.source === "github") await fetchRemote(updated);
+    }
+    refresh();
+    return null;
+  });
+}
+
+/** Starts a site's draft again from its live branch (old draft kept as kern/draft-backup-…). */
+export async function restartSiteDraft(siteId: string) {
+  return run(async () => {
+    await requireAdmin();
+    const [site] = await db.select().from(sites).where(eq(sites.id, siteId));
+    if (!site) throw new Error("Unbekannte Website.");
+    stopPreview(site.id);
+    const backup = await restartDraft(site);
+    refresh();
+    return { backup };
   });
 }
 

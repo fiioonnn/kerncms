@@ -136,6 +136,7 @@ export async function adminSites() {
     repoPath: site.repoPath,
     branch: site.branch,
     liveUrl: site.liveUrl,
+    requireApproval: site.requireApproval,
     lastSyncedAt: site.lastSyncedAt?.toISOString() ?? null,
     createdAt: site.createdAt.toISOString(),
     members: memberCounts.find((m) => m.siteId === site.id)?.n ?? 0,

@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { Building2, ExternalLink, GitBranch, Globe, Loader2, MoreHorizontal, MousePointerClick, Plus, RefreshCw, Search, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Building2, ExternalLink, GitBranch, Globe, Loader2, MoreHorizontal, MousePointerClick, Plus, RefreshCw, RotateCcw, Search, Settings, Trash2, UserPlus } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
+import { ConfirmDialog, Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Card, Table, Td, Th } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Field, Input, Label } from "@/components/ui/field";
+import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Select, type SelectItem } from "@/components/ui/select";
+import { Switch } from "@/components/ui/toggles";
 import { toast } from "@/components/ui/toast";
 import { formatWhen, numberFormat } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
-import { assignSiteCustomer, removeSite, syncSiteNow } from "@/server/actions/admin";
+import { assignSiteCustomer, removeSite, restartSiteDraft, siteBranches, syncSiteNow, updateSiteAdmin } from "@/server/actions/admin";
 import { InviteDialog } from "../_components/invite-dialog";
 import { DeployBadge, ErrorNote, hostOf, SearchInput, SiteSource, useOpenSite } from "../_components/shared";
 
@@ -27,13 +28,14 @@ type Site = {
   repoPath: string | null;
   branch: string;
   liveUrl: string | null;
+  requireApproval: boolean;
   lastSyncedAt: string | null;
   members: number;
   views30d: number;
   lastDeploy: { status: string; createdAt: string; message: string } | null;
 };
 
-type Dialogs = { kind: "customer" | "invite" | "remove"; site: Site } | null;
+type Dialogs = { kind: "customer" | "invite" | "remove" | "settings" | "restart"; site: Site } | null;
 
 export function SitesTable({ sites, customers }: { sites: Site[]; customers: SelectItem[] }) {
   const [query, setQuery] = useState("");
@@ -165,6 +167,9 @@ export function SitesTable({ sites, customers }: { sites: Site[]; customers: Sel
                               </MenuItem>
                             )}
                             <MenuSeparator />
+                            <MenuItem icon={Settings} onClick={() => setDialog({ kind: "settings", site })}>
+                              Einstellungen
+                            </MenuItem>
                             <MenuItem icon={Building2} onClick={() => setDialog({ kind: "customer", site })}>
                               Kunde zuordnen
                             </MenuItem>
@@ -172,6 +177,9 @@ export function SitesTable({ sites, customers }: { sites: Site[]; customers: Sel
                               Personen einladen
                             </MenuItem>
                             <MenuSeparator />
+                            <MenuItem icon={RotateCcw} onClick={() => setDialog({ kind: "restart", site })}>
+                              Entwurf neu starten
+                            </MenuItem>
                             <MenuItem icon={Trash2} danger onClick={() => setDialog({ kind: "remove", site })}>
                               Entfernen
                             </MenuItem>
@@ -200,6 +208,8 @@ export function SitesTable({ sites, customers }: { sites: Site[]; customers: Sel
         title={dialog?.kind === "invite" ? `Personen zu ${dialog.site.name} einladen` : undefined}
       />
       <RemoveSiteDialog site={dialog?.kind === "remove" ? dialog.site : null} onClose={() => setDialog(null)} />
+      <SiteSettingsDialog site={dialog?.kind === "settings" ? dialog.site : null} onClose={() => setDialog(null)} />
+      <RestartDraftDialog site={dialog?.kind === "restart" ? dialog.site : null} onClose={() => setDialog(null)} />
     </div>
   );
 }
@@ -332,5 +342,126 @@ function RemoveSiteBody({ site, onClose }: { site: Site; onClose: () => void }) 
         {error && <ErrorNote>{error}</ErrorNote>}
       </form>
     </DialogContent>
+  );
+}
+
+function SiteSettingsDialog({ site, onClose }: { site: Site | null; onClose: () => void }) {
+  return (
+    <Dialog open={site !== null} onOpenChange={(next) => !next && onClose()}>
+      {site && <SiteSettingsBody key={site.id} site={site} onClose={onClose} />}
+    </Dialog>
+  );
+}
+
+function SiteSettingsBody({ site, onClose }: { site: Site; onClose: () => void }) {
+  const [name, setName] = useState(site.name);
+  const [liveUrl, setLiveUrl] = useState(site.liveUrl ?? "");
+  const [branch, setBranch] = useState(site.branch);
+  const [requireApproval, setRequireApproval] = useState(site.requireApproval);
+  const [branches, setBranches] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let alive = true;
+    void siteBranches(site.id).then((result) => {
+      if (!alive) return;
+      setBranches(result.ok ? result.data : [site.branch]);
+      if (!result.ok) setError(`Branches konnten nicht geladen werden: ${result.error}`);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [site.id, site.branch]);
+
+  const branchItems = (branches ?? [site.branch]).map((b) => ({ value: b, label: b }));
+  if (!branchItems.some((b) => b.value === site.branch)) branchItems.unshift({ value: site.branch, label: site.branch });
+  const changed =
+    name.trim() !== site.name || liveUrl.trim() !== (site.liveUrl ?? "") || branch !== site.branch || requireApproval !== site.requireApproval;
+
+  function save() {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateSiteAdmin(site.id, { name, liveUrl, branch, requireApproval });
+      if (!result.ok) return setError(result.error);
+      toast.success(`${name.trim()} gespeichert`);
+      onClose();
+    });
+  }
+
+  return (
+    <DialogContent
+      title="Website-Einstellungen"
+      description={site.name}
+      size="md"
+      footer={
+        <>
+          <DialogClose className={buttonStyles({ variant: "secondary" })} disabled={pending}>
+            Abbrechen
+          </DialogClose>
+          <Button onClick={save} disabled={pending || !changed}>
+            {pending && <Loader2 className="animate-spin" />}
+            Speichern
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="flex flex-col gap-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <Field>
+          <Label>Name</Label>
+          <Input value={name} onValueChange={setName} disabled={pending} autoComplete="off" />
+        </Field>
+        <Field>
+          <Label>Live-Adresse</Label>
+          <Input value={liveUrl} onValueChange={setLiveUrl} disabled={pending} autoComplete="off" spellCheck={false} />
+          <Description>Die öffentliche Adresse der Website, zum Beispiel https://trockenbau-stein.de</Description>
+        </Field>
+        <div className="flex flex-col gap-2">
+          <Select label="Live-Branch" items={branchItems} value={branch} onValueChange={setBranch} disabled={pending || branches === null} />
+          <p className="text-sm text-muted">
+            {branches === null
+              ? "Branches werden geladen…"
+              : "Von diesem Branch liest kerncms die kern.config.yaml, und dorthin wird veröffentlicht. Der neue Branch muss die Datei enthalten."}
+          </p>
+        </div>
+        <Switch
+          label="Freigabe nötig"
+          description="Redakteure senden Änderungen zur Freigabe, statt selbst zu veröffentlichen."
+          checked={requireApproval}
+          onCheckedChange={setRequireApproval}
+          disabled={pending}
+        />
+        {error && <ErrorNote>{error}</ErrorNote>}
+      </form>
+    </DialogContent>
+  );
+}
+
+function RestartDraftDialog({ site, onClose }: { site: Site | null; onClose: () => void }) {
+  const [pending, startTransition] = useTransition();
+  if (!site) return null;
+  return (
+    <ConfirmDialog
+      open
+      onOpenChange={(next) => !next && !pending && onClose()}
+      title={`Entwurf von ${site.name} neu starten?`}
+      description={`Der Entwurf wird durch den Stand von ${site.branch} ersetzt. Unveröffentlichte Änderungen bleiben im Branch kern/draft-backup-… erhalten, sind aber nicht mehr im CMS sichtbar.`}
+      confirmLabel="Entwurf neu starten"
+      onConfirm={() =>
+        startTransition(async () => {
+          toast.info(`Entwurf von ${site.name} wird neu gestartet…`);
+          const result = await restartSiteDraft(site.id);
+          if (!result.ok) toast.error("Neustart fehlgeschlagen", { description: result.error });
+          else toast.success("Entwurf neu gestartet", { description: result.data.backup ? `Der alte Entwurf liegt im Branch ${result.data.backup}.` : undefined });
+          onClose();
+        })
+      }
+    />
   );
 }
