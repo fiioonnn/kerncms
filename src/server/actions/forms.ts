@@ -3,11 +3,11 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { formSettings, formSubmissions, sites } from "@/db/schema";
 import { run } from "../action";
 import { sendSubmissionMails } from "../site-mail";
+import { cmsOrigin } from "../custom-domains";
 import { getWorkspace, requireRole } from "../sites";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,8 +62,7 @@ export async function resendSubmissionMail(id: string) {
     if (!submission) throw new Error("Nachricht nicht gefunden.");
     const form = ws.config.forms.find((f) => f.key === submission.form);
     if (!form) throw new Error("Das Formular gibt es nicht mehr.");
-    const h = await headers();
-    const cmsUrl = process.env.KERN_PUBLIC_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+    const cmsUrl = await cmsOrigin(ws.site.customerId);
     await sendSubmissionMails({ site: ws.site, form, submissionId: id, data: submission.data, page: submission.page, cmsUrl, createdAt: submission.createdAt });
     const [after] = await db.select({ status: formSubmissions.mailStatus, error: formSubmissions.mailError }).from(formSubmissions).where(eq(formSubmissions.id, id));
     refresh();

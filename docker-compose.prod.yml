@@ -91,6 +91,25 @@ services:
       SMTP_URL: ${SMTP_URL:?SMTP_URL fehlt}
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM fehlt}
       KERN_PREVIEW_LAN: "0"
+      # Customer domains via Cloudflare for SaaS (optional, see .env.prod.example)
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      KERN_CUSTOM_DOMAIN_TARGET: ${KERN_CUSTOM_DOMAIN_TARGET:-}
+    labels:
+      # Catch-all route for customer domains (cms.kundendomain.de) on Dokploy's Traefik.
+      # Lowest priority: every router Dokploy creates (app.kerncms.com, other projects) wins.
+      # New customer domains therefore need no redeploy; Cloudflare terminates their TLS.
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.kern-customer-domains.rule=PathPrefix(`/`)
+      - traefik.http.routers.kern-customer-domains.priority=1
+      - traefik.http.routers.kern-customer-domains.entrypoints=websecure
+      - traefik.http.routers.kern-customer-domains.tls=true
+      - traefik.http.routers.kern-customer-domains.service=kern-customer-domains
+      - traefik.http.services.kern-customer-domains.loadbalancer.server.port=3000
+    networks:
+      - default
+      - dokploy-network
     volumes:
       # Git checkouts of the sites, their node_modules and the pnpm cache.
       - kern-data:/data
@@ -109,6 +128,11 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - app
+
+networks:
+  # Dokploy's proxy network; without Dokploy create it once: docker network create dokploy-network
+  dokploy-network:
+    external: true
 
 volumes:
   postgres-data:

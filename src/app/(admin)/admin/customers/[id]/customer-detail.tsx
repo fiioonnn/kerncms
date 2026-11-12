@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/admin-format";
 import { roleLabels, type RoleName } from "@/lib/kern-types";
 import { deleteCustomer, updateCustomer, type CustomerInput } from "@/server/actions/admin";
 import { CustomerFields } from "../../_components/customer-dialog";
+import { DomainCard, type DomainState } from "./domain-card";
 import { InviteButton } from "../../_components/invite-dialog";
 import {
   CustomerStatusBadge,
@@ -39,7 +40,7 @@ type Site = {
 };
 type Person = { id: string; name: string; email: string; role: RoleName; siteId: string; site: string };
 
-export function CustomerDetail({ customer, sites, people }: { customer: Customer; sites: Site[]; people: Person[] }) {
+export function CustomerDetail({ customer, domain, sites, people }: { customer: Customer; domain: DomainState; sites: Site[]; people: Person[] }) {
   const router = useRouter();
   const [deleting, startDelete] = useTransition();
 
@@ -175,6 +176,7 @@ export function CustomerDetail({ customer, sites, people }: { customer: Customer
 
         <div className="flex flex-col gap-6">
           <DetailsCard customer={customer} />
+          <DomainCard customerId={customer.id} state={domain} />
 
           <Card>
             <CardHeader title="Kunde löschen" description="Die Websites bleiben verbunden und sind danach keinem Kunden zugeordnet." />

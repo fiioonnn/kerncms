@@ -2,21 +2,16 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { invites, memberships, users, type Role } from "@/db/schema";
 import { run } from "../action";
 import { roleLabels } from "@/lib/kern-types";
 import { hashToken, newToken } from "../auth";
+import { cmsOrigin } from "../custom-domains";
 import { sendInvite } from "../mail";
 import { hasRole, requireRole } from "../sites";
 
 const ROLES: Role[] = ["owner", "admin", "editor", "viewer"];
-
-async function origin() {
-  const h = await headers();
-  return process.env.KERN_PUBLIC_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
-}
 
 /** Creates an invite and returns the link. There is no mail server; the link is shared by hand. */
 export async function inviteMember(input: { email: string; role: Role }) {
@@ -42,7 +37,7 @@ export async function inviteMember(input: { email: string; role: Role }) {
       invitedBy: ctx.user.id,
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     });
-    const link = `${await origin()}/invite/${token}`;
+    const link = `${await cmsOrigin(ctx.site.customerId)}/invite/${token}`;
     let mailed = true;
     try {
       await sendInvite(email, ctx.site.name, ctx.user.name, roleLabels[input.role], link);

@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { formSubmissions } from "@/db/schema";
 import { loadConfig } from "@/server/config";
+import { cmsOrigin } from "@/server/custom-domains";
 import { ensureWorktree } from "@/server/git";
 import { notify } from "@/server/notifications";
 import { clientIp, corsHeaders, json, originAllowed, rateLimited, siteByPublicKey } from "@/server/public";
@@ -57,7 +58,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
   const who = data.name || data.email || "Jemand";
   await notify(site.id, null, "form", `Neue Nachricht von ${who} über „${form.label}“`, "/forms");
   // Mail in the background: the visitor gets the answer right away.
-  const cmsUrl = process.env.KERN_PUBLIC_URL ?? new URL(request.url).origin;
+  const cmsUrl = await cmsOrigin(site.customerId);
   void sendSubmissionMails({ site, form, submissionId: submission.id, data, page, cmsUrl });
   return json({ ok: true });
 }

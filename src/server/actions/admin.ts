@@ -5,7 +5,6 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import { and, eq, gt, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { customers, githubApp, invites, memberships, sessions, sites, users, type Role } from "@/db/schema";
 import { roleLabels } from "@/lib/kern-types";
@@ -16,6 +15,7 @@ import { git, worktreeDir } from "../git";
 import { fetchRemote, listBranches, listRepos, readRemoteConfig } from "../github";
 import { sendInvite } from "../mail";
 import { stopPreview } from "../preview";
+import { cloudflareConfigured, cmsOrigin, hostnameInfo, normalizeDomain, registerHostname, removeHostname } from "../custom-domains";
 import { connectGithubSite, connectSite, inspectRepo } from "../sites";
 
 function refresh() {
@@ -65,7 +65,60 @@ export async function updateCustomer(id: string, input: CustomerInput) {
 export async function deleteCustomer(id: string) {
   return run(async () => {
     await requireAdmin();
+    const [row] = await db.select({ hostnameId: customers.domainHostnameId }).from(customers).where(eq(customers.id, id));
+    if (row?.hostnameId) await removeHostname(row.hostnameId);
     await db.delete(customers).where(eq(customers.id, id));
+    refresh();
+    return null;
+  });
+}
+
+/* ---------- Customer domain ---------- */
+
+/** Sets the customer's own CMS address and registers it with Cloudflare for SaaS when that is set up. */
+export async function setCustomerDomain(id: string, input: string) {
+  return run(async () => {
+    await requireAdmin();
+    const domain = normalizeDomain(input);
+    if (!domain) throw new Error("Bitte gib eine Domain ein.");
+    const [current] = await db.select().from(customers).where(eq(customers.id, id));
+    if (!current) throw new Error("Unbekannter Kunde.");
+    const [taken] = await db.select({ name: customers.name }).from(customers).where(and(eq(customers.domain, domain), ne(customers.id, id)));
+    if (taken) throw new Error(`${domain} gehört schon zu ${taken.name}.`);
+    if (current.domainHostnameId && current.domain !== domain) await removeHostname(current.domainHostnameId);
+    let hostnameId: string | null = null;
+    let status: "pending" | "active" | "error" = "active";
+    if (cloudflareConfigured()) {
+      const registered = await registerHostname(domain);
+      hostnameId = registered.id;
+      status = registered.info.status;
+    }
+    await db.update(customers).set({ domain, domainHostnameId: hostnameId, domainStatus: status }).where(eq(customers.id, id));
+    refresh();
+    return null;
+  });
+}
+
+/** Asks Cloudflare whether DNS and certificate are ready and stores the result. */
+export async function checkCustomerDomain(id: string) {
+  return run(async () => {
+    await requireAdmin();
+    const [row] = await db.select().from(customers).where(eq(customers.id, id));
+    if (!row?.domain) throw new Error("Der Kunde hat keine eigene Domain.");
+    if (!row.domainHostnameId) return { status: row.domainStatus ?? "active" };
+    const info = await hostnameInfo(row.domainHostnameId);
+    await db.update(customers).set({ domainStatus: info.status }).where(eq(customers.id, id));
+    refresh();
+    return { status: info.status };
+  });
+}
+
+export async function removeCustomerDomain(id: string) {
+  return run(async () => {
+    await requireAdmin();
+    const [row] = await db.select().from(customers).where(eq(customers.id, id));
+    if (row?.domainHostnameId) await removeHostname(row.domainHostnameId);
+    await db.update(customers).set({ domain: null, domainHostnameId: null, domainStatus: null }).where(eq(customers.id, id));
     refresh();
     return null;
   });
@@ -180,11 +233,6 @@ export async function removeSite(siteId: string, confirmName: string) {
 
 /* ---------- People ---------- */
 
-async function origin() {
-  const h = await headers();
-  return process.env.KERN_PUBLIC_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
-}
-
 /** Invites someone to a site, e.g. the customer's contact as owner. Sends the link by mail and returns it. */
 export async function inviteToSite(input: { siteId: string; email: string; role: Role }) {
   return run(async () => {
@@ -209,7 +257,7 @@ export async function inviteToSite(input: { siteId: string; email: string; role:
       invitedBy: admin.id,
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     });
-    const link = `${await origin()}/invite/${token}`;
+    const link = `${await cmsOrigin(site.customerId)}/invite/${token}`;
     let mailed = true;
     try {
       await sendInvite(email, site.name, admin.name, roleLabels[input.role], link);

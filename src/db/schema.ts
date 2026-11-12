@@ -54,8 +54,15 @@ export const customers = pgTable("customers", {
   phone: text().notNull().default(""),
   notes: text().notNull().default(""),
   status: text().$type<"active" | "paused" | "archived">().notNull().default("active"),
+  /** Own CMS address such as cms.kundendomain.de; links and the site list follow it. */
+  domain: text().unique(),
+  /** Cloudflare for SaaS custom hostname id, when the domain was registered there. */
+  domainHostnameId: text(),
+  domainStatus: text().$type<DomainStatus>(),
   createdAt: timestamp().notNull().defaultNow(),
 });
+
+export type DomainStatus = "pending" | "active" | "error";
 
 /** Instance-wide GitHub App, created via the manifest flow in /admin/github. Secrets are encrypted. */
 export const githubApp = pgTable("github_app", {

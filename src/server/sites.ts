@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { memberships, sites, type Role, type Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
 import { requireUser, type SessionUser } from "./auth";
+import { hostCustomer } from "./custom-domains";
 import { CONFIG_FILE, loadConfig, parseConfig } from "./config";
 import { ensureWorktree, followLiveSoon, isGitRepo, showFile } from "./git";
 import { cloneDir, readRemoteConfig, syncSoon } from "./github";
@@ -46,7 +47,7 @@ export type SiteContext = {
 /** The signed-in user and the site they are working on. Redirects to login or onboarding when missing. */
 export const getSiteContext = cache(async (): Promise<SiteContext> => {
   const user = await requireUser();
-  const rows = await db
+  let rows = await db
     .select({ site: sites, role: memberships.role })
     .from(memberships)
     .innerJoin(sites, eq(sites.id, memberships.siteId))
@@ -62,7 +63,10 @@ export const getSiteContext = cache(async (): Promise<SiteContext> => {
     rows.push(...others.map((o) => ({ site: o.site, role: "owner" as Role })));
     rows.sort((a, b) => a.site.name.localeCompare(b.site.name, "de"));
   }
-  if (rows.length === 0) redirect(user.isAdmin ? "/admin/sites/new" : "/onboarding");
+  // On a customer's own domain (cms.kundendomain.de) only that customer's sites exist.
+  const customer = await hostCustomer();
+  if (customer) rows = rows.filter((row) => row.site.customerId === customer.id);
+  if (rows.length === 0) redirect(customer ? "/onboarding" : user.isAdmin ? "/admin/sites/new" : "/onboarding");
   const wanted = (await cookies()).get(SITE_COOKIE)?.value;
   const current = rows.find((row) => row.site.id === wanted) ?? rows[0];
   return {
