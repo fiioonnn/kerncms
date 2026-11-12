@@ -4,17 +4,13 @@ import { db } from "@/db";
 import { formSettings, formSubmissions, type Site } from "@/db/schema";
 import { cleanLabel, displayValue, notificationSubject, replyMailto, visitorEmail as findVisitorEmail } from "@/lib/form-template";
 import type { FormDef } from "@/lib/kern-types";
-import { DEFAULT_FROM, defaultTransport, mailLayout } from "./mail";
+import { DEFAULT_FROM, defaultTransport, escapeHtml, mailButton, mailFields, mailLayout, mailText } from "./mail";
 
 /*
  * Form notifications go out through the CMS's own SMTP (MAIL_FROM, e.g. noreply@kerncms.com).
  * No Reply-To: replying to the notification would quote it to the visitor. Instead the mail has
  * a button that opens a fresh mail to the visitor in the customer's own mail program.
  */
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
 
 /**
  * "Kontaktformular · Bäckerei Müller <info@kerncms.com>", built from MAIL_FROM's address.
@@ -52,12 +48,7 @@ export async function sendSubmissionMails(input: {
     const ctx = { form, data, siteName: site.name, createdAt };
     const visitorEmail = findVisitorEmail(form, data);
     const filled = form.fields.filter((f) => data[f.name] !== undefined && data[f.name] !== "");
-    const rows = filled
-      .map(
-        (f) =>
-          `<tr><td style="padding:8px 16px 8px 0;color:#6b6b72;vertical-align:top;white-space:nowrap">${escapeHtml(cleanLabel(f.label))}</td><td style="padding:8px 0;white-space:pre-wrap">${escapeHtml(displayValue(form, f.name, data[f.name]))}</td></tr>`,
-      )
-      .join("");
+    const rows = filled.map((f) => ({ label: cleanLabel(f.label), value: displayValue(form, f.name, data[f.name]) }));
     const text = filled.map((f) => `${cleanLabel(f.label)}: ${displayValue(form, f.name, data[f.name])}`).join("\n");
     // Neutral wording: the visitor sees subject and content again when the customer replies.
     const subject = notificationSubject(settings.subject, ctx);
@@ -70,11 +61,15 @@ export async function sendSubmissionMails(input: {
       text: `${text}\n\n${visitorEmail ? `Antworten: schreib eine neue Mail an ${visitorEmail}.\n` : ""}Bitte nicht auf diese Benachrichtigung antworten.\n\n—\nGesendet über das ${form.label}${page ? ` auf ${page}` : ""} · Im CMS ansehen: ${cmsUrl}/forms`,
       html: mailLayout(
         escapeHtml(form.label),
-        `<table style="width:100%;border-collapse:collapse;font-size:15px">${rows}</table>
-${replyHref ? `<p style="margin:24px 0 0"><a href="${escapeHtml(replyHref)}" style="display:inline-block;background:#2f5bea;color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:12px">${escapeHtml(visitorName ? `Antworten an ${visitorName}` : "Antworten")}</a></p>
-<p style="font-size:13px;color:#6b6b72;margin:10px 0 0">Öffnet eine neue Mail an ${escapeHtml(visitorEmail!)}. Bitte nicht auf diese Benachrichtigung antworten.</p>` : `<p style="font-size:13px;color:#6b6b72;margin:20px 0 0">Bitte nicht auf diese Benachrichtigung antworten.</p>`}
-<p style="font-size:13px;color:#6b6b72;margin:20px 0 0">Gesendet über das ${escapeHtml(form.label)}${page ? ` auf ${escapeHtml(page)}` : ""} · <a href="${cmsUrl}/forms" style="color:#6b6b72">Im CMS ansehen</a></p>`,
-        { brand: site.name, footer: null },
+        `${mailText(`Neue Nachricht${page ? ` von <span style="white-space:nowrap">${escapeHtml(page)}</span>` : ""}.`, { muted: true, top: 6 })}
+${mailFields(rows)}
+${
+  replyHref
+    ? `${mailButton(replyHref, visitorName ? `Antworten an ${visitorName}` : "Antworten")}
+${mailText(`Öffnet eine neue Mail an ${escapeHtml(visitorEmail!)}. Bitte nicht auf diese Benachrichtigung antworten.`, { muted: true, small: true, top: 12 })}`
+    : mailText("Bitte nicht auf diese Benachrichtigung antworten.", { muted: true, small: true, top: 24 })
+}`,
+        { brand: site.name, footer: `<a href="${cmsUrl}/forms" style="color:#a1a1aa">Im CMS ansehen</a>`, preheader: `${form.label}: ${visitorName || "neue Nachricht"}` },
       ),
     });
     await db.update(formSubmissions).set({ mailStatus: "sent", mailError: null, mailedAt: new Date() }).where(eq(formSubmissions.id, submissionId));
