@@ -1,0 +1,114 @@
+# Production setup.
+#   cp .env.prod.example .env.prod   # fill in the values
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# No mail catcher; database and storage are only reachable inside the Docker network.
+# The app listens on 127.0.0.1:3000 for a reverse proxy with TLS in front of it,
+# or use the Cloudflare tunnel at the bottom (profile "tunnel") without any open port.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kern}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}
+      POSTGRES_DB: ${POSTGRES_DB:-kern}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage:
+    image: rustfs/rustfs:1.0.5
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-kernadmin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY fehlt}
+      RUSTFS_CONSOLE_ENABLE: "false"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the bucket once storage is healthy, then exits.
+  storage-init:
+    image: amazon/aws-cli:2.27.0
+    depends_on:
+      storage:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-kernadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY fehlt}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-kern}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        aws --endpoint-url http://storage:9000 s3api head-bucket --bucket "$$S3_BUCKET" 2>/dev/null
+        || aws --endpoint-url http://storage:9000 s3 mb "s3://$$S3_BUCKET"
+    restart: "no"
+
+  # Applies the database migrations, then exits. The app waits for it.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-kern}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}@postgres:5432/${POSTGRES_DB:-kern}
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-kern}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}@postgres:5432/${POSTGRES_DB:-kern}
+      S3_ENDPOINT: http://storage:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-kernadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY fehlt}
+      S3_BUCKET: ${S3_BUCKET:-kern}
+      KERN_PUBLIC_URL: ${KERN_PUBLIC_URL:?KERN_PUBLIC_URL fehlt, z.B. https://app.kerncms.com}
+      KERN_SECRET: ${KERN_SECRET:?KERN_SECRET fehlt}
+      SMTP_URL: ${SMTP_URL:?SMTP_URL fehlt}
+      MAIL_FROM: ${MAIL_FROM:?MAIL_FROM fehlt}
+      KERN_PREVIEW_LAN: "0"
+    volumes:
+      # Git checkouts of the sites, their node_modules and the pnpm cache.
+      - kern-data:/data
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+
+  # Optional: Cloudflare Tunnel instead of an open port and a reverse proxy.
+  #   docker compose -f docker-compose.prod.yml --env-file .env.prod --profile tunnel up -d
+  # In Cloudflare Zero Trust → Tunnels, route the public hostname (app.kerncms.com) to http://app:3000.
+  tunnel:
+    image: cloudflare/cloudflared:2025.11.1
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - app
+
+volumes:
+  postgres-data:
+  storage-data:
+  kern-data:

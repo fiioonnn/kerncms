@@ -4,4 +4,10 @@ node_modules
 .env*
 !.env.example
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
+# Local runtime data, never part of the image
+.claude
+.kern-data
+data
+public/kern
+skills/*.zip
