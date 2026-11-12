@@ -132,10 +132,6 @@ export function Redirects({ initial, file, canEdit }: { initial: Redirect[]; fil
         )}
       </Card>
 
-      <p className="text-sm text-muted">
-        Gespeichert in <code className="font-mono">{file}</code>. Live nach dem nächsten Veröffentlichen.
-      </p>
-
       <RedirectDialog
         key={dialogKey}
         open={dialogOpen}
