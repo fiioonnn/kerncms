@@ -87,14 +87,15 @@ export function TagInput({
           {tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex h-7 items-center gap-1 rounded-lg bg-accent-soft pr-1 pl-2.5 text-sm font-medium text-accent"
+              title={tag}
+              className="inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-lg bg-accent-soft pr-1 pl-2.5 text-sm font-medium whitespace-nowrap text-accent"
             >
-              {tag}
+              <span className="truncate">{tag}</span>
               <button
                 type="button"
                 aria-label={`„${tag}“ entfernen`}
                 onClick={() => update(tags.filter((t) => t !== tag))}
-                className="flex size-5 items-center justify-center rounded-md transition-colors outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex size-5 shrink-0 items-center justify-center rounded-md transition-colors outline-none hover:bg-accent/15 focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <X className="size-3.5" strokeWidth={2} />
               </button>
@@ -124,7 +125,7 @@ export function TagInput({
               setFocused(false);
               if (query.trim()) add(query);
             }}
-            className="h-8 min-w-24 flex-1 bg-transparent px-1.5 text-[15px] outline-none"
+            className="h-8 min-w-32 flex-1 bg-transparent px-1.5 text-[15px] outline-none"
           />
         </div>
         {open && (

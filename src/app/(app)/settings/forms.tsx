@@ -147,21 +147,32 @@ function FormCard({
 
         {/* Notification */}
         {values.notify && (
-          <div className="grid gap-5 border-t border-border px-6 py-5 md:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-sm font-medium">An</span>
-              <TagInput key={tagKey} defaultValue={values.recipients} onValueChange={(recipients) => set({ recipients })} />
-            </div>
+          <div className="flex flex-col gap-6 border-t border-border px-6 py-5">
+            <TagInput
+              key={tagKey}
+              label="Empfänger"
+              description="Jede neue Nachricht geht an diese Adressen. Adresse eintippen und Enter drücken."
+              defaultValue={values.recipients}
+              onValueChange={(recipients) => set({ recipients })}
+            />
             <TemplateInput
-              label="Betreff"
+              label="Betreff der Benachrichtigung"
               value={values.subject}
               onChange={(subject) => set({ subject })}
               variables={fieldVariables}
               example={notifySubject}
+              hint={`Leer lassen für „${notifySubject}“. Über „Platzhalter“ kommen Angaben aus dem Formular in den Betreff, z. B. der Name.`}
             />
-            <p className="text-sm text-muted md:col-span-2">
-              Absender: <span className="text-foreground">{sender}</span>
-            </p>
+            <div className="flex flex-col gap-1 rounded-xl bg-subtle px-4 py-3 text-sm">
+              <span className="text-muted">
+                Absender: <span className="text-foreground">{sender}</span>
+              </span>
+              <span className="text-muted">
+                {hasEmailField
+                  ? "Nicht auf die Benachrichtigung antworten, sie kommt von kerncms. Jede Mail hat einen Knopf „Antworten an …“, der eine neue Mail an den Besucher öffnet."
+                  : "Die Mail kommt von kerncms. Das Formular hat kein E-Mail-Feld, deshalb gibt es keinen Knopf zum Antworten."}
+              </span>
+            </div>
           </div>
         )}
 
@@ -181,7 +192,7 @@ function FormCard({
                   ? "Ohne E-Mail-Feld im Formular gibt es keinen Antworten-Button."
                   : values.replySubject || values.replyBody
                     ? `„${replySubject}“`
-                    : "Vorausgefüllte Mail für „Per Mail antworten“"}
+                    : "Optional: Text, der beim Klick auf „Antworten an …“ schon in der neuen Mail steht"}
               </span>
             </span>
             <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", replyOpen && "rotate-180")} />
@@ -266,7 +277,7 @@ function TemplateInput({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-[15px] font-medium">{label}</span>
         <Menu>
           <MenuTrigger className="-my-1 flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-muted transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
             <Braces className="size-3.5" />
@@ -305,7 +316,7 @@ function TemplateInput({
           Wird zu: <span className="text-foreground">{example}</span>
         </p>
       ) : !value && hint ? (
-        <p className="truncate text-sm text-muted">{hint}</p>
+        <p className="text-sm text-muted">{hint}</p>
       ) : null}
     </div>
   );
