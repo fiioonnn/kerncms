@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText, Film } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FileText, Film, ImageOff } from "lucide-react";
 import { mediaSrc, useOptionalKern } from "@/components/kern/kern-provider";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,15 @@ export function MediaImage({
   style?: React.CSSProperties;
 }) {
   const prefix = useOptionalKern()?.mediaPrefix ?? "/media/";
+  const src = mediaSrc(value, prefix);
+  const [failed, setFailed] = useState<string | null>(null);
+  const ref = useRef<HTMLImageElement>(null);
+  // An image rendered on the server can fail before React listens for onError.
+  useEffect(() => {
+    const img = ref.current;
+    // SVGs without a size can report a natural width of 0 although they loaded, so only check other images.
+    if (img?.complete && img.naturalWidth === 0 && !/\.svg$/i.test(value)) setFailed(src);
+  }, [src, value]);
   const lower = value.toLowerCase();
   if (lower.endsWith(".pdf") || lower.endsWith(".mp4")) {
     const Icon = lower.endsWith(".pdf") ? FileText : Film;
@@ -30,10 +40,25 @@ export function MediaImage({
       </div>
     );
   }
+  // The value points to a file that does not exist (yet), e.g. /og-image.jpg that was never added.
+  if (failed === src) {
+    return (
+      <div
+        className={cn("flex flex-col items-center justify-center gap-1.5 bg-subtle p-3 text-center text-muted", className)}
+        style={style}
+        title={`${value} wurde nicht gefunden`}
+      >
+        <ImageOff className="size-6 shrink-0" strokeWidth={1.5} />
+        <span className="max-w-full truncate text-xs">Bild nicht gefunden</span>
+      </div>
+    );
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- files come from the site's draft checkout
     <img
-      src={mediaSrc(value, prefix)}
+      ref={ref}
+      src={src}
+      onError={() => setFailed(src)}
       alt={alt}
       loading="lazy"
       draggable={false}
