@@ -55,5 +55,6 @@ export function mediaSrc(value: string | undefined | null, mediaPrefix = "/media
   if (/^(https?:)?\/\//.test(value) || value.startsWith("data:")) return value;
   if (value.startsWith(mediaPrefix)) return `/api/media/${encodeURIComponent(value.slice(mediaPrefix.length))}`;
   if (!value.startsWith("/")) return `/api/media/${encodeURIComponent(value)}`;
-  return value;
+  // Other site paths (/logo.svg) live in the site's public folder, not in the CMS.
+  return `/api/site-file?path=${encodeURIComponent(value)}`;
 }
