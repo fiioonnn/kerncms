@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { ChevronRight, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Pencil, Trash2, X } from "lucide-react";
+import { useKern } from "@/components/kern/kern-provider";
+import { BlockIcon } from "./block-icons";
 import { FieldInput } from "@/components/kern/field-renderer";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -48,6 +50,7 @@ export function EditorSidebar({
   onMove,
   onDuplicate,
   onRemove,
+  onOpenGlobal,
   drawer = false,
 }: {
   tab: SidebarTab;
@@ -72,6 +75,8 @@ export function EditorSidebar({
   onMove: (id: string, toIndex: number) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
+  /** Opens a global in the editor's dialog. */
+  onOpenGlobal: (key: string) => void;
   /** Rendered inside the slide-over panel on small screens. */
   drawer?: boolean;
 }) {
@@ -88,6 +93,8 @@ export function EditorSidebar({
 
   const blocks = page.blocks;
   const def = selected ? defs.get(selected.type) : undefined;
+  // Tabs share the width so all three stay visible in a narrow sidebar.
+  const tabClass = "min-w-0 flex-1 justify-center px-2";
   const Root = drawer ? "div" : "aside";
 
   return (
@@ -123,24 +130,34 @@ export function EditorSidebar({
         </>
       )}
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as SidebarTab)} className="flex min-h-0 flex-1 flex-col">
-        <TabsList className={cn("px-4", drawer && "pr-16")}>
-          <Tab value="properties">Eigenschaften</Tab>
-          <Tab value="blocks">
+        <TabsList className={cn("px-2", drawer && "pr-14")}>
+          <Tab value="properties" className={tabClass}>
+            Eigenschaften
+          </Tab>
+          <Tab value="blocks" className={tabClass}>
             Blöcke
             <span className="rounded-full bg-subtle px-2 text-xs leading-5 font-semibold text-muted">{blocks.length}</span>
           </Tab>
-          <Tab value="page">Seite</Tab>
+          <Tab value="page" className={tabClass}>
+            Seite
+          </Tab>
         </TabsList>
 
         <TabPanel value="properties" className="flex min-h-0 flex-1 flex-col pt-0">
           {selected ? (
             <>
               <div className="flex flex-col gap-1 border-b border-border px-6 py-5">
-                <span className="flex items-center gap-1.5 text-sm text-muted">
-                  <span className="truncate">{page.title || "Seite"}</span>
-                  <ChevronRight className="size-3.5 shrink-0" />
-                  <span className="shrink-0">
-                    Block {blocks.indexOf(selected) + 1} von {blocks.length}
+                <span className="flex items-center justify-between gap-3 text-sm text-muted">
+                  <button
+                    type="button"
+                    onClick={() => onTabChange("blocks")}
+                    className="-ml-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <ArrowLeft className="size-3.5 shrink-0" strokeWidth={2} />
+                    Alle Blöcke
+                  </button>
+                  <span className="shrink-0 tabular-nums">
+                    {blocks.indexOf(selected) + 1} von {blocks.length}
                   </span>
                 </span>
                 <h2 className="text-xl font-semibold tracking-tight">{label(selected)}</h2>
@@ -160,7 +177,9 @@ export function EditorSidebar({
                         compact
                       />
                     ))
-                ) : (
+                ) : null}
+                {def?.source && <SourceCard source={def.source} onOpenGlobal={onOpenGlobal} />}
+                {!def && (
                   <p className="text-[15px] text-muted">
                     Den Blocktyp „{selected.type}“ gibt es nicht in der kern.config.yaml. Er kann hier nicht bearbeitet werden.
                   </p>
@@ -282,5 +301,44 @@ export function SidebarDrawer({
         </BaseDialog.Popup>
       </BaseDialog.Portal>
     </BaseDialog.Root>
+  );
+}
+
+/** For blocks that show entries of a collection or a global: where to edit that content. */
+function SourceCard({ source, onOpenGlobal }: { source: NonNullable<BlockDef["source"]>; onOpenGlobal: (key: string) => void }) {
+  const { config } = useKern();
+  const target = source.kind === "collection" ? config.collections.find((c) => c.key === source.key) : config.globals.find((g) => g.key === source.key);
+  if (!target) return null;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-subtle/50 p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
+          <BlockIcon name={target.icon} className="size-[18px]" strokeWidth={1.75} />
+        </span>
+        <p className="text-sm leading-relaxed text-muted">
+          {source.kind === "collection" ? (
+            <>
+              Die Einträge kommen aus <span className="font-medium text-foreground">„{target.label}“</span>. Neue Einträge erscheinen hier automatisch.
+            </>
+          ) : (
+            <>
+              Der Inhalt kommt aus <span className="font-medium text-foreground">„{target.label}“</span> und gilt für die ganze Website.
+            </>
+          )}
+        </p>
+      </div>
+      {source.kind === "collection" ? (
+        // A full navigation, so the editor can warn about unsaved changes.
+        <a href={`/collections/${source.key}`} className={buttonStyles({ variant: "secondary", size: "sm", className: "w-full" })}>
+          {target.label} bearbeiten
+          <ArrowUpRight />
+        </a>
+      ) : (
+        <Button variant="secondary" size="sm" className="w-full" onClick={() => onOpenGlobal(source.key)}>
+          <Pencil />
+          {target.label} bearbeiten
+        </Button>
+      )}
+    </div>
   );
 }

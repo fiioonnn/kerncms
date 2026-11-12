@@ -22,7 +22,6 @@ media:
 marks:                            # erlaubte Hervorhebungen in Feldern vom Typ "inline"
   - { id: accent, label: Akzent, class: mark-accent }
   - { id: marker, label: Marker, class: mark-marker }
-  - { id: wavy,   label: Wellenlinie, class: mark-wavy }
 
 pages:
   label: Seiten
@@ -37,6 +36,13 @@ blocks:                           # Bausteine, aus denen Seiten bestehen
       headline: { type: inline, label: Überschrift, required: true }
       text:     { type: textarea, label: Text }
       ...
+  events:
+    label: Termine
+    icon: calendar-days
+    source: events                # optional: Block zeigt eine Sammlung oder ein Global an;
+                                  # der Editor verlinkt dann auf „Termine bearbeiten“
+    fields:
+      limit: { type: number, label: Anzahl, default: 3 }
 
 collections:
   posts:

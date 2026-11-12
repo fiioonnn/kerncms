@@ -33,7 +33,15 @@ export type FieldDef = {
   itemLabel?: string;
 };
 
-export type BlockDef = { type: string; label: string; description: string; icon: string; fields: FieldDef[] };
+export type BlockDef = {
+  type: string;
+  label: string;
+  description: string;
+  icon: string;
+  fields: FieldDef[];
+  /** Content the block shows from elsewhere, e.g. the entries of a collection or a global. */
+  source: { kind: "collection" | "global"; key: string } | null;
+};
 
 export type CollectionDef = {
   key: string;

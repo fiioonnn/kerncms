@@ -611,6 +611,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     onMove: moveBlock,
     onDuplicate: duplicateBlock,
     onRemove: removeBlock,
+    onOpenGlobal: (key: string) => setGlobalHint(key),
   };
 
   return (

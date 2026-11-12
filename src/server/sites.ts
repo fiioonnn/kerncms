@@ -12,7 +12,7 @@ import { memberships, sites, type Role, type Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
 import { requireUser, type SessionUser } from "./auth";
 import { CONFIG_FILE, loadConfig, parseConfig } from "./config";
-import { ensureWorktree, isGitRepo, showFile } from "./git";
+import { ensureWorktree, followLiveSoon, isGitRepo, showFile } from "./git";
 import { cloneDir, readRemoteConfig, syncSoon } from "./github";
 import { cleanupSoon } from "./storage";
 
@@ -85,6 +85,7 @@ export const getWorkspace = cache(async (min: Role = "viewer"): Promise<Workspac
   const ctx = await requireRole(min);
   const dir = await ensureWorktree(ctx.site);
   syncSoon(ctx.site);
+  followLiveSoon(ctx.site.id, dir, ctx.site.branch);
   cleanupSoon(ctx.site.id);
   const config = await loadConfig(dir);
   return { ...ctx, dir, config };

@@ -89,12 +89,14 @@ export function parseConfig(source: string): KernConfig {
   if (!site.id) throw new ConfigError(`${CONFIG_FILE}: "site.id" fehlt.`);
   const pages = isObject(raw.pages) ? raw.pages : {};
 
-  const blocks = section(raw.blocks, "blocks", (type, v): BlockDef => ({
+  const blocks = section(raw.blocks, "blocks", (type, v): BlockDef & { sourceKey?: string } => ({
     type,
     label: str(v.label, humanize(type)),
     description: str(v.description),
     icon: str(v.icon, "square"),
     fields: parseFields(v.fields, `blocks.${type}`),
+    source: null,
+    sourceKey: str(v.source),
   }));
 
   const collections = section(raw.collections, "collections", (key, v): CollectionDef => {
@@ -135,6 +137,16 @@ export function parseConfig(source: string): KernConfig {
   const marks = Array.isArray(raw.marks)
     ? raw.marks.filter(isObject).map((m) => ({ id: str(m.id), label: str(m.label, str(m.id)), class: str(m.class) }))
     : [];
+
+  // "source: events" points at a collection or a global; resolved once both are known.
+  for (const block of blocks as (BlockDef & { sourceKey?: string })[]) {
+    const key = block.sourceKey;
+    delete block.sourceKey;
+    if (!key) continue;
+    if (collections.some((c) => c.key === key)) block.source = { kind: "collection", key };
+    else if (globals.some((g) => g.key === key)) block.source = { kind: "global", key };
+    else throw new ConfigError(`${CONFIG_FILE}: blocks.${block.type}.source „${key}“ ist weder eine Sammlung noch ein Global.`);
+  }
 
   return {
     site: { id: str(site.id), name: str(site.name, str(site.id)), url: str(site.url) },

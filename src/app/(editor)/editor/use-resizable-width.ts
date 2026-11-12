@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 const KEY = "kern-editor-sidebar-width";
 
 /** Sidebar width that can be dragged and is remembered per browser. */
-export function useResizableWidth({ initial = 400, min = 320, max = 720 } = {}) {
+export function useResizableWidth({ initial = 400, min = 340, max = 720 } = {}) {
   const [width, setWidth] = useState(initial);
   const [dragging, setDragging] = useState(false);
 

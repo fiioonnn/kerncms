@@ -137,7 +137,7 @@ export function BlockOutline({
               )}
               <div
                 className={cn(
-                  "flex h-16 items-center gap-1 rounded-xl pr-1.5 pl-1 transition-colors",
+                  "group flex h-16 items-center gap-1 rounded-xl pr-1.5 pl-1 transition-colors",
                   selected ? "bg-accent-soft" : "hover:bg-subtle",
                   dragId === block.id && "opacity-40",
                 )}
@@ -161,57 +161,65 @@ export function BlockOutline({
                   >
                     <BlockIcon name={def?.icon} className="size-[18px]" strokeWidth={1.75} />
                   </span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-[15px] font-medium">{meta.label}</span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[15px] font-medium">{meta.label}</span>
                     <span className="truncate text-sm text-muted">{summary}</span>
                   </span>
                 </button>
-                <Tooltip label="Nach oben">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`${meta.label} nach oben`}
-                    disabled={index === 0}
-                    onClick={() => step(index, -1)}
-                    className={rowButton}
-                  >
-                    <ArrowUp strokeWidth={1.75} />
-                  </Button>
-                </Tooltip>
-                <Tooltip label="Nach unten">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`${meta.label} nach unten`}
-                    disabled={index === blocks.length - 1}
-                    onClick={() => step(index, 1)}
-                    className={rowButton}
-                  >
-                    <ArrowDown strokeWidth={1.75} />
-                  </Button>
-                </Tooltip>
-                <Tooltip label="Duplizieren">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`${meta.label} duplizieren`}
-                    onClick={() => onDuplicate(block.id)}
-                    className={rowButton}
-                  >
-                    <Copy strokeWidth={1.75} />
-                  </Button>
-                </Tooltip>
-                <Tooltip label="Entfernen">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`${meta.label} entfernen`}
-                    onClick={() => onRemove(block.id)}
-                    className="size-9 rounded-lg text-muted hover:bg-danger-soft hover:text-danger [&_svg]:size-[18px]"
-                  >
-                    <Trash2 strokeWidth={1.75} />
-                  </Button>
-                </Tooltip>
+                {/* Actions appear on hover, focus or selection, so names keep their room. */}
+                <div
+                  className={cn(
+                    "hidden shrink-0 items-center group-focus-within:flex group-hover:flex [@media(hover:none)]:flex",
+                    selected && "flex",
+                  )}
+                >
+                  <Tooltip label="Nach oben">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${meta.label} nach oben`}
+                      disabled={index === 0}
+                      onClick={() => step(index, -1)}
+                      className={rowButton}
+                    >
+                      <ArrowUp strokeWidth={1.75} />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip label="Nach unten">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${meta.label} nach unten`}
+                      disabled={index === blocks.length - 1}
+                      onClick={() => step(index, 1)}
+                      className={rowButton}
+                    >
+                      <ArrowDown strokeWidth={1.75} />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip label="Duplizieren">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${meta.label} duplizieren`}
+                      onClick={() => onDuplicate(block.id)}
+                      className={rowButton}
+                    >
+                      <Copy strokeWidth={1.75} />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip label="Entfernen">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${meta.label} entfernen`}
+                      onClick={() => onRemove(block.id)}
+                      className="size-9 rounded-lg text-muted hover:bg-danger-soft hover:text-danger [&_svg]:size-[18px]"
+                    >
+                      <Trash2 strokeWidth={1.75} />
+                    </Button>
+                  </Tooltip>
+                </div>
               </div>
             </li>
           );

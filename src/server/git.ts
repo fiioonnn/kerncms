@@ -202,6 +202,32 @@ export async function syncDraftWithLive(dir: string, liveBranch: string, author:
   return true;
 }
 
+const followTimes = ((globalThis as { __kernFollow?: Map<string, number> }).__kernFollow ??= new Map());
+
+/**
+ * Brings developer commits on the live branch (config, components, styles) into the draft,
+ * at most every 30 seconds. Skipped quietly when git cannot merge cleanly, e.g. because an
+ * unsaved edit touches the same file; publishing merges it later anyway.
+ */
+export function followLiveSoon(siteId: string, dir: string, liveBranch: string) {
+  if (Date.now() - (followTimes.get(siteId) ?? 0) < 30_000) return;
+  followTimes.set(siteId, Date.now());
+  void withSiteLock(siteId, async () => {
+    const behind = (await git(dir, ["rev-list", "--count", `${DRAFT_BRANCH}..${liveBranch}`])).trim();
+    if (behind === "0") return;
+    // Dry run first: never start a merge that would conflict.
+    try {
+      await git(dir, ["merge-tree", "--write-tree", DRAFT_BRANCH, liveBranch]);
+    } catch {
+      return;
+    }
+    // git itself refuses (and changes nothing) if an unsaved edit touches a file the merge changes.
+    await git(dir, ["merge", "--no-edit", "-q", liveBranch, "-m", `Live-Stand von ${liveBranch} übernommen`], {
+      env: authorEnv({ name: "kerncms", email: "cms@kerncms.local" }),
+    });
+  }).catch(() => {});
+}
+
 /**
  * Publishes the draft: merges kern/draft into the live branch.
  * Works whether or not the live branch is checked out in the developer's repo.
