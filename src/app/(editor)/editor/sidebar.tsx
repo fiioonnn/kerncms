@@ -105,7 +105,10 @@ export function EditorSidebar({
   // Put the cursor into the first field of what was clicked in the preview.
   useEffect(() => {
     if (!focusPath) return;
-    const el = focusRef.current?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, [contenteditable=true], button");
+    // The clicked field (a tile's title) if it is shown, otherwise the first one.
+    const root = focusRef.current;
+    const target = root?.querySelector<HTMLElement>(`[data-focus-path="${CSS.escape(focusPath)}"]`) ?? root;
+    const el = target?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, [contenteditable=true], button");
     el?.focus({ preventScroll: true });
   }, [focusPath, selected?.id]);
   // Tabs share the width so all three stay visible in a narrow sidebar.
@@ -187,14 +190,15 @@ export function EditorSidebar({
                     {focus.context && <span className="truncate text-sm text-muted">{focus.context}</span>}
                   </div>
                   {focus.fields.map(({ def: field, path }) => (
-                    <FieldInput
-                      key={`${path}-${fieldRevs[`${selected.id}:${path.split(".")[0]}`] ?? 0}`}
-                      field={field}
-                      value={getAt(selected, path)}
-                      onChange={(value) => onFieldChange(selected.id, path, value)}
-                      marks={marks}
-                      compact
-                    />
+                    <div key={`${path}-${fieldRevs[`${selected.id}:${path.split(".")[0]}`] ?? 0}`} data-focus-path={path} className="contents">
+                      <FieldInput
+                        field={field}
+                        value={getAt(selected, path)}
+                        onChange={(value) => onFieldChange(selected.id, path, value)}
+                        marks={marks}
+                        compact
+                      />
+                    </div>
                   ))}
                   <button
                     type="button"

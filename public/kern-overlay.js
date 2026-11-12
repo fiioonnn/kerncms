@@ -68,9 +68,16 @@
     return types[fieldPath.replace(/\.\d+(?=\.|$)/g, ".*")] || null;
   }
 
+  /** "tiles.0" is an item of the list "tiles". */
+  function isListItem(blockEl, path) {
+    const m = /^(.*)\.\d+$/.exec(path);
+    return Boolean(m) && typeOf(blockEl, m[1]) === "list";
+  }
+
   /**
-   * The innermost field marker under `target` that the editor can edit, skipping
-   * list wrappers (`tiles`) and list items (`tiles.0`), which also carry data-kern-field.
+   * The innermost field marker under `target` that the editor can edit. A list item
+   * (`tiles.0`) counts too, so clicking anywhere on a tile selects that tile; list
+   * wrappers (`tiles`) are skipped.
    */
   function fieldOf(target, blockEl) {
     let el = closest(target, "[data-kern-field]");
@@ -78,6 +85,7 @@
       const path = el.getAttribute("data-kern-field");
       const kind = typeOf(blockEl, path);
       if (kind && LEAF.has(kind)) return { el, path, kind };
+      if (isListItem(blockEl, path)) return { el, path, kind: "item" };
       el = closest(el.parentElement, "[data-kern-field]");
     }
     return null;
