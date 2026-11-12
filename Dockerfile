@@ -14,7 +14,7 @@ RUN pnpm build
 
 # One-shot database migrations (docker-compose.prod.yml runs this before the app starts).
 FROM build AS migrate
-CMD ["pnpm", "db:migrate"]
+CMD ["node", "scripts/migrate.mjs"]
 
 FROM node:24-alpine AS runner
 WORKDIR /app
