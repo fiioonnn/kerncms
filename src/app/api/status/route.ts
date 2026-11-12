@@ -7,7 +7,7 @@ import { getPreview } from "@/server/preview";
 import { getWorkspace } from "@/server/sites";
 
 /** Polled by the topbar and the editor: deploy progress, preview server, pending changes, unread notifications, nav badges. */
-export async function GET() {
+export async function GET(request: Request) {
   const ws = await getWorkspace();
   const [deploy, unsaved, unpublished, [unread], [formsUnread], [approvalsOpen]] = await Promise.all([
     latestDeploy(ws.site.id),
@@ -42,7 +42,8 @@ export async function GET() {
         createdAt: deploy.createdAt.toISOString(),
         finishedAt: deploy.finishedAt?.toISOString() ?? null,
       },
-      preview: getPreview(ws.site.id),
+      // Polling from the editor keeps the preview server alive (see the idle stop in preview.ts).
+      preview: getPreview(ws.site.id, { touch: new URL(request.headers.get("referer") ?? "http://x/").pathname.startsWith("/editor") }),
       unsaved,
       unpublished,
       unread: unread?.count ?? 0,

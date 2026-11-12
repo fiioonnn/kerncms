@@ -37,6 +37,10 @@ export function lanAddress() {
 }
 
 type Entry = PreviewState & {
+  /** Last time the editor asked for this preview or the gateway served it (ms). */
+  lastUsed: number;
+  /** Open websockets through the gateway, i.e. editors showing this preview right now. */
+  sockets: number;
   proc: ChildProcess | null;
   ready: Promise<void> | null;
   /** What it was started with, to start it again (see restartPreviewFor). */
@@ -48,8 +52,34 @@ const registry = ((globalThis as { __kernPreviews?: Map<string, Entry> }).__kern
 // With KERN_PREVIEW_DOMAIN set, previews are reached through the gateway instead of 127.0.0.1:<port>.
 startPreviewGateway((siteId) => {
   const entry = registry.get(siteId);
-  return entry && entry.status !== "stopped" && entry.status !== "error" ? entry.port : null;
+  if (!entry || entry.status === "stopped" || entry.status === "error") return null;
+  entry.lastUsed = Date.now();
+  return entry.port;
+}, (siteId, delta) => {
+  const entry = registry.get(siteId);
+  if (!entry) return;
+  entry.sockets = Math.max(0, entry.sockets + delta);
+  entry.lastUsed = Date.now();
 });
+
+/**
+ * Dev servers cost a few hundred MB each. One that nobody used for KERN_PREVIEW_IDLE_MINUTES (default 30)
+ * is stopped; opening the editor starts it again. The editor polls the status every few seconds while open.
+ */
+const IDLE_MS = Number(process.env.KERN_PREVIEW_IDLE_MINUTES || 30) * 60_000;
+const gIdle = globalThis as { __kernPreviewIdle?: NodeJS.Timeout };
+if (!gIdle.__kernPreviewIdle && IDLE_MS > 0) {
+  gIdle.__kernPreviewIdle = setInterval(() => {
+    for (const [siteId, entry] of registry) {
+      if (entry.status === "installing" || entry.status === "starting" || entry.sockets > 0) continue;
+      if (Date.now() - entry.lastUsed > IDLE_MS) {
+        console.info(`[kern] Vorschau ${entry.args.site.name} wird nach ${IDLE_MS / 60_000} Minuten ohne Nutzung gestoppt.`);
+        stopPreview(siteId);
+      }
+    }
+  }, 60_000);
+  gIdle.__kernPreviewIdle.unref();
+}
 
 function pushLog(entry: Entry, chunk: string) {
   for (const line of chunk.split("\n")) {
@@ -110,8 +140,10 @@ function runToEnd(command: string, cwd: string, entry: Entry) {
   });
 }
 
-export function getPreview(siteId: string): PreviewState {
+/** Current state of a site's preview. `touch` marks it as in use (the editor's status polling). */
+export function getPreview(siteId: string, opts: { touch?: boolean } = {}): PreviewState {
   const entry = registry.get(siteId);
+  if (entry && opts.touch) entry.lastUsed = Date.now();
   if (!entry) return { status: "stopped", port: null, url: null, lanUrl: null, error: null, log: [], startedAt: 0 };
   return {
     status: entry.status,
@@ -137,6 +169,8 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
     error: null,
     log: existing?.log ?? [],
     startedAt: Date.now(),
+    lastUsed: Date.now(),
+    sockets: 0,
     proc: null,
     ready: null,
     args: { site, dir, cmsUrl },

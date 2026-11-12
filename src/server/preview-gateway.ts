@@ -27,6 +27,8 @@ export function publicPreviewUrl(siteId: string) {
 }
 
 type Lookup = (siteId: string) => number | null;
+/** Called with +1 / -1 when a websocket to a preview opens or closes (an open editor keeps one open). */
+type OnSocket = (siteId: string, delta: 1 | -1) => void;
 
 function siteIdFromHost(host: string | undefined) {
   const domain = previewDomain()?.split(":")[0];
@@ -48,7 +50,7 @@ function notFound(res: http.ServerResponse, message: string) {
 }
 
 /** Starts the gateway once per process. `lookup` returns the port of a running preview. */
-export function startPreviewGateway(lookup: Lookup) {
+export function startPreviewGateway(lookup: Lookup, onSocket?: OnSocket) {
   const g = globalThis as { __kernPreviewGateway?: http.Server };
   if (g.__kernPreviewGateway || !previewDomain()) return;
   const port = Number(process.env.KERN_PREVIEW_PORT || 3100);
@@ -79,6 +81,15 @@ export function startPreviewGateway(lookup: Lookup) {
       upstream.write(lines.join("\r\n") + "\r\n\r\n");
       if (head.length) upstream.write(head);
       socket.pipe(upstream).pipe(socket);
+      onSocket?.(siteId!, 1);
+      let closed = false;
+      const done = () => {
+        if (closed) return;
+        closed = true;
+        onSocket?.(siteId!, -1);
+      };
+      socket.on("close", done);
+      upstream.on("close", done);
     });
     upstream.on("error", () => socket.destroy());
     socket.on("error", () => upstream.destroy());
