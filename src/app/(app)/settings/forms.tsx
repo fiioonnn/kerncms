@@ -161,7 +161,8 @@ function FormCard({
               onChange={(subject) => set({ subject })}
               variables={fieldVariables}
               example={notifySubject}
-              hint={`Leer lassen für „${notifySubject}“. Über „Platzhalter“ kommen Angaben aus dem Formular in den Betreff, z. B. der Name.`}
+              placeholder={notifySubject}
+              hint="Über „Platzhalter“ kommen Angaben aus dem Formular in den Betreff, z. B. der Name."
             />
             <div className="flex flex-col gap-1 rounded-xl bg-subtle px-4 py-3 text-sm">
               <span className="text-muted">
@@ -206,7 +207,7 @@ function FormCard({
                   value={values.replySubject}
                   onChange={(replySubject) => set({ replySubject })}
                   variables={[...fieldVariables, ...builtinVariables]}
-                  hint="Leer: „Re:“ + Betreff der Benachrichtigung"
+                  placeholder={`Re: ${notifySubject}`}
                 />
                 <TemplateInput
                   multiline
@@ -214,7 +215,7 @@ function FormCard({
                   value={values.replyBody}
                   onChange={(replyBody) => set({ replyBody })}
                   variables={[...fieldVariables, ...builtinVariables]}
-                  hint="Leer: die Mail öffnet sich ohne Text"
+                  placeholder={"Guten Tag,\n\nvielen Dank für Ihre Anfrage …"}
                 />
               </div>
               <MailPreview subject={replySubject} body={replyBody} />
@@ -248,6 +249,7 @@ function TemplateInput({
   variables,
   example,
   hint,
+  placeholder,
   multiline,
 }: {
   label: string;
@@ -256,6 +258,7 @@ function TemplateInput({
   variables: readonly Variable[];
   example?: string;
   hint?: string;
+  placeholder?: string;
   multiline?: boolean;
 }) {
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
@@ -307,9 +310,9 @@ function TemplateInput({
         </Menu>
       </div>
       {multiline ? (
-        <Textarea ref={ref} rows={6} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+        <Textarea ref={ref} rows={6} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={label} />
       ) : (
-        <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+        <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={label} />
       )}
       {value && example ? (
         <p className="truncate text-sm text-muted">
