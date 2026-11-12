@@ -300,13 +300,13 @@ export async function emptyTrash() {
 
 /* ---------- Form submissions ---------- */
 
-export async function updateSubmissions(ids: string[], change: { read?: boolean; archived?: boolean }) {
+export async function updateSubmissions(ids: string[], change: { read?: boolean; archived?: boolean; spam?: boolean }) {
   return run(async () => {
     const ctx = await requireRole("editor");
     if (ids.length) {
       await db
         .update(formSubmissions)
-        .set(change)
+        .set(change.spam === false ? { ...change, spamReason: null } : change)
         .where(and(eq(formSubmissions.siteId, ctx.site.id), inArray(formSubmissions.id, ids)));
     }
     refresh();

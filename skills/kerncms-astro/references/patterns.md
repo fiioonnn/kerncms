@@ -274,11 +274,15 @@ Globals in the layout: `<a data-kern-global="site#phone" href={`tel:${site.phone
   <div aria-hidden="true" style="position:absolute;left:-9999px">
     <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" />
   </div>
+  <!-- Spam protection: filled with the load time by the script below; empty or too fast = bot. -->
+  <input type="hidden" name="_t" value="" />
   <button type="submit" data-submit>Senden</button>
   <p data-status role="status"></p>
 </form>
 <script>
   for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form-id]")) {
+    const loadedAt = form.querySelector<HTMLInputElement>('input[name="_t"]');
+    if (loadedAt) loadedAt.value = String(Date.now());
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data: Record<string, string | boolean> = {};

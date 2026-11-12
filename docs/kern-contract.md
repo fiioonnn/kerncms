@@ -172,7 +172,10 @@ und lokal von localhost angenommen.
 
 - Formular: `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/forms/{form}` mit JSON oder `FormData`.
   Antwort `{ ok: true }` oder `{ ok: false, errors: { feld: "Meldung" } }`. CORS ist offen.
-  Ein Honeypot-Feld `_gotcha` muss leer bleiben.
+  Ein Honeypot-Feld `_gotcha` muss leer bleiben. Spamschutz: ein verstecktes Feld `_t`, das das Script beim
+  Laden mit `Date.now()` füllt. Fehlt der Wert, kam die Einsendung ohne JavaScript; unter 3 Sekunden gilt sie als Bot.
+  Zusammen mit Links, HTML-Links und fremder Schrift ergibt das eine Spam-Einstufung: solche Einsendungen landen
+  im CMS unter „Spam“, ohne Benachrichtigung. Sites ohne `_t` werden nicht nach Zeit bewertet.
   Jede Einsendung erscheint im CMS unter Formulare. Optional schickt das CMS eine Benachrichtigung per E-Mail
   (Empfänger und Betreff pro Formular im CMS einstellbar, Versand über den SMTP des CMS, ohne Reply-To;
   die Mail enthält einen Button, der eine neue Mail an den Besucher öffnet).

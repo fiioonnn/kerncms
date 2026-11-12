@@ -73,7 +73,8 @@ existing site's config and content before changing it.
 - [ ] Every rendered field has `data-kern-field` with the right path (lists: `items.0.title`).
 - [ ] Globals in header/footer have `data-kern-global="<key>#<field>"`.
 - [ ] Overlay script loads only when `KERN_PREVIEW` is set; analytics only when it is not.
-- [ ] Forms post JSON to the kerncms endpoint, include an empty `_gotcha` honeypot, show field errors
+- [ ] Forms post JSON to the kerncms endpoint, include an empty `_gotcha` honeypot and a hidden `_t`
+      the script fills with `Date.now()` on load (spam filter), show field errors
       from `{ ok: false, errors }` and a success state.
 - [ ] Images work with both `/media/…` paths and full URLs.
 - [ ] Mark classes from `marks:` exist in CSS.

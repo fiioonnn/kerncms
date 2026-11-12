@@ -185,6 +185,10 @@ export const formSubmissions = pgTable(
     mailedAt: timestamp(),
     read: boolean().notNull().default(false),
     archived: boolean().notNull().default(false),
+    /** Caught by the spam filter (or marked by hand): no mail, no notification, own tab. */
+    spam: boolean().notNull().default(false),
+    /** Why the filter flagged it, shown in the CMS so a false alarm is easy to judge. */
+    spamReason: text(),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.siteId, t.createdAt)],

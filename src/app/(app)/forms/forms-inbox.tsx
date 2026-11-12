@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, Reply, Settings2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, Reply, Settings2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { refreshStatus } from "@/components/history/use-status";
 import { useKern } from "@/components/kern/kern-provider";
 import { PageContainer } from "@/components/layout/page-container";
@@ -28,6 +28,8 @@ type Submission = {
   page: string | null;
   read: boolean;
   archived: boolean;
+  spam: boolean;
+  spamReason: string | null;
   mailStatus: "sent" | "failed" | "off" | null;
   mailError: string | null;
   mailedAt: string | null;
@@ -60,22 +62,24 @@ export function FormsInbox({
   const kern = useKern();
   const [items, setItems] = useState(initial);
   const [formKey, setFormKey] = useState<string | null>(null);
-  const [tab, setTab] = useState<"inbox" | "archive">("inbox");
+  const [tab, setTab] = useState<"inbox" | "archive" | "spam">("inbox");
   const [openId, setOpenId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmSpamOpen, setConfirmSpamOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const formOf = (key: string) => forms.find((f) => f.key === key);
   const open = items.find((s) => s.id === openId);
   const inForm = items.filter((s) => !formKey || s.form === formKey);
-  const inbox = inForm.filter((s) => !s.archived);
-  const archive = inForm.filter((s) => s.archived);
-  const unread = (key?: string | null) => items.filter((s) => !s.archived && !s.read && (!key || s.form === key)).length;
+  const inbox = inForm.filter((s) => !s.archived && !s.spam);
+  const archive = inForm.filter((s) => s.archived && !s.spam);
+  const spam = inForm.filter((s) => s.spam);
+  const unread = (key?: string | null) => items.filter((s) => !s.archived && !s.spam && !s.read && (!key || s.form === key)).length;
 
-  function change(ids: string[], patch: { read?: boolean; archived?: boolean }, message?: string) {
+  function change(ids: string[], patch: { read?: boolean; archived?: boolean; spam?: boolean }, message?: string) {
     const before = items;
-    setItems((list) => list.map((s) => (ids.includes(s.id) ? { ...s, ...patch } : s)));
+    setItems((list) => list.map((s) => (ids.includes(s.id) ? { ...s, ...patch, ...(patch.spam === false ? { spamReason: null } : {}) } : s)));
     startTransition(async () => {
       const result = await updateSubmissions(ids, patch);
       if (!result.ok) {
@@ -211,7 +215,7 @@ export function FormsInbox({
           )}
         </Card>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "inbox" | "archive")}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "inbox" | "archive" | "spam")}>
           <TabsList>
             <Tab value="inbox">
               Posteingang
@@ -222,6 +226,10 @@ export function FormsInbox({
               )}
             </Tab>
             <Tab value="archive">Archiv</Tab>
+            <Tab value="spam">
+              Spam
+              {spam.length > 0 && <span className="text-sm text-muted">{spam.length}</span>}
+            </Tab>
           </TabsList>
           <TabPanel value="inbox" className="pt-5">
             <Card>
@@ -231,7 +239,7 @@ export function FormsInbox({
                 <EmptyState
                   icon={Inbox}
                   title="Noch keine Nachrichten"
-                  description={`Die Website schickt Formulare per POST an ${endpoint} (JSON oder FormData, Feld „_gotcha“ leer lassen). Neue Einsendungen erscheinen dann hier.`}
+                  description={`Die Website schickt Formulare per POST an ${endpoint} (JSON oder FormData, Feld „_gotcha“ leer lassen, Feld „_t“ mit der Ladezeit füllen). Neue Einsendungen erscheinen dann hier.`}
                 />
               ) : (
                 <EmptyState icon={Inbox} title="Keine Nachrichten" description="Neue Einsendungen erscheinen hier automatisch." />
@@ -247,6 +255,28 @@ export function FormsInbox({
               )}
             </Card>
           </TabPanel>
+          <TabPanel value="spam" className="pt-5">
+            <Card>
+              {spam.length ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+                    <p className="min-w-0 flex-1 text-sm text-muted">Hier landen verdächtige Nachrichten, ohne E-Mail-Benachrichtigung.</p>
+                    <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-soft" onClick={() => setConfirmSpamOpen(true)}>
+                      <Trash2 />
+                      Alle löschen
+                    </Button>
+                  </div>
+                  <SubmissionTable rows={spam} showForm={!formKey} formOf={formOf} onOpen={openSubmission} />
+                </>
+              ) : (
+                <EmptyState
+                  icon={ShieldCheck}
+                  title="Kein Spam"
+                  description="Verdächtige Nachrichten landen hier statt im Posteingang, zum Beispiel solche mit vielen Links oder von Bots, die das Formular automatisch ausfüllen."
+                />
+              )}
+            </Card>
+          </TabPanel>
         </Tabs>
       </div>
 
@@ -256,6 +286,7 @@ export function FormsInbox({
             onResent={(patch) => setItems((list) => list.map((s) => (s.id === open.id ? { ...s, ...patch } : s)))}
             submission={open}
             form={formOf(open.form)}
+            notifyOn={Boolean(settings[open.form]?.notify && settings[open.form]?.recipients.length)}
             replyHref={(() => {
               const form = formOf(open.form);
               const formSettings = settings[open.form];
@@ -264,6 +295,10 @@ export function FormsInbox({
                 : null;
             })()}
             onDelete={() => setConfirmOpen(true)}
+            onSpam={() => {
+              change([open.id], { spam: !open.spam, read: true }, open.spam ? "In den Posteingang verschoben" : "Als Spam markiert");
+              setDialogOpen(false);
+            }}
             onArchive={() => {
               change([open.id], { archived: !open.archived }, open.archived ? "In den Posteingang verschoben" : "Archiviert");
               setDialogOpen(false);
@@ -284,6 +319,15 @@ export function FormsInbox({
         confirmLabel="Löschen"
         danger
         onConfirm={() => open && remove([open.id])}
+      />
+      <ConfirmDialog
+        open={confirmSpamOpen}
+        onOpenChange={setConfirmSpamOpen}
+        title={`${spam.length === 1 ? "Eine Spam-Nachricht" : `${spam.length} Spam-Nachrichten`} löschen?`}
+        description="Sie werden endgültig gelöscht. Das lässt sich nicht rückgängig machen."
+        confirmLabel="Löschen"
+        danger
+        onConfirm={() => remove(spam.map((s) => s.id))}
       />
     </PageContainer>
   );
@@ -361,7 +405,7 @@ function SubmissionTable({
   );
 }
 
-function MailStatus({ submission, onResent }: { submission: Submission; onResent: (patch: Partial<Submission>) => void }) {
+function MailStatus({ submission, notifyOn, onResent }: { submission: Submission; notifyOn: boolean; onResent: (patch: Partial<Submission>) => void }) {
   const [pending, startTransition] = useTransition();
   const resend = () =>
     startTransition(async () => {
@@ -395,6 +439,19 @@ function MailStatus({ submission, onResent }: { submission: Submission; onResent
       </div>
     );
   }
+  // E.g. moved out of spam: no mail went out, but notifications are on now.
+  if (notifyOn) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+        <BellOff className="size-4 shrink-0" strokeWidth={1.75} />
+        <span className="min-w-0 flex-1">Keine Benachrichtigung verschickt</span>
+        <Button variant="secondary" size="sm" onClick={resend} disabled={pending}>
+          {pending && <Loader2 className="animate-spin" />}
+          Jetzt senden
+        </Button>
+      </div>
+    );
+  }
   return (
     <p className="flex items-center gap-2 text-sm text-muted">
       <BellOff className="size-4" strokeWidth={1.75} />
@@ -409,8 +466,10 @@ function SubmissionDialog({
   onDelete,
   onArchive,
   onUnread,
+  onSpam,
   onResent,
   replyHref,
+  notifyOn,
 }: {
   submission: Submission;
   form: FormDef | undefined;
@@ -418,6 +477,8 @@ function SubmissionDialog({
   onDelete: () => void;
   onArchive: () => void;
   onUnread: () => void;
+  onSpam: () => void;
+  notifyOn: boolean;
   onResent: (patch: Partial<Submission>) => void;
 }) {
   const { subject, email } = summarize(submission, form);
@@ -450,6 +511,11 @@ function SubmissionDialog({
                 {submission.archived ? <ArchiveRestore /> : <Archive />}
               </Button>
             </Tooltip>
+            <Tooltip label={submission.spam ? "Kein Spam" : "Als Spam markieren"} side="top">
+              <Button variant="ghost" size="icon" onClick={onSpam} aria-label={submission.spam ? "Kein Spam" : "Als Spam markieren"}>
+                {submission.spam ? <ShieldCheck /> : <ShieldAlert />}
+              </Button>
+            </Tooltip>
             <Tooltip label="Als ungelesen markieren" side="top">
               <Button variant="ghost" size="icon" onClick={onUnread} aria-label="Als ungelesen markieren">
                 <MailOpen />
@@ -466,7 +532,17 @@ function SubmissionDialog({
       }
     >
       <div className="mb-4">
-        <MailStatus submission={submission} onResent={onResent} />
+        {submission.spam ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
+            <ShieldAlert className="size-4 shrink-0" strokeWidth={2} />
+            <span className="min-w-0 flex-1">Als Spam erkannt{submission.spamReason ? `: ${submission.spamReason}` : ""}</span>
+            <Button variant="secondary" size="sm" onClick={onSpam}>
+              Kein Spam
+            </Button>
+          </div>
+        ) : (
+          <MailStatus submission={submission} notifyOn={notifyOn} onResent={onResent} />
+        )}
       </div>
       <dl className="flex flex-col divide-y divide-border rounded-xl border border-border">
         {rows.map((field) => (

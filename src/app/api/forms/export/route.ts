@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const rows = await db
     .select()
     .from(formSubmissions)
-    .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.form, form.key)))
+    .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.form, form.key), eq(formSubmissions.spam, false)))
     .orderBy(desc(formSubmissions.createdAt));
   const header = ["Eingegangen", ...form.fields.map((f) => f.label), "Seite"];
   const lines = rows.map((row) =>

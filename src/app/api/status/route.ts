@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(formSubmissions)
-      .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.read, false), eq(formSubmissions.archived, false))),
+      .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.read, false), eq(formSubmissions.archived, false), eq(formSubmissions.spam, false))),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(approvals)

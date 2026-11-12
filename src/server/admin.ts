@@ -30,7 +30,7 @@ export async function adminOverview() {
     db.select({ n: count() }).from(sites),
     db.select({ n: count() }).from(users),
     db.select({ n: count() }).from(pageViews).where(gt(pageViews.createdAt, since)),
-    db.select({ n: count() }).from(formSubmissions).where(gt(formSubmissions.createdAt, since)),
+    db.select({ n: count() }).from(formSubmissions).where(and(gt(formSubmissions.createdAt, since), eq(formSubmissions.spam, false))),
     db
       .select({ deploy: deploys, site: sites.name, by: users.name })
       .from(deploys)

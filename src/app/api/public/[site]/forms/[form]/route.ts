@@ -7,6 +7,7 @@ import { notify } from "@/server/notifications";
 import { clientIp, corsHeaders, json, originAllowed, rateLimited, siteByPublicKey } from "@/server/public";
 import { sendSubmissionMails } from "@/server/site-mail";
 import { validateValues } from "@/server/sanitize";
+import { checkSpam } from "@/server/spam";
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -53,6 +54,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
     page = body._page || (request.headers.get("referer") ? new URL(request.headers.get("referer")!).pathname : null);
   } catch {
     page = null;
+  }
+  // Spam is kept (own tab in the CMS) but sends no mail and no notification. The visitor sees success either way.
+  const check = checkSpam(data, { t: body._t });
+  if (check.spam) {
+    await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page, spam: true, spamReason: check.reasons.join(" · "), read: true, mailStatus: "off" });
+    return json({ ok: true });
   }
   const [submission] = await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page }).returning({ id: formSubmissions.id });
   const who = data.name || data.email || "Jemand";

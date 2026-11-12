@@ -260,6 +260,8 @@ export async function getForms() {
       page: r.page,
       read: r.read,
       archived: r.archived,
+      spam: r.spam,
+      spamReason: r.spamReason,
       mailStatus: r.mailStatus,
       mailError: r.mailError,
       mailedAt: r.mailedAt?.toISOString() ?? null,
@@ -392,7 +394,7 @@ export async function getDashboard() {
     db
       .select({ id: formSubmissions.id })
       .from(formSubmissions)
-      .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.read, false), eq(formSubmissions.archived, false))),
+      .where(and(eq(formSubmissions.siteId, ws.site.id), eq(formSubmissions.read, false), eq(formSubmissions.archived, false), eq(formSubmissions.spam, false))),
     db.select({ id: approvals.id }).from(approvals).where(and(eq(approvals.siteId, ws.site.id), eq(approvals.status, "open"))),
   ]);
   return {
