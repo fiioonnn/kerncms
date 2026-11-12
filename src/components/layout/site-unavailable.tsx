@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { ArrowRight, FileWarning, Loader2, LogOut } from "lucide-react";
+import { ArrowRight, FileWarning, Loader2, LogOut, RotateCcw } from "lucide-react";
 import { Logo } from "@/components/auth/auth-shell";
 import { Button, buttonStyles } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/display";
 import { toast } from "@/components/ui/toast";
 import { logout } from "@/server/actions/auth";
-import { switchSite } from "@/server/actions/site";
+import { resetDraft, switchSite } from "@/server/actions/site";
 
 /**
  * Shown instead of the app when the current site cannot be opened, e.g. kern.config.yaml is missing on its branch.
@@ -21,6 +22,7 @@ export function SiteUnavailable({
   kind,
   sites,
   isAdmin,
+  canReset,
 }: {
   site: { id: string; name: string; branch: string; repo: string | null };
   reason: string;
@@ -28,6 +30,8 @@ export function SiteUnavailable({
   kind: "config" | "git";
   sites: { id: string; name: string }[];
   isAdmin: boolean;
+  /** The live branch has kern.config.yaml, only the draft lacks it. */
+  canReset: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -38,6 +42,15 @@ export function SiteUnavailable({
       const result = await switchSite(id);
       if (!result.ok) toast.error("Wechseln fehlgeschlagen", { description: result.error });
       else router.refresh();
+    });
+  }
+
+  function reset() {
+    startTransition(async () => {
+      const result = await resetDraft();
+      if (!result.ok) return void toast.error("Zurücksetzen fehlgeschlagen", { description: result.error });
+      toast.success("Entwurf neu gestartet", { description: result.data.backup ? `Der alte Entwurf liegt im Branch ${result.data.backup}.` : undefined });
+      router.refresh();
     });
   }
 
@@ -67,9 +80,30 @@ export function SiteUnavailable({
             <p className="text-[15px] text-muted">Der Arbeitsstand der Website konnte nicht vorbereitet werden. Das liegt meist am Repository oder an den Zugriffsrechten.</p>
           )}
         </div>
+        {canReset && (
+          <div className="flex flex-col gap-3 rounded-xl bg-subtle p-4">
+            <p className="text-sm text-muted">
+              Auf <code className="font-mono text-foreground">{site.branch}</code> ist die Datei vorhanden, nur der Entwurf von kerncms ist auf einem alten
+              Stand. Starte den Entwurf neu vom Live-Stand. Der alte Entwurf bleibt als Sicherung in einem eigenen Branch.
+            </p>
+            <ConfirmDialog
+              title="Entwurf neu starten?"
+              description={`Der Entwurf wird durch den Stand von ${site.branch} ersetzt. Unveröffentlichte Änderungen im alten Entwurf bleiben im Branch kern/draft-backup-… erhalten, sind aber nicht mehr im CMS sichtbar.`}
+              confirmLabel="Entwurf neu starten"
+              triggerClassName={buttonStyles({ className: "w-fit" })}
+              trigger={
+                <>
+                  {pending ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+                  Entwurf neu starten
+                </>
+              }
+              onConfirm={reset}
+            />
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
           {isAdmin && (
-            <Link href="/admin/sites" className={buttonStyles({})}>
+            <Link href="/admin/sites" className={buttonStyles({ variant: canReset ? "secondary" : "primary" })}>
               Websites verwalten
             </Link>
           )}

@@ -9,7 +9,8 @@ import { parse } from "yaml";
 import { db } from "@/db";
 import { githubApp, sites, type Site } from "@/db/schema";
 import { decrypt } from "./crypto";
-import { DATA_DIR, DRAFT_BRANCH, git } from "./git";
+import { CONFIG_FILE } from "./config";
+import { DATA_DIR, DRAFT_BRANCH, git, showFile } from "./git";
 
 /* ---------- App credentials ---------- */
 
@@ -159,16 +160,21 @@ export async function fetchRemote(site: Site) {
   if (await refExists(site.repoPath, remoteLive)) {
     await git(site.repoPath, ["update-ref", `refs/heads/${site.branch}`, remoteLive]);
   }
-  // A draft pushed earlier (e.g. from another CMS instance) is picked up if we have none.
+  // A draft pushed earlier (e.g. from another CMS instance) is picked up if we have none, but only if it
+  // has a kern.config.yaml: an old draft from before the site was set up for kerncms would hide the config.
   const remoteDraft = `refs/remotes/origin/${DRAFT_BRANCH}`;
-  if (!(await refExists(site.repoPath, `refs/heads/${DRAFT_BRANCH}`)) && (await refExists(site.repoPath, remoteDraft))) {
+  if (
+    !(await refExists(site.repoPath, `refs/heads/${DRAFT_BRANCH}`)) &&
+    (await refExists(site.repoPath, remoteDraft)) &&
+    (await showFile(site.repoPath, remoteDraft, CONFIG_FILE)) !== null
+  ) {
     await git(site.repoPath, ["update-ref", `refs/heads/${DRAFT_BRANCH}`, remoteDraft]);
   }
   await db.update(sites).set({ lastSyncedAt: new Date() }).where(eq(sites.id, site.id));
 }
 
-export async function pushBranches(site: Site, branches: string[]) {
-  const refspecs = branches.map((b) => `refs/heads/${b}:refs/heads/${b}`);
+export async function pushBranches(site: Site, branches: string[], opts: { force?: boolean } = {}) {
+  const refspecs = branches.map((b) => `${opts.force ? "+" : ""}refs/heads/${b}:refs/heads/${b}`);
   await remoteGit(site, ["push", "-q", "origin", ...refspecs]);
 }
 

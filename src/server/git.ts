@@ -292,3 +292,21 @@ export async function showFile(dir: string, ref: string, file: string) {
     return null;
   }
 }
+
+/**
+ * Replaces the draft with the live branch, keeping the old draft as `kern/draft-backup-<time>`.
+ * For a draft that has drifted away from the site, e.g. one left over from before the site used kerncms.
+ */
+export async function resetDraftToLive(site: Site) {
+  const repo = site.repoPath;
+  let backup: string | null = null;
+  if (await branchExists(repo, DRAFT_BRANCH)) {
+    backup = `${DRAFT_BRANCH}-backup-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
+    await git(repo, ["branch", "-f", backup, DRAFT_BRANCH]);
+  }
+  const dir = worktreeDir(site);
+  if (existsSync(path.join(dir, ".git"))) await git(dir, ["reset", "--hard", "-q", site.branch]);
+  else await git(repo, ["branch", "-f", DRAFT_BRANCH, site.branch]);
+  return backup;
+}
+

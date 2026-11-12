@@ -13,10 +13,10 @@ import { locateMedia, writeMedia } from "../media";
 import { run } from "../action";
 import { safeJoin } from "../content";
 import { startPublish } from "../deploy";
-import { commit, discard, DRAFT_BRANCH, git, uncommittedFiles, unpublishedFiles, withSiteLock, worktreeDir } from "../git";
+import { commit, discard, DRAFT_BRANCH, git, resetDraftToLive, uncommittedFiles, unpublishedFiles, withSiteLock, worktreeDir } from "../git";
 import { markAllRead, notify } from "../notifications";
 import { ensurePreview, getPreview, stopPreview } from "../preview";
-import { ForbiddenError, getSiteContext, getWorkspace, requireRole, SITE_COOKIE, type Workspace } from "../sites";
+import { ForbiddenError, getSiteContext, getWorkspace, hasRole, requireRole, SITE_COOKIE, type Workspace } from "../sites";
 
 function author(ws: Workspace) {
   return { id: ws.user.id, name: ws.user.name, email: ws.user.email };
@@ -35,6 +35,33 @@ export async function switchSite(siteId: string) {
     (await cookies()).set(SITE_COOKIE, siteId, { path: "/", sameSite: "lax", httpOnly: true, maxAge: 31_536_000 });
     refresh();
     return null;
+  });
+}
+
+/**
+ * Replaces the current site's draft with its live branch (old draft kept as a backup branch).
+ * Offered when the draft has no kern.config.yaml but the live branch has one.
+ */
+export async function resetDraft() {
+  return run(async () => {
+    const ctx = await getSiteContext();
+    if (!hasRole(ctx.role, "admin")) throw new ForbiddenError();
+    const site = ctx.site;
+    return withSiteLock(site.id, async () => {
+      if (site.source === "github") {
+        const github = await import("../github");
+        await github.fetchRemote(site);
+        const backup = await resetDraftToLive(site);
+        // The old draft stays on GitHub as the backup branch, then the draft is replaced there too.
+        await github.pushBranches(site, backup ? [backup] : []);
+        await github.pushBranches(site, [DRAFT_BRANCH], { force: true });
+        refresh();
+        return { backup };
+      }
+      const backup = await resetDraftToLive(site);
+      refresh();
+      return { backup };
+    });
   });
 }
 
