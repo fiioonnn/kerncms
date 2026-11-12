@@ -17,19 +17,8 @@ import { cn } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
 import { switchSite } from "@/server/actions/site";
 import { findNavItem, navigation } from "./nav";
+import { SiteIcon } from "./site-icon";
 import { setDarkMode, useDarkMode } from "./theme";
-
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?"
-  );
-}
 
 function hostOf(url: string | null) {
   if (!url) return "Keine Live-Adresse";
@@ -79,9 +68,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-4 pb-2">
         <Menu>
           <MenuTrigger className="flex h-14 w-full items-center gap-3 rounded-xl border border-border px-3 text-left transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-accent">
-              {switching ? <Loader2 className="size-4 animate-spin" /> : initials(site.name)}
-            </span>
+            {switching ? (
+              <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                <Loader2 className="size-4 animate-spin" />
+              </span>
+            ) : (
+              <SiteIcon siteId={site.id} name={site.name} className="size-9 text-sm" />
+            )}
             <span className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-[15px] font-medium">{site.name}</span>
               <span className="truncate text-sm text-muted">{hostOf(site.liveUrl)}</span>
@@ -92,9 +85,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <MenuLabel>Websites</MenuLabel>
             {kern.sites.map((s) => (
               <MenuItem key={s.id} onClick={() => changeSite(s.id, s.name)} className="h-12">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent">
-                  {initials(s.name)}
-                </span>
+                <SiteIcon siteId={s.id} name={s.name} className="size-8 text-xs" />
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
                   <span className="truncate">{s.name}</span>
                   <span className="truncate text-sm text-muted">{roleLabels[s.role]}</span>

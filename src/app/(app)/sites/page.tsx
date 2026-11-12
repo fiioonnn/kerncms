@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { ArrowRight, Check, ExternalLink, Loader2, Plus, Search } from "lucide-react";
 import { useKern } from "@/components/kern/kern-provider";
 import { PageContainer } from "@/components/layout/page-container";
+import { SiteIcon } from "@/components/layout/site-icon";
 import { buttonStyles } from "@/components/ui/button";
 import { Badge, Card, PageHeader } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,18 +23,6 @@ function hostOf(url: string | null) {
   } catch {
     return url;
   }
-}
-
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?"
-  );
 }
 
 export default function SitesPage() {
@@ -104,9 +93,13 @@ export default function SitesPage() {
                   className="group flex flex-1 flex-col gap-5 rounded-2xl p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   <div className="flex items-start gap-4">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-base font-semibold text-accent">
-                      {switching === site.id ? <Loader2 className="size-5 animate-spin" /> : initials(site.name)}
-                    </span>
+                    {switching === site.id ? (
+                      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                        <Loader2 className="size-5 animate-spin" />
+                      </span>
+                    ) : (
+                      <SiteIcon siteId={site.id} name={site.name} className="size-12 rounded-xl text-base" />
+                    )}
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-base font-semibold group-hover:text-accent">{site.name}</span>
                       <span className="truncate text-sm text-muted">{host ?? "Keine Live-Adresse"}</span>

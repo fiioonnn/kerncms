@@ -17,6 +17,15 @@ export class GitError extends Error {
   }
 }
 
+/** A file's bytes at a ref (binary-safe, unlike showFile), or null if it is not there. */
+export function showBlob(dir: string, ref: string, file: string) {
+  return new Promise<Buffer | null>((resolve) => {
+    execFile("git", ["show", `${ref}:${file}`], { cwd: dir, encoding: "buffer", maxBuffer: 8 * 1024 * 1024 }, (error, stdout) =>
+      resolve(error ? null : stdout),
+    );
+  });
+}
+
 export function git(cwd: string, args: string[], opts: { input?: string; env?: Record<string, string> } = {}) {
   return new Promise<string>((resolve, reject) => {
     const child = execFile(
