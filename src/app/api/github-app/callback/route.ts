@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/db";
 import { githubApp } from "@/db/schema";
+import { publicUrl } from "@/lib/public-url";
 import { requireAdmin } from "@/server/auth";
 import { encrypt } from "@/server/crypto";
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const back = (q: string) => NextResponse.redirect(new URL(`/admin/github?${q}`, request.url));
+  const back = (q: string) => NextResponse.redirect(publicUrl(`/admin/github?${q}`, request));
   if (!code || !state || state !== request.cookies.get("kern_github_state")?.value) return back("error=state");
 
   const res = await fetch(`https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`, {

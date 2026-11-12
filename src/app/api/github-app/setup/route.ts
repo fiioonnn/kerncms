@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { publicBaseUrl as baseUrl } from "@/lib/public-url";
 import { requireAdmin } from "@/server/auth";
 
-function baseUrl(request: Request) {
-  return (process.env.KERN_PUBLIC_URL ?? new URL(request.url).origin).replace(/\/$/, "");
-}
 
 /** Starts GitHub's manifest flow: GitHub creates the app with these settings and sends the credentials back. */
 export async function GET(request: Request) {

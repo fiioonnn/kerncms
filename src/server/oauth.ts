@@ -18,13 +18,7 @@ const ACCESS_TTL = 60 * 60_000;
 const REFRESH_TTL = 30 * 24 * 60 * 60_000;
 
 /** Public base URL of the CMS, e.g. https://cms.example.com (no trailing slash). */
-export function baseUrl(request: Request) {
-  if (process.env.KERN_PUBLIC_URL) return process.env.KERN_PUBLIC_URL.replace(/\/$/, "");
-  const url = new URL(request.url);
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host;
-  const proto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
-  return `${proto}://${host}`;
-}
+export { publicBaseUrl as baseUrl } from "@/lib/public-url";
 
 export const mcpResource = (base: string) => `${base}/mcp`;
 
