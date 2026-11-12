@@ -3,8 +3,9 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 #
 # No mail catcher; database and storage are only reachable inside the Docker network.
-# The app listens on 127.0.0.1:3000 for a reverse proxy with TLS in front of it,
-# or use the Cloudflare tunnel at the bottom (profile "tunnel") without any open port.
+# No host port is published: Dokploy/Traefik reaches the app on the Docker network (domain → service app,
+# port 3000), and the Cloudflare tunnel at the bottom does the same. For your own reverse proxy on the host,
+# add a docker-compose.override.yml with:  services: { app: { ports: ["127.0.0.1:3000:3000"] } }
 
 services:
   postgres:
@@ -92,8 +93,8 @@ services:
     volumes:
       # Git checkouts of the sites, their node_modules and the pnpm cache.
       - kern-data:/data
-    ports:
-      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    expose:
+      - "3000"
 
   # Optional: Cloudflare Tunnel instead of an open port and a reverse proxy.
   #   docker compose -f docker-compose.prod.yml --env-file .env.prod --profile tunnel up -d
