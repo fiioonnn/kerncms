@@ -1,8 +1,9 @@
 import { Check, MousePointer2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function Logo({ className }: { className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element -- static SVG logo
-  return <img src="/logo.svg" alt="kerncms" width={254} height={58} className={className} />;
+  return <img src="/logo.svg" alt="kerncms" width={254} height={58} className={cn("dark:invert", className)} />;
 }
 
 /** Stylised preview of editing a page, drawn with markup so it stays crisp and light. */

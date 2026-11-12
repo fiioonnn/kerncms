@@ -19,7 +19,7 @@ export function CodeBlock({
   const lines = code.replace(/\n$/, "").split("\n");
 
   return (
-    <div className={cn("overflow-hidden rounded-xl bg-foreground text-white", className)}>
+    <div className={cn("overflow-hidden rounded-xl bg-code text-white", className)}>
       <div className="flex h-11 items-center justify-between gap-3 border-b border-white/10 pr-1.5 pl-4">
         <span className="truncate font-mono text-sm text-white/70">{filename}</span>
         <button

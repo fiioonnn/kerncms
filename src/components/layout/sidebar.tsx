@@ -4,19 +4,20 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Check, ChevronsUpDown, LayoutGrid, Loader2, LogOut, Menu as MenuIcon, MousePointerClick, Palette, Plus, Shield, Trash2, UserRound, X } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Loader2, LogOut, Menu as MenuIcon, Moon, MousePointerClick, Plus, Shield, Trash2, UserRound, X } from "lucide-react";
 import { Logo } from "@/components/auth/auth-shell";
 import { useKern } from "@/components/kern/kern-provider";
 import { useStatus } from "@/components/history/use-status";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/display";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuSwitchItem, MenuTrigger } from "@/components/ui/menu";
 import { toast } from "@/components/ui/toast";
 import { roleLabels } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
 import { switchSite } from "@/server/actions/site";
 import { findNavItem, navigation } from "./nav";
+import { setDarkMode, useDarkMode } from "./theme";
 
 function initials(name: string) {
   return (
@@ -47,6 +48,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const status = useStatus();
   const [switching, startSwitch] = useTransition();
   const logoutForm = useId();
+  const dark = useDarkMode();
   const site = kern.site;
 
   function changeSite(id: string, name: string) {
@@ -187,13 +189,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <MenuItem icon={UserRound} render={<Link href="/profile" onClick={onNavigate} />}>
               Profil
             </MenuItem>
+            <MenuSwitchItem icon={Moon} checked={dark} onCheckedChange={setDarkMode}>
+              Dunkler Modus
+            </MenuSwitchItem>
             <MenuSeparator />
             <MenuLabel>Website verwalten</MenuLabel>
             <MenuItem icon={Trash2} render={<Link href="/trash" onClick={onNavigate} />}>
               Papierkorb
-            </MenuItem>
-            <MenuItem icon={Palette} render={<Link href="/styleguide" onClick={onNavigate} />}>
-              Styleguide
             </MenuItem>
             <MenuSeparator />
             {kern.user.isAdmin && (
@@ -229,7 +231,7 @@ export function MobileNav() {
         <MenuIcon strokeWidth={1.75} />
       </BaseDialog.Trigger>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-foreground/30 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 lg:hidden" />
+        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-backdrop/30 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 lg:hidden" />
         <BaseDialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,calc(100vw-3rem))] flex-col bg-surface shadow-popover outline-none transition-transform duration-200 ease-out data-ending-style:-translate-x-full data-starting-style:-translate-x-full lg:hidden">
           <BaseDialog.Title className="sr-only">Navigation</BaseDialog.Title>
           <BaseDialog.Close aria-label="Menü schließen" className={buttonStyles({ variant: "ghost", size: "icon", className: "absolute top-2.5 right-2.5 size-10" })}>

@@ -74,7 +74,7 @@ export function EmbedSettings({
           </div>
         </SettingsRow>
         <SettingsRow label="Für die .env der Website" description="Einfach kopieren und in die Datei .env im Repository der Website einfügen." stacked>
-          <div className="flex items-start gap-2 rounded-xl border border-border bg-foreground p-4 text-white">
+          <div className="flex items-start gap-2 rounded-xl border border-border bg-code p-4 text-white">
             <pre className="min-w-0 flex-1 overflow-x-auto font-mono text-sm leading-relaxed">{env}</pre>
             <CopyButton value={env} />
           </div>

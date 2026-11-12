@@ -99,7 +99,7 @@ export function AdminMobileBar({ me }: { me: Me }) {
           <MenuIcon strokeWidth={1.75} />
         </BaseDialog.Trigger>
         <BaseDialog.Portal>
-          <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-foreground/30 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 lg:hidden" />
+          <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-backdrop/30 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 lg:hidden" />
           <BaseDialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,calc(100vw-3rem))] flex-col bg-surface shadow-popover outline-none transition-transform duration-200 ease-out data-ending-style:-translate-x-full data-starting-style:-translate-x-full lg:hidden">
             <BaseDialog.Title className="sr-only">Admin-Navigation</BaseDialog.Title>
             <BaseDialog.Close aria-label="Menü schließen" className={buttonStyles({ variant: "ghost", size: "icon", className: "absolute top-2.5 right-2.5 size-10" })}>

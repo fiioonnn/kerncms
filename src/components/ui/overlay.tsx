@@ -26,7 +26,7 @@ export function Tooltip({
       <BaseTooltip.Trigger render={children} />
       <BaseTooltip.Portal>
         <BaseTooltip.Positioner sideOffset={8} side={side} className="z-[70]">
-          <BaseTooltip.Popup className="origin-(--transform-origin) rounded-lg bg-foreground px-2.5 py-1.5 text-sm font-medium text-white transition-[scale,opacity] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-instant:transition-none data-starting-style:scale-95 data-starting-style:opacity-0">
+          <BaseTooltip.Popup className="origin-(--transform-origin) rounded-lg bg-inverse px-2.5 py-1.5 text-sm font-medium text-inverse-foreground transition-[scale,opacity] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-instant:transition-none data-starting-style:scale-95 data-starting-style:opacity-0">
             {label}
           </BaseTooltip.Popup>
         </BaseTooltip.Positioner>

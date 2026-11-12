@@ -2,9 +2,21 @@
 
 /*
  * kerncms design tokens
- * Light mode only. Every colour used in the UI comes from here;
- * see /styleguide for how they look and when to use them.
+ * Every colour used in the UI comes from here; dark mode overrides them below.
+ * Theme: html.dark / html.light from the "kern-theme" cookie (root layout); without
+ * either class the system setting decides.
  */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(.light), :root:not(.light) *) {
+      @slot;
+    }
+  }
+}
+
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -36,6 +48,12 @@
   --color-danger: #c42b2b;
   --color-danger-soft: #fdeded;
 
+  /* Inverted and fixed-dark surfaces */
+  --color-inverse: #18181b; /* tooltips */
+  --color-inverse-foreground: #ffffff;
+  --color-code: #18181b; /* code blocks, always dark */
+  --color-backdrop: #18181b; /* behind dialogs, used with opacity */
+
   /* Elevation */
   --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 1px 3px rgb(24 24 27 / 0.04);
   --shadow-popover: 0 8px 24px rgb(24 24 27 / 0.12), 0 2px 6px rgb(24 24 27 / 0.06);
@@ -54,6 +72,77 @@
 @layer base {
   :root {
     color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+
+    --color-background: #111113;
+    --color-surface: #19191c;
+    --color-subtle: #242428;
+
+    --color-border: #2c2c31;
+    --color-border-strong: #3d3d44;
+
+    --color-foreground: #ececef;
+    --color-muted: #9d9da6;
+
+    --color-accent: #5b7cff;
+    --color-accent-hover: #7590ff;
+    --color-accent-soft: #1d2442;
+    --color-accent-foreground: #ffffff;
+
+    --color-success: #3dae6a;
+    --color-success-soft: #152a1e;
+    --color-warning: #e0a043;
+    --color-warning-soft: #2d2312;
+    --color-danger: #ef6a6a;
+    --color-danger-soft: #341b1c;
+
+    --color-inverse: #ececef;
+    --color-inverse-foreground: #18181b;
+    --color-code: #0c0c0e;
+    --color-backdrop: #000000;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.2);
+    --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+  }
+
+  /* Same tokens when the system is dark and no theme was chosen. */
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) {
+      color-scheme: dark;
+
+      --color-background: #111113;
+      --color-surface: #19191c;
+      --color-subtle: #242428;
+
+      --color-border: #2c2c31;
+      --color-border-strong: #3d3d44;
+
+      --color-foreground: #ececef;
+      --color-muted: #9d9da6;
+
+      --color-accent: #5b7cff;
+      --color-accent-hover: #7590ff;
+      --color-accent-soft: #1d2442;
+      --color-accent-foreground: #ffffff;
+
+      --color-success: #3dae6a;
+      --color-success-soft: #152a1e;
+      --color-warning: #e0a043;
+      --color-warning-soft: #2d2312;
+      --color-danger: #ef6a6a;
+      --color-danger-soft: #341b1c;
+
+      --color-inverse: #ececef;
+      --color-inverse-foreground: #18181b;
+      --color-code: #0c0c0e;
+      --color-backdrop: #000000;
+
+      --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.2);
+      --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+    }
   }
 
   *,

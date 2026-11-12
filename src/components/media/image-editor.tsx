@@ -382,7 +382,7 @@ export function ImageEditor({
   return (
     <BaseDialog.Root open={open} onOpenChange={(next) => (next ? onOpenChange(true) : !saving && close())}>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-[2px] transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-backdrop/40 backdrop-blur-[2px] transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <BaseDialog.Popup className="fixed inset-0 z-50 flex flex-col overflow-hidden border-border bg-surface shadow-popover outline-none transition-[scale,opacity] duration-150 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 lg:inset-4 lg:rounded-2xl lg:border">
           {/* Warmth needs per-channel scaling, which CSS filters cannot do. */}
           <svg aria-hidden className="absolute size-0">
