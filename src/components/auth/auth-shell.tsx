@@ -59,13 +59,13 @@ function EditorIllustration() {
           <Check className="size-4" strokeWidth={2.5} />
         </span>
         <span className="flex flex-col leading-tight">
-          <span className="text-[13px] font-semibold">Veröffentlicht</span>
-          <span className="text-[11px] text-muted">Startseite · gerade eben</span>
+          <span className="text-[13px] font-semibold">Veröffentlichung gestartet</span>
+          <span className="text-[11px] text-muted">Die Website wird jetzt gebaut.</span>
         </span>
       </div>
       <div className="absolute -top-16 -left-4 flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 shadow-popover sm:-left-8">
-        <span className="text-[11px] font-medium text-muted">Markierung</span>
-        <span className="rounded-md bg-subtle px-2 py-1 text-[11px] font-medium text-accent">Akzent</span>
+        <span className="text-[11px] text-muted">Markierung:</span>
+        <span className="rounded-md bg-subtle px-2 py-1 text-[11px] font-medium text-foreground">Akzent</span>
         <span className="rounded-md bg-accent px-2 py-1 text-[11px] font-medium text-white">Marker</span>
       </div>
     </div>
@@ -74,8 +74,8 @@ function EditorIllustration() {
 
 const points = [
   "Texte und Bilder direkt auf der Seite ändern",
-  "Jede Änderung als Version gesichert, alles umkehrbar",
-  "Veröffentlichen mit einem Klick",
+  "Jede Änderung als Version gesichert, jederzeit wiederherstellbar",
+  "Veröffentlichen, wenn alles passt, auf Wunsch mit Freigabe",
 ];
 
 export function AuthShell({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
