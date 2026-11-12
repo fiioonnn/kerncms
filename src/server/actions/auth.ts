@@ -40,11 +40,16 @@ export async function requestLoginCode(input: { email: string; name?: string }) 
     // Same rule as the login page: the form asks for a name only when the first account can be created.
     const firstRun = (await userCount()) === 0 && (!!adminEmail() || process.env.NODE_ENV !== "production");
     if (firstRun && !input.name?.trim()) throw new Error("Bitte gib deinen Namen ein.");
-    const [user] = await db.select({ id: users.id, disabled: users.disabled }).from(users).where(eq(users.email, email)).limit(1);
-    if (user?.disabled) return { firstRun };
+    const [user] = await db
+      .select({ id: users.id, disabled: users.disabled, isAdmin: users.isAdmin })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
     const signUp = !user && maySignUp(email, firstRun);
-    // For unknown addresses we answer the same way, so nobody can probe which accounts exist.
+    // No mail for addresses without access: unknown, disabled, or no admin and no site left.
+    // The answer is the same either way, so nobody can probe which accounts exist.
     if (!user && !signUp) return { firstRun };
+    if (user && (user.disabled || !(await hasAccess(user.id, user.isAdmin, email)))) return { firstRun };
     const code = newLoginCode();
     await db.delete(loginCodes).where(eq(loginCodes.email, email));
     await db.insert(loginCodes).values({
@@ -61,6 +66,13 @@ export async function requestLoginCode(input: { email: string; name?: string }) 
     }
     return { firstRun };
   });
+}
+
+/** Admins (or KERN_ADMIN_EMAIL) and members of at least one site can sign in. */
+async function hasAccess(userId: string, isAdmin: boolean, email: string) {
+  if (isAdmin || email === adminEmail()) return true;
+  const [member] = await db.select({ siteId: memberships.siteId }).from(memberships).where(eq(memberships.userId, userId)).limit(1);
+  return !!member;
 }
 
 /** Step 2: checks the code and signs in. */
