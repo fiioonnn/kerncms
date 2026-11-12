@@ -10,6 +10,7 @@ import { getAt } from "./paths";
 import { FieldInput } from "@/components/kern/field-renderer";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { Tooltip } from "@/components/ui/overlay";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldDef, MarkDef, PageData, PageSeo } from "@/lib/kern-types";
@@ -164,21 +165,16 @@ export function EditorSidebar({
         <TabPanel value="properties" className="flex min-h-0 flex-1 flex-col pt-0">
           {selected ? (
             <>
-              <div className="flex flex-col gap-1 border-b border-border px-6 py-5">
-                <span className="flex items-center justify-between gap-3 text-sm text-muted">
-                  <button
-                    type="button"
-                    onClick={() => onTabChange("blocks")}
-                    className="-ml-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    <ArrowLeft className="size-3.5 shrink-0" strokeWidth={2} />
-                    Alle Blöcke
-                  </button>
-                  <span className="shrink-0 tabular-nums">
-                    {blocks.indexOf(selected) + 1} von {blocks.length}
-                  </span>
+              <div className="flex items-center gap-2 border-b border-border py-3 pr-6 pl-3">
+                <Tooltip label="Alle Blöcke">
+                  <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg" aria-label="Alle Blöcke" onClick={() => onTabChange("blocks")}>
+                    <ArrowLeft className="size-4" />
+                  </Button>
+                </Tooltip>
+                <h2 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{label(selected)}</h2>
+                <span className="shrink-0 text-sm text-muted tabular-nums">
+                  {blocks.indexOf(selected) + 1} von {blocks.length}
                 </span>
-                <h2 className="text-xl font-semibold tracking-tight">{label(selected)}</h2>
               </div>
 
               {focus ? (
