@@ -300,50 +300,64 @@ function SubmissionTable({
   formOf: (key: string) => FormDef | undefined;
   onOpen: (id: string) => void;
 }) {
+  // The table adapts to its own width (container query), not the window: wide shows every
+  // column, medium drops "Formular", narrow becomes a two-line list.
   return (
-    <Table>
-      <thead>
-        <tr>
-          <Th className="w-0 pr-0" aria-label="Gelesen" />
-          <Th>Absender</Th>
-          <Th>Betreff</Th>
-          {showForm && <Th className="hidden md:table-cell">Formular</Th>}
-          <Th>Eingegangen</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => {
-          const form = formOf(row.form);
-          const { sender, email, subject } = summarize(row, form);
-          return (
-            <tr key={row.id} onClick={() => onOpen(row.id)} className="cursor-pointer transition-colors hover:bg-subtle/50">
-              <Td className="w-0 pr-0">
-                <span className={cn("block size-2.5 rounded-full", row.read ? "bg-transparent" : "bg-accent")} aria-label={row.read ? "Gelesen" : "Ungelesen"} />
-              </Td>
-              <Td>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex flex-col rounded-md text-left outline-none focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
-                    !row.read && "font-semibold",
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpen(row.id);
-                  }}
-                >
-                  <span>{sender}</span>
-                  {email && email !== sender && <span className="text-sm font-normal text-muted">{email}</span>}
-                </button>
-              </Td>
-              <Td className={cn("max-w-80 truncate", !row.read && "font-semibold")}>{subject}</Td>
-              {showForm && <Td className="hidden text-muted md:table-cell">{form?.label ?? row.form}</Td>}
-              <Td suppressHydrationWarning className="whitespace-nowrap text-muted">{formatWhen(row.createdAt)}</Td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </Table>
+    <div className="@container">
+      <Table className="table-fixed">
+        <thead>
+          <tr>
+            <Th className="w-10 pr-0" aria-label="Gelesen" />
+            <Th className="@xl:w-48 @4xl:w-60">Absender</Th>
+            <Th className="hidden @xl:table-cell">Betreff</Th>
+            {showForm && <Th className="hidden w-44 @4xl:table-cell">Formular</Th>}
+            <Th className="hidden w-36 @xl:table-cell @4xl:w-40">Eingegangen</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const form = formOf(row.form);
+            const { sender, email, subject } = summarize(row, form);
+            return (
+              <tr key={row.id} onClick={() => onOpen(row.id)} className="cursor-pointer transition-colors hover:bg-subtle/50">
+                <Td className="pr-0">
+                  <span className={cn("block size-2.5 rounded-full", row.read ? "bg-transparent" : "bg-accent")} aria-label={row.read ? "Gelesen" : "Ungelesen"} />
+                </Td>
+                <Td className="py-2.5">
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full min-w-0 flex-col rounded-md text-left outline-none focus-visible:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+                      !row.read && "font-semibold",
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(row.id);
+                    }}
+                  >
+                    <span className="flex items-baseline gap-3">
+                      <span className="min-w-0 flex-1 truncate">{sender}</span>
+                      {/* Narrow: the date sits next to the name. */}
+                      <span suppressHydrationWarning className="shrink-0 text-sm font-normal whitespace-nowrap text-muted @xl:hidden">
+                        {formatWhen(row.createdAt)}
+                      </span>
+                    </span>
+                    {email && email !== sender && <span className="truncate text-sm font-normal text-muted">{email}</span>}
+                    {/* Narrow: the subject goes under the sender. */}
+                    <span className={cn("truncate text-sm @xl:hidden", row.read ? "font-normal text-muted" : "font-semibold")}>{subject}</span>
+                  </button>
+                </Td>
+                <Td className={cn("hidden truncate @xl:table-cell", !row.read && "font-semibold")}>{subject}</Td>
+                {showForm && <Td className="hidden truncate text-muted @4xl:table-cell">{form?.label ?? row.form}</Td>}
+                <Td suppressHydrationWarning className="hidden whitespace-nowrap text-muted @xl:table-cell">
+                  {formatWhen(row.createdAt)}
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </div>
   );
 }
 
