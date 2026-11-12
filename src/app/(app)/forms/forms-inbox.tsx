@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, Reply, Settings2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
-import { refreshStatus } from "@/components/history/use-status";
+import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, RefreshCw, Reply, Settings2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { refreshStatus, useStatus } from "@/components/history/use-status";
 import { useKern } from "@/components/kern/kern-provider";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button, buttonStyles } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { toast } from "@/components/ui/toast";
 import type { FormDef } from "@/lib/kern-types";
 import { formatWhen } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
-import { resendSubmissionMail, type FormSettingsInput } from "@/server/actions/forms";
+import { loadSubmissions, resendSubmissionMail, type FormSettingsInput } from "@/server/actions/forms";
 import { deleteSubmissions, updateSubmissions } from "@/server/actions/site";
 import { Tooltip } from "@/components/ui/overlay";
 import { cleanLabel, displayValue, replyMailto } from "@/lib/form-template";
@@ -68,6 +68,33 @@ export function FormsInbox({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmSpamOpen, setConfirmSpamOpen] = useState(false);
   const [, startTransition] = useTransition();
+  const [reloading, setReloading] = useState(false);
+  const status = useStatus();
+
+  // New submissions show up without a reload: when the status poll reports more unread
+  // messages, every minute as a fallback (spam, other people's changes), and on returning to the tab.
+  const reload = useCallback(async (manual = false) => {
+    if (manual) setReloading(true);
+    const result = await loadSubmissions();
+    if (manual) setReloading(false);
+    if (result.ok) setItems(result.data);
+    else if (manual) toast.error("Nicht aktualisiert", { description: result.error });
+  }, []);
+  const formsUnread = status?.formsUnread;
+  const lastUnread = useRef(formsUnread);
+  useEffect(() => {
+    if (formsUnread !== undefined && lastUnread.current !== undefined && formsUnread > lastUnread.current) void reload();
+    lastUnread.current = formsUnread;
+  }, [formsUnread, reload]);
+  useEffect(() => {
+    const tick = () => document.visibilityState === "visible" && void reload();
+    const timer = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [reload]);
 
   const formOf = (key: string) => forms.find((f) => f.key === key);
   const open = items.find((s) => s.id === openId);
@@ -140,7 +167,11 @@ export function FormsInbox({
         title="Formulare"
         description="Nachrichten, die Besucher über die Formulare deiner Website schicken."
         actions={
-          exportForms.length === 1 ? (
+          <>
+          <Button variant="secondary" size="icon" className="flex-none!" onClick={() => void reload(true)} disabled={reloading} aria-label="Aktualisieren">
+            <RefreshCw className={cn(reloading && "animate-spin")} />
+          </Button>
+          {exportForms.length === 1 ? (
             <a href={`/api/forms/export?form=${encodeURIComponent(exportForms[0].key)}`} className={buttonStyles({ variant: "secondary" })}>
               <Download />
               Als CSV exportieren
@@ -160,7 +191,8 @@ export function FormsInbox({
                 ))}
               </MenuContent>
             </Menu>
-          )
+          )}
+          </>
         }
       />
 

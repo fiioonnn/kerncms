@@ -10,12 +10,18 @@ import { sampleFormData } from "@/lib/form-template";
 import { defaultTransport } from "../mail";
 import { notificationMail, sendSubmissionMails } from "../site-mail";
 import { cmsOrigin } from "../custom-domains";
+import { getForms } from "../queries";
 import { getWorkspace, requireRole } from "../sites";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function refresh() {
   revalidatePath("/", "layout");
+}
+
+/** Current submissions for the inbox, so it can pick up new ones without a reload. */
+export async function loadSubmissions() {
+  return run(async () => (await getForms()).submissions);
 }
 
 /* ---------- Notification settings per form ---------- */
