@@ -15,7 +15,7 @@ import { git, worktreeDir } from "../git";
 import { fetchRemote, listBranches, listRepos, readRemoteConfig } from "../github";
 import { sendInvite } from "../mail";
 import { stopPreview } from "../preview";
-import { cloudflareConfigured, cmsOrigin, hostnameInfo, normalizeDomain, registerHostname, removeHostname } from "../custom-domains";
+import { cloudflareConfigured, cmsOrigin, domainReachable, hostnameInfo, normalizeDomain, registerHostname, removeHostname } from "../custom-domains";
 import { connectGithubSite, connectSite, inspectRepo } from "../sites";
 
 function refresh() {
@@ -91,7 +91,7 @@ export async function setCustomerDomain(id: string, input: string) {
     if (cloudflareConfigured()) {
       const registered = await registerHostname(domain);
       hostnameId = registered.id;
-      status = registered.info.status;
+      status = (await domainReachable(domain)) ? "active" : registered.info.status;
     }
     await db.update(customers).set({ domain, domainHostnameId: hostnameId, domainStatus: status }).where(eq(customers.id, id));
     refresh();
@@ -99,17 +99,18 @@ export async function setCustomerDomain(id: string, input: string) {
   });
 }
 
-/** Asks Cloudflare whether DNS and certificate are ready and stores the result. */
+/** Asks Cloudflare whether DNS and certificate are ready and stores the result. A domain that already answers counts as active. */
 export async function checkCustomerDomain(id: string) {
   return run(async () => {
     await requireAdmin();
     const [row] = await db.select().from(customers).where(eq(customers.id, id));
     if (!row?.domain) throw new Error("Der Kunde hat keine eigene Domain.");
     if (!row.domainHostnameId) return { status: row.domainStatus ?? "active" };
-    const info = await hostnameInfo(row.domainHostnameId);
-    await db.update(customers).set({ domainStatus: info.status }).where(eq(customers.id, id));
+    const [info, reachable] = await Promise.all([hostnameInfo(row.domainHostnameId), domainReachable(row.domain)]);
+    const status = reachable ? "active" : info.status;
+    await db.update(customers).set({ domainStatus: status }).where(eq(customers.id, id));
     refresh();
-    return { status: info.status };
+    return { status };
   });
 }
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { cache } from "react";
@@ -136,6 +137,28 @@ export async function removeHostname(id: string) {
   } catch (error) {
     // Already gone in Cloudflare is fine.
     if (!/not found|1436|1551/i.test(String(error))) throw error;
+  }
+}
+
+/* ---------- Reachability ---------- */
+
+/** A stable, non-secret id of this instance, derived from KERN_SECRET. */
+export function instanceId() {
+  return createHash("sha256").update(`kern-instance:${process.env.KERN_SECRET ?? "dev"}`).digest("hex").slice(0, 16);
+}
+
+/**
+ * Whether https://<domain> already answers as this instance. Cloudflare's own status can lag behind or stay
+ * pending although the domain works, e.g. when the customer proxies the record through their own Cloudflare zone.
+ */
+export async function domainReachable(domain: string) {
+  try {
+    const res = await fetch(`https://${domain}/api/public/kern-instance`, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return false;
+    const body = (await res.json().catch(() => null)) as { instance?: string } | null;
+    return body?.instance === instanceId();
+  } catch {
+    return false;
   }
 }
 

@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { adminCustomer } from "@/server/admin";
-import { cloudflareConfigured, cnameTarget, hostnameInfo, type HostnameInfo } from "@/server/custom-domains";
+import { cloudflareConfigured, cnameTarget, domainReachable, hostnameInfo, type HostnameInfo } from "@/server/custom-domains";
 import { CustomerDetail } from "./customer-detail";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +30,12 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
       infoError = error instanceof Error ? error.message : String(error);
     }
   }
+  // Cloudflare can stay "pending" although the domain already works (customer proxies through their own zone).
+  if (customer.domain && info?.status !== "active" && (await domainReachable(customer.domain))) {
+    info = info ? { ...info, status: "active", txtRecords: [], errors: [] } : null;
+    infoError = null;
+  }
+  const status = info?.status ?? customer.domainStatus;
   return (
     <CustomerDetail
       customer={{
@@ -44,7 +50,7 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
       }}
       domain={{
         domain: customer.domain,
-        status: info?.status ?? customer.domainStatus,
+        status,
         cloudflare: cloudflareConfigured(),
         target: cnameTarget(),
         txtRecords: info?.txtRecords ?? [],
