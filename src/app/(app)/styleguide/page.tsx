@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tab, TabPanel, Tabs, TabsList } from "@/components/ui/tabs";
 import { Checkbox, Switch } from "@/components/ui/toggles";
 
+export const metadata = { title: "Styleguide" };
+
 const colorGroups = [
   {
     title: "Flächen",

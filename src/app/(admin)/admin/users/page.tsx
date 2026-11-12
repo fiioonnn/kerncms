@@ -4,7 +4,7 @@ import { adminSites, adminUsers } from "@/server/admin";
 import { requireAdmin } from "@/server/auth";
 import { UsersTable } from "./users-table";
 
-export const metadata = { title: "Nutzer · Admin · kerncms" };
+export const metadata = { title: "Nutzer" };
 
 export default async function AdminUsersPage() {
   const [me, users, sites] = await Promise.all([requireAdmin(), adminUsers(), adminSites()]);

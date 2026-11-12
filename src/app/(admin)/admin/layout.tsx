@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/server/auth";
 import { AdminMobileBar, AdminSidebar } from "./_components/admin-nav";
 
-export const metadata: Metadata = { title: "Admin · kerncms" };
+export const metadata: Metadata = { title: { default: "Admin", template: "%s · Admin · kerncms" } };
 
 /** Platform admin area: its own shell, independent of the current site. */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {

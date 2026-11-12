@@ -6,6 +6,11 @@ import { formatChange } from "@/components/collections/format";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
 import { getCollection } from "@/server/queries";
+import { collectionTitle } from "@/server/titles";
+
+export async function generateMetadata({ params }: PageProps<"/collections/[slug]">) {
+  return collectionTitle((await params).slug);
+}
 
 export default async function CollectionPage({ params }: PageProps<"/collections/[slug]">) {
   const { slug } = await params;

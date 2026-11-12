@@ -5,7 +5,7 @@ import { getUser } from "@/server/auth";
 import { findClient } from "@/server/oauth";
 import { ConsentForm } from "./consent-form";
 
-export const metadata = { title: "Zugriff erlauben · kerncms" };
+export const metadata = { title: "Zugriff erlauben" };
 
 function Problem({ text }: { text: string }) {
   return (

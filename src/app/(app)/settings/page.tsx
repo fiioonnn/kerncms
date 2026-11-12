@@ -31,7 +31,7 @@ import { Redirects } from "./redirects";
 import { Schema } from "./schema";
 import { SettingsRow, SettingsSection } from "./settings-ui";
 
-export const metadata = { title: "Einstellungen · kerncms" };
+export const metadata = { title: "Einstellungen" };
 
 const sections: { id: string; label: string; description: string; icon: LucideIcon }[] = [
   { id: "general", label: "Allgemein", description: "Name, Adresse, Freigaben", icon: Settings2 },

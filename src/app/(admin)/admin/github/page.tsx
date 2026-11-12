@@ -10,7 +10,7 @@ import { adminGithub } from "@/server/admin";
 import { GithubIcon, GithubLucide } from "../_components/github-icon";
 import { AppSetupForm, DisconnectButton, ResetupButton } from "./github-actions";
 
-export const metadata = { title: "GitHub · Admin · kerncms" };
+export const metadata = { title: "GitHub" };
 
 const errors: Record<string, string> = {
   state: "Die Anfrage war abgelaufen oder kam nicht aus diesem Browser. Bitte starte die Einrichtung noch einmal.",

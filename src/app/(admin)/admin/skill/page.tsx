@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/display";
 import { requireAdmin } from "@/server/auth";
 import { SKILL_NAME } from "@/server/skill";
 
-export const metadata = { title: "KI-Skill · Admin · kerncms" };
+export const metadata = { title: "KI-Skill" };
 
 function Section({ icon: Icon, title, text, children }: { icon: LucideIcon; title: string; text: string; children: React.ReactNode }) {
   return (

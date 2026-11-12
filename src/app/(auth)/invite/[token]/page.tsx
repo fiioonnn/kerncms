@@ -8,7 +8,7 @@ import { invites, sites, users } from "@/db/schema";
 import { roleLabels } from "@/lib/kern-types";
 import { getUser, hashToken } from "@/server/auth";
 
-export const metadata = { title: "Einladung · kerncms" };
+export const metadata = { title: "Einladung" };
 
 export default async function InvitePage({ params }: PageProps<"/invite/[token]">) {
   const { token } = await params;

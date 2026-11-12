@@ -7,6 +7,8 @@ import { Button, buttonStyles } from "@/components/ui/button";
 import { Card, PageHeader } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 
+export const metadata = { title: "Seitenzustände" };
+
 function Example({ title, rule, children }: { title: string; rule: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-4 border-t border-border py-8">

@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { getDashboard } from "@/server/queries";
 import { PendingCard } from "./_dashboard/pending-card";
 
+// No title: a template does not apply to its own segment, so the layout's default names it.
+
 function greeting(hour: number) {
   if (hour < 11) return "Guten Morgen";
   if (hour < 18) return "Guten Tag";

@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getHistory, getPendingChanges, type HistoryEntry } from "@/server/queries";
 import { CommitFiles, DeployLog, DeployStatusBadge, FileFilterLabel, PendingChanges } from "./history-client";
 
+export const metadata = { title: "Verlauf" };
+
 const PAGE_SIZE = 60;
 
 function duration(start: string, end: string | null) {

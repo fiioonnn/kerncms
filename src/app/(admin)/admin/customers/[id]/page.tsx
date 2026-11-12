@@ -11,7 +11,7 @@ const load = cache((id: string) => (uuid.test(id) ? adminCustomer(id) : Promise.
 export async function generateMetadata({ params }: PageProps<"/admin/customers/[id]">) {
   const { id } = await params;
   const data = await load(id);
-  return { title: `${data?.customer.name ?? "Kunde"} · Admin · kerncms` };
+  return { title: data?.customer.name ?? "Kunde" };
 }
 
 export default async function CustomerPage({ params }: PageProps<"/admin/customers/[id]">) {

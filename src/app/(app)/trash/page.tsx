@@ -3,6 +3,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { getTrash } from "@/server/queries";
 import { TrashView } from "./trash-view";
 
+export const metadata = { title: "Papierkorb" };
+
 export default async function TrashPage() {
   const items = await getTrash();
 

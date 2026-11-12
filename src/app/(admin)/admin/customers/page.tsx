@@ -4,7 +4,7 @@ import { adminCustomers } from "@/server/admin";
 import { NewCustomerDialog } from "../_components/customer-dialog";
 import { CustomersTable } from "./customers-table";
 
-export const metadata = { title: "Kunden · Admin · kerncms" };
+export const metadata = { title: "Kunden" };
 
 export default async function CustomersPage() {
   const customers = await adminCustomers();

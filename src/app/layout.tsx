@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "kerncms",
+  title: { default: "kerncms", template: "%s · kerncms" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

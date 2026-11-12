@@ -2,6 +2,12 @@ import { CollectionForm } from "@/components/collections/collection-form";
 import { formatChange, formatRelative } from "@/components/collections/format";
 import { PageContainer } from "@/components/layout/page-container";
 import { getEntry } from "@/server/queries";
+import { collectionTitle } from "@/server/titles";
+
+export async function generateMetadata({ params }: PageProps<"/collections/[slug]/[id]">) {
+  const { slug, id } = await params;
+  return collectionTitle(slug, decodeURIComponent(id));
+}
 
 export default async function EditEntryPage({ params }: PageProps<"/collections/[slug]/[id]">) {
   const { slug, id } = await params;

@@ -6,6 +6,8 @@ import { getForms } from "@/server/queries";
 import { getSiteContext, hasRole } from "@/server/sites";
 import { FormsInbox } from "./forms-inbox";
 
+export const metadata = { title: "Formulare" };
+
 export default async function FormsPage() {
   const ctx = await getSiteContext();
   if (!hasRole(ctx.role, "editor")) {

@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { getAnalytics, getPages, getSettings } from "@/server/queries";
 import { RangeControl, VisitorsCard } from "./visitors-card";
 
+export const metadata = { title: "Statistiken" };
+
 const RANGES = [7, 30, 90];
 
 const deviceLabels: Record<string, string> = { desktop: "Desktop", mobile: "Smartphone", tablet: "Tablet" };

@@ -7,6 +7,8 @@ import { Card, PageHeader } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getGlobals } from "@/server/queries";
 
+export const metadata = { title: "Globals" };
+
 export default async function GlobalsPage({ searchParams }: PageProps<"/globals">) {
   const { key } = await searchParams;
   const globals = await getGlobals();

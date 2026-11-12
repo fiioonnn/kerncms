@@ -9,6 +9,8 @@ import { Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getPage, getPages } from "@/server/queries";
 
+export const metadata = { title: "Seiten" };
+
 const editorHref = (name: string) => `/editor?page=${encodeURIComponent(name)}`;
 
 export default async function PagesPage() {

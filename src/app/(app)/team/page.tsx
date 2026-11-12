@@ -6,6 +6,8 @@ import { getSiteContext } from "@/server/sites";
 import { RolesMatrix } from "./roles-matrix";
 import { InviteDialog, TeamTables } from "./team-members";
 
+export const metadata = { title: "Team" };
+
 export default async function TeamPage() {
   const [team, ctx] = await Promise.all([getTeam(), getSiteContext()]);
   const canManage = team.myRole === "admin" || team.myRole === "owner";

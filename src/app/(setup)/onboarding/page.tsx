@@ -5,7 +5,7 @@ import { requireUser } from "@/server/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/display";
 
-export const metadata = { title: "Noch keine Website · kerncms" };
+export const metadata = { title: "Noch keine Website" };
 
 /** Signed in, but no site yet. Admins connect sites in /admin; everyone else waits for an invite. */
 export default async function OnboardingPage() {

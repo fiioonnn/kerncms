@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/display";
 import { adminCustomerOptions, adminSites } from "@/server/admin";
 import { SitesTable } from "./sites-table";
 
-export const metadata = { title: "Websites · Admin · kerncms" };
+export const metadata = { title: "Websites" };
 
 export default async function AdminSitesPage() {
   const [sites, customers] = await Promise.all([adminSites(), adminCustomerOptions()]);

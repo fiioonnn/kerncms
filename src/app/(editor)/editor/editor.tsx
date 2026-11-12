@@ -19,6 +19,7 @@ import { PreviewFrame, PreviewLoader, usePreview } from "./preview";
 import { GlobalDialog } from "./global-dialog";
 import { EditorSidebar, SidebarDrawer, type SidebarTab } from "./sidebar";
 import { EditorTopbar, type SaveState } from "./topbar";
+import { editorTitle } from "./title";
 
 /** Edit state of the open page: as last saved (committed), the working copy and its undo/redo stacks. */
 type Doc = {
@@ -125,7 +126,7 @@ function NoPages() {
 
 function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; name: string; page: PageData; requested: string | null }) {
   const router = useRouter();
-  const { config } = useKern();
+  const { config, site } = useKern();
   const canEdit = useCan("editor");
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const isMd = useMediaQuery("(min-width: 768px)");
@@ -586,6 +587,11 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     return () => window.removeEventListener("message", listener);
   }, []);
 
+
+  // Live window title: follows title edits and marks unsaved changes (the server sets it on load).
+  useEffect(() => {
+    document.title = `${editorTitle(data.title, dirty)} · ${site.name} · kerncms`;
+  }, [data.title, dirty, site.name]);
 
   /* ----- Render ----- */
 

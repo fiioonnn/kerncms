@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/display";
 import { adminCustomers, adminGithub } from "@/server/admin";
 import { ConnectSite } from "./connect-site";
 
-export const metadata = { title: "Website verbinden · Admin · kerncms" };
+export const metadata = { title: "Website verbinden" };
 
 export default async function NewSitePage({ searchParams }: PageProps<"/admin/sites/new">) {
   const [{ customer, tab }, github, customers] = await Promise.all([searchParams, adminGithub(), adminCustomers()]);

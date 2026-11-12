@@ -2,6 +2,9 @@ import { KernProvider } from "@/components/kern/kern-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { loadKernClientData } from "@/server/kern-context";
+import { siteTitle } from "@/server/titles";
+
+export const generateMetadata = siteTitle;
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const kern = await loadKernClientData();

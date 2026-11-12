@@ -6,6 +6,8 @@ import { Card, PageHeader } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCollectionsOverview } from "@/server/queries";
 
+export const metadata = { title: "Inhalte" };
+
 export default async function CollectionsPage() {
   const overview = await getCollectionsOverview();
 

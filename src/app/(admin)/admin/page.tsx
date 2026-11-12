@@ -10,7 +10,7 @@ import { adminOverview } from "@/server/admin";
 import { GithubIcon } from "./_components/github-icon";
 import { NewCustomerDialog } from "./_components/customer-dialog";
 
-export const metadata = { title: "Admin · kerncms" };
+// No title: a template does not apply to its own segment, so the layout's default names it.
 
 export default async function AdminOverviewPage() {
   const data = await adminOverview();

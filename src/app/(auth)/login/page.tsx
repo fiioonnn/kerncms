@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginFlow } from "@/components/auth/auth-forms";
 import { getUser, userCount } from "@/server/auth";
 
-export const metadata = { title: "Anmelden · kerncms" };
+export const metadata = { title: "Anmelden" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getUser()) redirect("/");
