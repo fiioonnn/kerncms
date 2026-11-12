@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import path from "node:path";
 import { run } from "../action";
 import { commit, withSiteLock } from "../git";
-import { editImage, type ImageEdit, type MediaMetaInput, moveMediaToTrash, updateMediaMeta } from "../media";
+import { duplicateMedia as copyMedia, editImage, type ImageEdit, type MediaMetaInput, moveMediaToTrash, updateMediaMeta } from "../media";
 import { getWorkspace } from "../sites";
 
 export async function saveMediaMeta(name: string, input: MediaMetaInput) {
@@ -23,6 +23,22 @@ export async function saveImageEdit(name: string, edit: ImageEdit) {
       const saved = await editImage(ws.site.id, ws.user.id, ws.dir, ws.config, name, edit);
       if (saved.location === "repo") {
         await commit(ws.dir, `Bild „${saved.name}“ bearbeitet`, { name: ws.user.name, email: ws.user.email }, [
+          path.posix.join(ws.config.media.dir, saved.name),
+        ]);
+      }
+      revalidatePath("/", "layout");
+      return { name: saved.name };
+    });
+  });
+}
+
+export async function duplicateMedia(name: string) {
+  return run(async () => {
+    const ws = await getWorkspace("editor");
+    return withSiteLock(ws.site.id, async () => {
+      const saved = await copyMedia(ws.site.id, ws.user.id, ws.dir, ws.config, name);
+      if (saved.location === "repo") {
+        await commit(ws.dir, `Bild „${name}“ dupliziert`, { name: ws.user.name, email: ws.user.email }, [
           path.posix.join(ws.config.media.dir, saved.name),
         ]);
       }

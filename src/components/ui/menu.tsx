@@ -1,5 +1,6 @@
 "use client";
 
+import { ContextMenu as BaseContextMenu } from "@base-ui/react/context-menu";
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,28 @@ export function MenuContent({
         </BaseMenu.Popup>
       </BaseMenu.Positioner>
     </BaseMenu.Portal>
+  );
+}
+
+/* Right-click menu: same items (MenuItem, MenuSeparator) inside, opened at the pointer. */
+export const ContextMenu = BaseContextMenu.Root;
+
+export function ContextMenuTrigger({
+  className,
+  ...props
+}: Omit<BaseContextMenu.Trigger.Props, "className"> & { className?: string }) {
+  return <BaseContextMenu.Trigger className={className} {...props} />;
+}
+
+export function ContextMenuContent({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <BaseContextMenu.Portal>
+      <BaseContextMenu.Positioner className="z-50 outline-none">
+        <BaseContextMenu.Popup className={cn("min-w-56 origin-(--transform-origin) rounded-xl border border-border bg-surface p-1.5 shadow-popover outline-none transition-[scale,opacity] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0", className)}>
+          {children}
+        </BaseContextMenu.Popup>
+      </BaseContextMenu.Positioner>
+    </BaseContextMenu.Portal>
   );
 }
 

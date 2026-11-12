@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, Cloud, FileText, Film, ImageIcon, Search, Trash2, UploadCloud, X } from "lucide-react";
+import { Check, CheckSquare, Cloud, Copy, Download, Eye, FileText, Film, ImageIcon, Link2, MoreHorizontal, Search, SlidersHorizontal, Trash2, UploadCloud, X } from "lucide-react";
 import { formatBytes, UploadDialog } from "@/components/actions/common";
 import { useCan } from "@/components/kern/kern-provider";
 import { reloadMedia, uploadMedia, useMedia } from "@/components/kern/use-media";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
+import { ImageEditor } from "@/components/media/image-editor";
 import { Badge, Card, PageHeader } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
@@ -17,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import type { MediaItem } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
-import { deleteMedia } from "@/server/actions/media";
+import { deleteMedia, duplicateMedia } from "@/server/actions/media";
 import { MediaDetails } from "./media-details";
 
 const typeFilters = [
@@ -75,6 +77,9 @@ export function MediaLibrary() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** Set when deleting one file from its menu instead of the selection. */
+  const [deleteOne, setDeleteOne] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [deleting, startDelete] = useTransition();
@@ -92,8 +97,9 @@ export function MediaLibrary() {
         item.tags.some((t) => t.toLowerCase().includes(q))),
   );
   const detailItem = items?.find((i) => i.name === detail) ?? null;
-  const selectedItems = (items ?? []).filter((i) => selected.has(i.name));
-  const selectedInUse = selectedItems.filter((i) => i.usedIn.length > 0).length;
+  const deleteTargets = deleteOne ? (items ?? []).filter((i) => i.name === deleteOne) : (items ?? []).filter((i) => selected.has(i.name));
+  const selectedInUse = deleteTargets.filter((i) => i.usedIn.length > 0).length;
+  const editingItem = items?.find((i) => i.name === editing) ?? null;
 
   // Drop files anywhere on the page to upload them.
   useEffect(() => {
@@ -151,15 +157,28 @@ export function MediaLibrary() {
     });
   }
 
+  function duplicate(name: string) {
+    startDelete(async () => {
+      const result = await duplicateMedia(name);
+      if (!result.ok) {
+        toast.error("Duplizieren fehlgeschlagen", { description: result.error });
+        return;
+      }
+      await reloadMedia();
+      toast.success(`„${result.data.name}“ angelegt`);
+    });
+  }
+
   function removeSelected() {
-    const names = [...selected];
+    const names = deleteOne ? [deleteOne] : [...selected];
+    const single = Boolean(deleteOne);
     startDelete(async () => {
       const result = await deleteMedia(names);
       if (!result.ok) {
         toast.error("Löschen fehlgeschlagen", { description: result.error });
         return;
       }
-      setSelected(new Set());
+      setSelected((s) => (single ? new Set([...s].filter((n) => !names.includes(n))) : new Set()));
       await reloadMedia();
       toast.success(names.length === 1 ? `„${names[0]}“ gelöscht` : `${names.length} Dateien gelöscht`, {
         description: "Im Papierkorb noch 30 Tage wiederherstellbar.",
@@ -245,23 +264,40 @@ export function MediaLibrary() {
         <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
           {filtered.map((item) => {
             const isSelected = selected.has(item.name);
+            const actions = (
+              <MediaActions
+                item={item}
+                canEdit={canEdit}
+                selected={isSelected}
+                onOpen={() => setDetail(item.name)}
+                onEdit={() => setEditing(item.name)}
+                onDuplicate={() => duplicate(item.name)}
+                onSelect={() => toggle(item.name)}
+                onDelete={() => {
+                  setDeleteOne(item.name);
+                  setConfirmDelete(true);
+                }}
+              />
+            );
             return (
-              <div
-                key={item.name}
+              <ContextMenu key={item.name}>
+              <ContextMenuTrigger
                 className={cn(
-                  "group relative flex flex-col overflow-hidden rounded-2xl border bg-surface shadow-card transition-shadow hover:shadow-popover",
+                  // The focus ring sits on the card (outside the image) so it is not cut off.
+                  "group relative flex flex-col overflow-hidden rounded-2xl border bg-surface shadow-card transition-shadow hover:shadow-popover has-[[data-card-open]:focus-visible]:border-accent has-[[data-card-open]:focus-visible]:ring-4 has-[[data-card-open]:focus-visible]:ring-accent/30",
                   isSelected ? "border-accent ring-4 ring-accent/20" : "border-border",
                 )}
               >
                 <button
                   type="button"
+                  data-card-open
                   onClick={() => (selected.size > 0 ? toggle(item.name) : setDetail(item.name))}
-                  className="flex flex-col text-left outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+                  className="flex flex-col text-left outline-none"
                 >
                   <div className="aspect-[4/3] w-full overflow-hidden">
                     <MediaThumb item={item} className="size-full transition-transform duration-300 group-hover:scale-105" />
                   </div>
-                  <div className="flex flex-col gap-0.5 px-4 py-3">
+                  <div className="flex flex-col gap-0.5 py-3 pr-12 pl-4">
                     <span className="truncate text-[15px] font-medium">{item.name}</span>
                     <span className="flex items-center gap-2 text-sm text-muted">
                       <span className="truncate">
@@ -301,7 +337,19 @@ export function MediaLibrary() {
                     <Check className="size-4" strokeWidth={3} />
                   </button>
                 )}
-              </div>
+                {/* Same actions as the right-click menu, for touch and keyboard. */}
+                <Menu>
+                  <MenuTrigger
+                    aria-label={`Aktionen für ${item.name}`}
+                    className="absolute right-2 bottom-3 flex size-9 items-center justify-center rounded-lg text-muted transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent data-popup-open:bg-subtle"
+                  >
+                    <MoreHorizontal className="size-5" />
+                  </MenuTrigger>
+                  <MenuContent>{actions}</MenuContent>
+                </Menu>
+              </ContextMenuTrigger>
+              <ContextMenuContent>{actions}</ContextMenuContent>
+              </ContextMenu>
             );
           })}
         </div>
@@ -319,14 +367,29 @@ export function MediaLibrary() {
         />
       )}
 
+      {editingItem && (
+        <ImageEditor
+          key={editingItem.name + editingItem.updatedAt}
+          item={editingItem}
+          open={editing !== null}
+          onOpenChange={(open) => !open && setEditing(null)}
+          onSaved={() => void reloadMedia()}
+        />
+      )}
+
       <ConfirmDialog
         open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title={selected.size === 1 ? "Datei löschen?" : `${selected.size} Dateien löschen?`}
+        onOpenChange={(open) => {
+          setConfirmDelete(open);
+          if (!open) setTimeout(() => setDeleteOne(null), 200);
+        }}
+        title={deleteTargets.length === 1 ? `„${deleteTargets[0].name}“ löschen?` : `${deleteTargets.length} Dateien löschen?`}
         description={
           selectedInUse > 0
             ? `${selectedInUse === 1 ? "Eine Datei wird" : `${selectedInUse} Dateien werden`} noch verwendet. Diese Stellen zeigen danach kein Bild mehr. Gelöschtes liegt 30 Tage im Papierkorb.`
-            : "Die Dateien landen im Papierkorb und können 30 Tage lang wiederhergestellt werden."
+            : deleteTargets.length === 1
+              ? "Die Datei landet im Papierkorb und kann 30 Tage lang wiederhergestellt werden."
+              : "Die Dateien landen im Papierkorb und können 30 Tage lang wiederhergestellt werden."
         }
         confirmLabel="Löschen"
         danger
@@ -343,5 +406,68 @@ export function MediaLibrary() {
         </div>
       )}
     </PageContainer>
+  );
+}
+
+const EDITABLE = /\.(jpe?g|png|webp|avif)$/i;
+
+/** Entries of a file's menu (right-click and the ⋯ button). */
+function MediaActions({
+  item,
+  canEdit,
+  selected,
+  onOpen,
+  onEdit,
+  onDuplicate,
+  onSelect,
+  onDelete,
+}: {
+  item: MediaItem;
+  canEdit: boolean;
+  selected: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <>
+      <MenuItem icon={Eye} onClick={onOpen}>
+        Details
+      </MenuItem>
+      {canEdit && EDITABLE.test(item.name) && (
+        <MenuItem icon={SlidersHorizontal} onClick={onEdit}>
+          Bild bearbeiten
+        </MenuItem>
+      )}
+      {canEdit && (
+        <MenuItem icon={Copy} onClick={onDuplicate}>
+          Duplizieren
+        </MenuItem>
+      )}
+      <MenuItem
+        icon={Link2}
+        onClick={() => {
+          void navigator.clipboard?.writeText(item.value).then(() => toast.success("Adresse kopiert"));
+        }}
+      >
+        Adresse kopieren
+      </MenuItem>
+      <MenuItem icon={Download} render={<a href={item.src} download={item.name} />}>
+        Herunterladen
+      </MenuItem>
+      {canEdit && (
+        <>
+          <MenuItem icon={CheckSquare} onClick={onSelect}>
+            {selected ? "Auswahl aufheben" : "Auswählen"}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem icon={Trash2} danger onClick={onDelete}>
+            Löschen
+          </MenuItem>
+        </>
+      )}
+    </>
   );
 }

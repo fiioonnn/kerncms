@@ -329,6 +329,26 @@ export async function editImage(siteId: string, userId: string, dir: string, con
   return { name: targetName, location: source.location };
 }
 
+/** Copies a file next to the original ("bild-kopie.jpg"), with its alt text, caption, focus point and tags. */
+export async function duplicateMedia(siteId: string, userId: string, dir: string, config: KernConfig, name: string) {
+  const source = await readMedia(siteId, dir, config, name);
+  const targetName = await uniqueMediaName(siteId, dir, config, name.replace(/(\.\w+)$/, "-kopie$1"));
+  await writeMedia(siteId, dir, config, source.location, targetName, source.body);
+  const original = source.row;
+  await db
+    .update(media)
+    .set({
+      uploadedBy: userId,
+      alt: original?.alt ?? "",
+      caption: original?.caption ?? "",
+      tags: original?.tags ?? [],
+      ...(original ? { focusX: original.focusX, focusY: original.focusY } : {}),
+    })
+    .where(and(eq(media.siteId, siteId), eq(media.name, targetName)));
+  if (source.location === "repo") void backupToS3(siteId, targetName, source.body);
+  return { name: targetName, location: source.location };
+}
+
 /** Moves a file to the trash. Returns its location (repo files still need a commit). */
 export async function moveMediaToTrash(siteId: string, userId: string, dir: string, config: KernConfig, name: string) {
   const { location, body, row } = await readMedia(siteId, dir, config, name);
