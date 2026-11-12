@@ -209,7 +209,7 @@ const followTimes = ((globalThis as { __kernFollow?: Map<string, number> }).__ke
  * at most every 30 seconds. Skipped quietly when git cannot merge cleanly, e.g. because an
  * unsaved edit touches the same file; publishing merges it later anyway.
  */
-export function followLiveSoon(siteId: string, dir: string, liveBranch: string) {
+export function followLiveSoon(siteId: string, dir: string, liveBranch: string, onMerged?: (files: string[]) => void) {
   if (Date.now() - (followTimes.get(siteId) ?? 0) < 30_000) return;
   followTimes.set(siteId, Date.now());
   void withSiteLock(siteId, async () => {
@@ -221,10 +221,13 @@ export function followLiveSoon(siteId: string, dir: string, liveBranch: string) 
     } catch {
       return;
     }
+    const before = (await git(dir, ["rev-parse", "HEAD"])).trim();
     // git itself refuses (and changes nothing) if an unsaved edit touches a file the merge changes.
     await git(dir, ["merge", "--no-edit", "-q", liveBranch, "-m", `Live-Stand von ${liveBranch} übernommen`], {
       env: authorEnv({ name: "kerncms", email: "cms@kerncms.local" }),
     });
+    const files = (await git(dir, ["diff", "--name-only", before, "HEAD"])).split("\n").filter(Boolean);
+    onMerged?.(files);
   }).catch(() => {});
 }
 

@@ -23,7 +23,8 @@ file formats, markers, endpoints). `references/patterns.md` has working code for
 2. **Write `kern.config.yaml`** at the repo root (see contract §1). German labels, they are what the
    customer reads. Give every block a `description` and a lucide `icon`. For blocks that display a
    collection or global (e.g. "latest posts", "opening hours"), set `source: <collection-or-global-key>`
-   so the editor links to where that content is edited.
+   so the editor lists those entries on the block. Give the collection `sort:` matching how the site
+   sorts it, accept the optional `entries` object on the block and apply it with `pickEntries`.
 3. **Mirror the config in `src/content.config.ts`** with zod schemas. Keep optional fields optional
    and give defaults, so a half-filled block written by the CMS never breaks the build.
 4. **Render pages from content**: one catch-all route `src/pages/[...slug].astro` over the `pages`

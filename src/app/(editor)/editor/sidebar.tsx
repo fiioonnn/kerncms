@@ -16,6 +16,7 @@ import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldDef, MarkDef, PageData, PageSeo } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
 import { AddBlockDialog } from "./add-block-dialog";
+import { SourceEntries } from "./source-entries";
 import { BlockOutline } from "./block-outline";
 import { useResizableWidth } from "./use-resizable-width";
 
@@ -102,6 +103,8 @@ export function EditorSidebar({
   const blocks = page.blocks;
   const def = selected ? defs.get(selected.type) : undefined;
   const focus = def && selected && focusPath ? focusGroup(def.fields, selected, focusPath) : null;
+  const { config } = useKern();
+  const sourceCollection = def?.source?.kind === "collection" ? config.collections.find((c) => c.key === def.source!.key) : undefined;
   const focusRef = useRef<HTMLDivElement>(null);
   // Put the cursor into the first field of what was clicked in the preview.
   useEffect(() => {
@@ -220,7 +223,16 @@ export function EditorSidebar({
                         />
                       ))
                   ) : null}
-                  {def?.source && <SourceCard source={def.source} onOpenGlobal={onOpenGlobal} />}
+                  {def?.source?.kind === "collection" && sourceCollection ? (
+                    <SourceEntries
+                      collection={sourceCollection}
+                      value={selected.entries}
+                      onChange={(value) => onFieldChange(selected.id, "entries", value)}
+                      canEdit={canEdit}
+                    />
+                  ) : (
+                    def?.source && <SourceCard source={def.source} onOpenGlobal={onOpenGlobal} />
+                  )}
                   {!def && (
                     <p className="text-[15px] text-muted">
                       Den Blocktyp „{selected.type}“ gibt es nicht in der kern.config.yaml. Er kann hier nicht bearbeitet werden.

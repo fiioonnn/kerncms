@@ -14,6 +14,7 @@ import { requireUser, type SessionUser } from "./auth";
 import { CONFIG_FILE, loadConfig, parseConfig } from "./config";
 import { ensureWorktree, followLiveSoon, isGitRepo, showFile } from "./git";
 import { cloneDir, readRemoteConfig, syncSoon } from "./github";
+import { RESTART_FILES, restartPreviewFor } from "./preview";
 import { cleanupSoon } from "./storage";
 
 /** Local folders are a development convenience; in production every site comes from GitHub. */
@@ -85,7 +86,9 @@ export const getWorkspace = cache(async (min: Role = "viewer"): Promise<Workspac
   const ctx = await requireRole(min);
   const dir = await ensureWorktree(ctx.site);
   syncSoon(ctx.site);
-  followLiveSoon(ctx.site.id, dir, ctx.site.branch);
+  followLiveSoon(ctx.site.id, dir, ctx.site.branch, (files) => {
+    if (files.some((f) => RESTART_FILES.test(f))) void restartPreviewFor(ctx.site.id);
+  });
   cleanupSoon(ctx.site.id);
   const config = await loadConfig(dir);
   return { ...ctx, dir, config };

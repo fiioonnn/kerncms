@@ -53,8 +53,16 @@ export type CollectionDef = {
   format: "md" | "json";
   titleField: string;
   listFields: string[];
+  /** Default order, e.g. `sort: datum` (ascending) or `sort: -date` (newest first). */
+  sort: { field: string; desc: boolean } | null;
   fields: FieldDef[];
 };
+
+/**
+ * Stored on a block whose `source` is a collection: the entries in the editor's own
+ * order (empty = the collection's default order) and the ones hidden in this block.
+ */
+export type BlockEntries = { order: string[]; hidden: string[] };
 
 export type GlobalDef = { key: string; label: string; description: string; icon: string; path: string; fields: FieldDef[] };
 

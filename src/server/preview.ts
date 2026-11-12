@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
+import { loadConfig } from "./config";
 import { linkNodeModules } from "./git";
 
 export type PreviewState = {
@@ -34,7 +35,12 @@ export function lanAddress() {
   return null;
 }
 
-type Entry = PreviewState & { proc: ChildProcess | null; ready: Promise<void> | null };
+type Entry = PreviewState & {
+  proc: ChildProcess | null;
+  ready: Promise<void> | null;
+  /** What it was started with, to start it again (see restartPreviewFor). */
+  args: { site: Site; dir: string; cmsUrl: string };
+};
 
 const registry = ((globalThis as { __kernPreviews?: Map<string, Entry> }).__kernPreviews ??= new Map());
 
@@ -126,6 +132,7 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
     startedAt: Date.now(),
     proc: null,
     ready: null,
+    args: { site, dir, cmsUrl },
   };
   registry.set(site.id, entry);
 
@@ -179,6 +186,22 @@ export function stopPreview(siteId: string) {
   entry.status = "stopped";
   killTree(entry.proc);
   registry.delete(siteId);
+}
+
+/**
+ * Files whose change a running dev server does not pick up reliably. Astro, for one,
+ * stops reloading content after src/content.config.ts changes underneath it.
+ */
+export const RESTART_FILES = /^(astro\.config\.[cm]?[jt]s|src\/content\.config\.[cm]?[jt]s|src\/content\/config\.[cm]?[jt]s|kern\.config\.yaml|package\.json|pnpm-lock\.yaml)$/;
+
+/** Starts a running preview again, e.g. after the draft took over a config change. */
+export async function restartPreviewFor(siteId: string) {
+  const entry = registry.get(siteId);
+  if (!entry || entry.status === "stopped") return;
+  const { site, dir, cmsUrl } = entry.args;
+  pushLog(entry, "Konfiguration geändert, Vorschau startet neu…");
+  stopPreview(siteId);
+  void ensurePreview(site, dir, await loadConfig(dir), cmsUrl);
 }
 
 // Stop all preview servers when the CMS process exits.

@@ -77,6 +77,16 @@ function section<T>(raw: unknown, name: string, map: (key: string, value: Raw) =
   return Object.entries(raw).map(([key, value]) => map(key, isObject(value) ? value : {}));
 }
 
+/** "datum" → ascending by datum, "-date" → newest first. */
+function parseSort(value: unknown, fields: FieldDef[], where: string): CollectionDef["sort"] {
+  if (value === undefined || value === null || value === "") return null;
+  const raw = String(value).trim();
+  const desc = raw.startsWith("-");
+  const field = desc ? raw.slice(1) : raw;
+  if (!fields.some((f) => f.name === field)) throw new ConfigError(`${where}.sort: Feld "${field}" gibt es nicht.`);
+  return { field, desc };
+}
+
 export function parseConfig(source: string): KernConfig {
   let raw: unknown;
   try {
@@ -112,6 +122,7 @@ export function parseConfig(source: string): KernConfig {
       format: v.format === "json" ? "json" : "md",
       titleField: str(v.titleField, fields[0]?.name ?? "title"),
       listFields: Array.isArray(v.listFields) ? v.listFields.map((f) => str(f)) : [],
+      sort: parseSort(v.sort, fields, `collections.${key}`),
       fields,
     };
   });

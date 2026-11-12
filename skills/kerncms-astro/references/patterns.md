@@ -65,6 +65,7 @@ collections:
     format: json
     titleField: title
     listFields: [datum, ort]
+    sort: datum                  # default order, same as the site sorts
     fields:
       title: { type: text, label: Titel, required: true }
       datum: { type: date, label: Datum, required: true }
@@ -116,6 +117,15 @@ export const blockRoot = (block: { id: string; type: string }) => ({
   "data-kern-block": block.id,
   "data-kern-type": block.type,
 });
+/** Order and hidden entries the editor stores on a block with `source: <collection>`. */
+export function pickEntries<T extends { id: string }>(list: T[], selection?: { order?: string[]; hidden?: string[] } | null): T[] {
+  const hidden = new Set(selection?.hidden ?? []);
+  const rank = new Map((selection?.order ?? []).map((id, i) => [id, i]));
+  const visible = list.filter((e) => !hidden.has(e.id));
+  if (rank.size === 0) return visible;
+  const ordered = visible.filter((e) => rank.has(e.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+  return [...ordered, ...visible.filter((e) => !rank.has(e.id))];
+}
 /** field("items", 0, "title") → data-kern-field="items.0.title" */
 export const field = (...path: (string | number)[]) => ({ "data-kern-field": path.join(".") });
 ```
@@ -231,6 +241,9 @@ const { block } = Astro.props as { block: BlockOf<"hero"> };
   {block.image && <img {...field("image")} src={block.image} alt={block.imageAlt ?? ""} />}
 </section>
 ```
+
+Blocks with `source: events`: add `entries: z.object({ order: z.array(z.string()).default([]), hidden: z.array(z.string()).default([]) }).optional()`
+to the block schema and render `pickEntries(sortedEvents, block.entries).slice(0, block.limit)`.
 
 Lists: `block.items.map((item, i) => <h3 {...field("items", i, "title")}>{item.title}</h3>)`.
 Globals in the layout: `<a data-kern-global="site#phone" href={`tel:${site.phone}`}>{site.phone}</a>`.

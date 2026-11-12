@@ -7,6 +7,7 @@ import { marked } from "marked";
 import TurndownService from "turndown";
 import { Document, isScalar, parse as parseYaml, visit } from "yaml";
 import type {
+  BlockEntries,
   BlockData,
   CollectionDef,
   ContentStatus,
@@ -240,7 +241,16 @@ export function cleanBlocks(config: KernConfig, blocks: BlockData[]) {
   return blocks.map((block) => {
     const def = config.blocks.find((b) => b.type === block.type);
     if (!def) return block;
-    return { ...(sanitizeValues(def.fields, block, config.marks) as BlockData), id: block.id, type: block.type };
+    const clean = { ...(sanitizeValues(def.fields, block, config.marks) as BlockData), id: block.id, type: block.type };
+    // Order and hidden entries of a block that shows a collection (contract §1, `source`).
+    if (def.source?.kind === "collection" && "entries" in clean) {
+      const raw = clean.entries as Partial<BlockEntries> | null | undefined;
+      const ids = (list: unknown) => (Array.isArray(list) ? [...new Set(list.filter((id): id is string => typeof id === "string" && isValidName(id)))] : []);
+      const entries: BlockEntries = { order: ids(raw?.order), hidden: ids(raw?.hidden) };
+      if (entries.order.length || entries.hidden.length) clean.entries = entries;
+      else delete clean.entries;
+    }
+    return clean;
   });
 }
 
@@ -364,11 +374,25 @@ export async function listEntries(dir: string, collection: CollectionDef, change
   );
   return entries
     .filter((e): e is EntrySummary => e !== null)
-    .sort((a, b) => {
-      const dateField = collection.fields.find((f) => f.type === "date");
-      if (dateField) return String(b.values[dateField.name] ?? "").localeCompare(String(a.values[dateField.name] ?? ""));
-      return String(a.values[collection.titleField] ?? a.id).localeCompare(String(b.values[collection.titleField] ?? b.id), "de");
-    });
+    .sort((a, b) => compareEntries(collection, a, b));
+}
+
+/** The collection's default order: `sort` from the config, else newest date first, else by title. */
+export function compareEntries(collection: CollectionDef, a: EntrySummary, b: EntrySummary) {
+  const text = (e: EntrySummary, name: string) => String(e.values[name] ?? "");
+  if (collection.sort) {
+    const { field, desc } = collection.sort;
+    const def = collection.fields.find((f) => f.name === field);
+    const diff =
+      def?.type === "number"
+        ? Number(a.values[field] ?? 0) - Number(b.values[field] ?? 0)
+        : text(a, field).localeCompare(text(b, field), "de", { numeric: true });
+    if (diff !== 0) return desc ? -diff : diff;
+  } else {
+    const dateField = collection.fields.find((f) => f.type === "date");
+    if (dateField) return text(b, dateField.name).localeCompare(text(a, dateField.name));
+  }
+  return text(a, collection.titleField || "").localeCompare(text(b, collection.titleField || ""), "de") || a.id.localeCompare(b.id);
 }
 
 export class ValidationError extends Error {

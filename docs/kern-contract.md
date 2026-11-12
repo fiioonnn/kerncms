@@ -39,8 +39,12 @@ blocks:                           # Bausteine, aus denen Seiten bestehen
   events:
     label: Termine
     icon: calendar-days
-    source: events                # optional: Block zeigt eine Sammlung oder ein Global an;
-                                  # der Editor verlinkt dann auf „Termine bearbeiten“
+    source: events                # optional: Block zeigt eine Sammlung oder ein Global an.
+                                  # Bei einer Sammlung listet der Editor die Einträge am Block;
+                                  # Reihenfolge und ausgeblendete Einträge landen im Block als
+                                  # entries: { order: [ids], hidden: [ids] } (fehlt = Standard).
+                                  # Die Website wendet das an: ausgeblendete weglassen, `order`
+                                  # zuerst, der Rest in der Standard-Reihenfolge danach.
     fields:
       limit: { type: number, label: Anzahl, default: 3 }
 
@@ -52,6 +56,8 @@ collections:
     format: md                    # md: Frontmatter + Body; json: eine Datei pro Eintrag
     titleField: title
     listFields: [date, category]
+    sort: -date                   # optional: Standard-Reihenfolge (Feld, "-" = absteigend);
+                                  # die Website sortiert genauso
     fields:
       title: { type: text, label: Titel, required: true }
       body:  { type: richtext, label: Inhalt }   # bei format md: der Markdown-Body (HTML erlaubt)

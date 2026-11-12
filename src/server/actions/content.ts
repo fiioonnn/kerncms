@@ -10,7 +10,9 @@ import { run } from "../action";
 import { findCollection, findGlobal } from "../config";
 import {
   entryFile,
+  getChangeSet,
   isValidName,
+  listEntries,
   normalizePath,
   pageFile,
   pageNameForPath,
@@ -219,6 +221,17 @@ export async function deleteEntry(collectionKey: string, id: string) {
       refresh();
       return null;
     });
+  });
+}
+
+/** Entries of a collection in its default order, e.g. for a block that shows them. */
+export async function loadEntries(collectionKey: string) {
+  return run(async () => {
+    const ws = await getWorkspace("viewer");
+    const collection = findCollection(ws.config, collectionKey);
+    if (!collection) throw new Error("Unbekannte Sammlung.");
+    const entries = await listEntries(ws.dir, collection, await getChangeSet(ws.dir, ws.site.branch));
+    return entries.map(({ id, values, status }) => ({ id, values, status }));
   });
 }
 
