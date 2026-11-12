@@ -89,10 +89,21 @@ export async function branchExists(repo: string, branch: string) {
   }
 }
 
-/** Makes sure the CMS has its own worktree on `kern/draft` and returns its path. */
+const preparing = new Map<string, Promise<string>>();
+
+/** Makes sure the CMS has its own worktree on `kern/draft` and returns its path. Concurrent first calls share one preparation. */
 export async function ensureWorktree(site: Site) {
   const dir = worktreeDir(site);
   if (existsSync(path.join(dir, ".git"))) return dir;
+  let job = preparing.get(dir);
+  if (!job) {
+    job = prepareWorktree(site, dir).finally(() => preparing.delete(dir));
+    preparing.set(dir, job);
+  }
+  return job;
+}
+
+async function prepareWorktree(site: Site, dir: string) {
   if (site.source === "github") await (await import("./github")).cloneRepo(site);
 
   await mkdir(path.dirname(dir), { recursive: true });

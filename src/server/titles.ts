@@ -2,11 +2,12 @@ import "server-only";
 import type { Metadata } from "next";
 import { findCollection } from "./config";
 import { readEntry } from "./content";
-import { getWorkspace } from "./sites";
+import { getSiteContext, getWorkspace } from "./sites";
 
 /** Window titles inside a site name it, so tabs of different sites stay apart: "Seiten · Vereinsheim · kerncms". */
 export async function siteTitle(): Promise<Metadata> {
-  const { site } = await getWorkspace();
+  // Site context only: the title must not fail when the site's config is missing.
+  const { site } = await getSiteContext();
   return { title: { default: site.name, template: `%s · ${site.name} · kerncms` } };
 }
 
