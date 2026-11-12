@@ -13,6 +13,7 @@ export function MediaImage({
   focusX = 50,
   focusY = 50,
   style,
+  onMissing,
 }: {
   value: string;
   alt?: string;
@@ -20,6 +21,8 @@ export function MediaImage({
   focusX?: number;
   focusY?: number;
   style?: React.CSSProperties;
+  /** Called when the file does not exist, so a field can show its empty state instead. */
+  onMissing?: () => void;
 }) {
   const prefix = useOptionalKern()?.mediaPrefix ?? "/media/";
   const src = mediaSrc(value, prefix);
@@ -29,8 +32,11 @@ export function MediaImage({
   useEffect(() => {
     const img = ref.current;
     // SVGs without a size can report a natural width of 0 although they loaded, so only check other images.
-    if (img?.complete && img.naturalWidth === 0 && !/\.svg$/i.test(value)) setFailed(src);
-  }, [src, value]);
+    if (img?.complete && img.naturalWidth === 0 && !/\.svg$/i.test(value)) {
+      setFailed(src);
+      onMissing?.();
+    }
+  }, [src, value, onMissing]);
   const lower = value.toLowerCase();
   if (lower.endsWith(".pdf") || lower.endsWith(".mp4")) {
     const Icon = lower.endsWith(".pdf") ? FileText : Film;
@@ -44,12 +50,11 @@ export function MediaImage({
   if (failed === src) {
     return (
       <div
-        className={cn("flex flex-col items-center justify-center gap-1.5 bg-subtle p-3 text-center text-muted", className)}
+        className={cn("flex items-center justify-center bg-subtle text-muted", className)}
         style={style}
         title={`${value} wurde nicht gefunden`}
       >
-        <ImageOff className="size-6 shrink-0" strokeWidth={1.5} />
-        <span className="max-w-full truncate text-xs">Bild nicht gefunden</span>
+        <ImageOff className="size-6 shrink-0" strokeWidth={1.5} aria-label="Bild nicht gefunden" />
       </div>
     );
   }
@@ -58,7 +63,10 @@ export function MediaImage({
     <img
       ref={ref}
       src={src}
-      onError={() => setFailed(src)}
+      onError={() => {
+        setFailed(src);
+        onMissing?.();
+      }}
       alt={alt}
       loading="lazy"
       draggable={false}

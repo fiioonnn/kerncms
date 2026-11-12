@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { Check, ImagePlus, Pencil, Search, Upload, X } from "lucide-react";
 import { formatBytes, UploadDialog } from "@/components/actions/common";
 import { useOptionalKern } from "@/components/kern/kern-provider";
@@ -166,13 +166,16 @@ export function ImageField({
   const kern = useOptionalKern();
   const item = items?.find((f) => f.value === value);
   const fileName = value?.split("/").pop() ?? "";
+  // A value whose file does not exist (e.g. /og-image.jpg never added) shows the empty state; the value stays until something is picked.
+  const [missing, setMissing] = useState<string | null>(null);
+  const onMissing = useCallback(() => setMissing(value ?? null), [value]);
 
   return (
     <div role="group" aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
       <span id={`${id}-label`} className="text-[15px] font-medium">
         {label}
       </span>
-      {value ? (
+      {value && missing !== value ? (
         <div className="overflow-hidden rounded-xl border border-border-strong">
           <button
             type="button"
@@ -180,7 +183,7 @@ export function ImageField({
             aria-label={`Bild ändern: ${fileName}`}
             className={cn("block w-full outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset", aspect)}
           >
-            <MediaImage value={value} alt={item?.alt} focusX={item?.focusX} focusY={item?.focusY} className="size-full" />
+            <MediaImage value={value} alt={item?.alt} focusX={item?.focusX} focusY={item?.focusY} className="size-full" onMissing={onMissing} />
           </button>
           {/* In a narrow sidebar the buttons wrap below the file name instead of squeezing it. */}
           <div className="flex flex-wrap items-center justify-end gap-1 border-t border-border p-1.5 pl-3">
