@@ -51,9 +51,10 @@ export function PageRowActions({ page }: { page: PageRowData }) {
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-end gap-1">
       {canEdit && (
-        <Link href={editorHref} className={buttonStyles({ variant: "secondary", size: "sm" })}>
+        // The title links to the editor too, so narrow tables drop this button (container query from the table).
+        <Link href={editorHref} className={buttonStyles({ variant: "secondary", size: "sm", className: "hidden @3xl:inline-flex" })}>
           Bearbeiten
         </Link>
       )}
