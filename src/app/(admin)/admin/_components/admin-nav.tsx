@@ -33,7 +33,7 @@ function NavContent({ me, onNavigate }: { me: Me; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <>
-      <div className="flex h-16 items-center gap-3 px-6">
+      <div className="flex items-center gap-3 px-6 py-5">
         <Link href="/admin" onClick={onNavigate} aria-label="kerncms Admin, zur Übersicht" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
           <Logo />
         </Link>
@@ -42,7 +42,7 @@ function NavContent({ me, onNavigate }: { me: Me; onNavigate?: () => void }) {
         </Badge>
       </div>
 
-      <nav aria-label="Admin" className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-3">
+      <nav aria-label="Admin" className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 pb-3">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (
