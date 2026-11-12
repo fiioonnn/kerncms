@@ -12,11 +12,12 @@ export function TabsList({
 }: Omit<BaseTabs.List.Props, "className"> & { className?: string }) {
   return (
     <BaseTabs.List
-      className={cn("relative z-0 flex gap-1 border-b border-border", className)}
+      // Phones: too many tabs scroll sideways instead of widening the page.
+      className={cn("relative z-0 flex gap-1 border-b border-border max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:[scrollbar-width:none]", className)}
       {...props}
     >
       {children}
-      <BaseTabs.Indicator className="absolute bottom-[-1px] left-0 h-0.5 w-(--active-tab-width) translate-x-(--active-tab-left) rounded-full bg-accent transition-[translate,width] duration-200 ease-out" />
+      <BaseTabs.Indicator className="absolute bottom-[-1px] left-0 max-sm:bottom-0 h-0.5 w-(--active-tab-width) translate-x-(--active-tab-left) rounded-full bg-accent transition-[translate,width] duration-200 ease-out" />
     </BaseTabs.List>
   );
 }

@@ -80,7 +80,7 @@ export default function SitesPage() {
           <EmptyState icon={Search} title="Keine Website gefunden" description="Versuche es mit einem anderen Namen oder einer Adresse." />
         </Card>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((site) => {
             const current = site.id === kern.site.id;
             const host = hostOf(site.liveUrl);

@@ -22,7 +22,7 @@ export function EmptyState({
       </span>
       <div className="flex max-w-sm flex-col gap-1.5">
         <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-        {description && <p className="text-[15px] text-muted">{description}</p>}
+        {description && <p className="text-[15px] text-muted [overflow-wrap:anywhere]">{description}</p>}
       </div>
       {action && <div className="mt-2 flex items-center gap-3">{action}</div>}
     </div>

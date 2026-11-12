@@ -59,7 +59,7 @@ export default async function DashboardPage() {
       />
 
       {/* Things that need attention */}
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
         <StatLink href="/analytics" icon={Users} value={numberFormat.format(a.visitors)} label="Besucher, letzte 7 Tage" />
         <StatLink
           href="/forms"
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-5 sm:mt-6">
         <CardHeader
           title="Besucher"
           description="Letzte 7 Tage · ohne Cookies erfasst"
@@ -88,9 +88,9 @@ export default async function DashboardPage() {
             </Link>
           }
         />
-        <CardContent className="grid gap-10 pt-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <CardContent className="grid grid-cols-1 gap-10 pt-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-6">
-            <div className="flex flex-wrap gap-x-12 gap-y-4">
+            <div className="grid grid-cols-3 gap-4 sm:flex sm:flex-wrap sm:gap-x-12 sm:gap-y-4">
               <Kpi label="Besucher" value={numberFormat.format(a.visitors)} change={a.visitorsChange} />
               <Kpi label="Seitenaufrufe" value={numberFormat.format(a.views)} change={a.viewsChange} />
               <Kpi label="Aufrufe pro Besuch" value={a.viewsPerVisit.toLocaleString("de-DE")} />
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardHeader
             title="Letzte Aktivität"
@@ -126,8 +126,9 @@ export default async function DashboardPage() {
             {data.recent.length === 0 ? (
               <EmptyState icon={GitCommitHorizontal} title="Noch keine Änderungen" description="Sobald jemand speichert, erscheint es hier." className="py-10" />
             ) : (
-              data.recent.map((item) => (
-                <div key={item.sha} className="flex items-center gap-4 rounded-xl px-3 py-3">
+              data.recent.map((item, index) => (
+                // Phones show the five latest; the full list is one tap away.
+                <div key={item.sha} className={cn("flex items-center gap-4 rounded-xl px-3 py-3", index >= 5 && "max-sm:hidden")}>
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-subtle text-muted">
                     <GitCommitHorizontal className="size-4" strokeWidth={1.75} />
                   </span>
@@ -165,9 +166,9 @@ export default async function DashboardPage() {
 
 function Kpi({ label, value, change }: { label: string; value: string; change?: number }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-[15px] text-muted">{label}</span>
-      <span className="flex items-baseline gap-2.5">
+    <div className="flex min-w-0 flex-col">
+      <span className="text-sm text-muted sm:text-[15px]">{label}</span>
+      <span className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2.5">
         <span className="text-2xl font-semibold tracking-tight">{value}</span>
         {change !== undefined && <Change value={change} />}
       </span>
@@ -190,12 +191,12 @@ function StatLink({
 }) {
   return (
     <Link href={href} className="group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-      <Card className="flex items-center gap-4 p-5 transition-colors group-hover:border-border-strong">
-        <span className={cn("flex size-12 items-center justify-center rounded-xl", highlight ? "bg-accent text-accent-foreground" : "bg-accent-soft text-accent")}>
+      <Card className="flex items-center gap-4 p-4 transition-colors group-hover:border-border-strong sm:p-5">
+        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl sm:size-12", highlight ? "bg-accent text-accent-foreground" : "bg-accent-soft text-accent")}>
           <Icon className="size-6" strokeWidth={1.75} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-3xl font-semibold tracking-tight">{value}</span>
+          <span className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</span>
           <span className="truncate text-[15px] text-muted">{label}</span>
         </span>
         <ArrowRight className="size-5 text-muted opacity-0 transition-opacity group-hover:opacity-100" />

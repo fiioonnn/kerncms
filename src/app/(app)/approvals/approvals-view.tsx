@@ -126,7 +126,7 @@ export function ApprovalsView({ requests, pendingFiles }: { requests: ApprovalRo
             }
           />
         ) : (
-          <div className="grid min-h-[560px] md:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="grid min-h-[560px] grid-cols-1 md:grid-cols-[340px_minmax(0,1fr)]">
             <ol className="flex flex-col gap-1 overflow-y-auto border-border p-2 md:border-r">
               {list.map((r) => (
                 <li key={r.id}>

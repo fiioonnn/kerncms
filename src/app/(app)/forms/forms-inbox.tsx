@@ -165,7 +165,7 @@ export function FormsInbox({
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         <Card className="h-fit p-2">
           <nav aria-label="Formulare" className="flex flex-col gap-1">
             {navItems.map((form) => {
@@ -546,7 +546,7 @@ function SubmissionDialog({
       </div>
       <dl className="flex flex-col divide-y divide-border rounded-xl border border-border">
         {rows.map((field) => (
-          <div key={field.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-4">
+          <div key={field.key} className="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-4">
             <dt className="text-sm font-medium text-muted">{field.label}</dt>
             <dd className={cn("text-[15px] leading-relaxed whitespace-pre-line", !field.value && "text-muted")}>{field.value || "–"}</dd>
           </div>

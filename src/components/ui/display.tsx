@@ -59,7 +59,7 @@ export function CardHeader({
 }) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-6 pt-5", className)}>
-      <div className="flex min-w-48 flex-1 flex-col gap-1">
+      <div className="flex min-w-40 flex-1 flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {description && <p className="text-[15px] text-muted">{description}</p>}
       </div>
@@ -152,7 +152,8 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="max-w-2xl text-[15px] text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+      {/* On phones the buttons share the full width instead of hanging at different lengths. */}
+      {actions && <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto *:flex-1 sm:*:flex-none">{actions}</div>}
     </div>
   );
 }
