@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { invites, loginCodes, memberships, sessions, users } from "@/db/schema";
 import { run } from "../action";
-import { createSession, destroySession, getUser, hashToken, newLoginCode, requireUser, SESSION_COOKIE, userCount } from "../auth";
+import { adminEmail, createSession, destroySession, getUser, hashToken, maySignUp, newLoginCode, requireUser, SESSION_COOKIE, userCount } from "../auth";
 import { sendLoginCode } from "../mail";
 import { clientIp, rateLimited } from "../public";
 import { notify } from "../notifications";
@@ -26,7 +26,8 @@ function validEmail(email: string) {
 
 /**
  * Step 1 of signing in: mails a six-digit code.
- * When no account exists yet, the first person to confirm a code becomes the owner (name required).
+ * kerncms is invite-only: unknown addresses get no code, except KERN_ADMIN_EMAIL
+ * (or, in development without it, the very first person), whose account is created as admin.
  */
 export async function requestLoginCode(input: { email: string; name?: string }) {
   return run(async () => {
@@ -36,18 +37,20 @@ export async function requestLoginCode(input: { email: string; name?: string }) 
     if (rateLimited(`code:${email}`, 5, 15 * 60_000) || rateLimited(`code-ip:${ip}`, 20, 15 * 60_000)) {
       throw new Error("Zu viele Codes angefordert. Bitte warte ein paar Minuten.");
     }
-    const firstRun = (await userCount()) === 0;
+    // Same rule as the login page: the form asks for a name only when the first account can be created.
+    const firstRun = (await userCount()) === 0 && (!!adminEmail() || process.env.NODE_ENV !== "production");
     if (firstRun && !input.name?.trim()) throw new Error("Bitte gib deinen Namen ein.");
     const [user] = await db.select({ id: users.id, disabled: users.disabled }).from(users).where(eq(users.email, email)).limit(1);
     if (user?.disabled) return { firstRun };
+    const signUp = !user && maySignUp(email, firstRun);
     // For unknown addresses we answer the same way, so nobody can probe which accounts exist.
-    if (!user && !firstRun) return { firstRun };
+    if (!user && !signUp) return { firstRun };
     const code = newLoginCode();
     await db.delete(loginCodes).where(eq(loginCodes.email, email));
     await db.insert(loginCodes).values({
       email,
       codeHash: hashToken(`${email}:${code}`),
-      name: firstRun ? input.name!.trim() : null,
+      name: signUp ? input.name?.trim() || email.split("@")[0] : null,
       expiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
     });
     try {
@@ -79,11 +82,13 @@ export async function verifyLoginCode(input: { email: string; code: string; next
       throw new Error(left > 0 ? `Der Code stimmt nicht. Noch ${left} ${left === 1 ? "Versuch" : "Versuche"}.` : "Der Code stimmt nicht. Bitte fordere einen neuen an.");
     }
     await db.delete(loginCodes).where(eq(loginCodes.email, email));
-    let [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    let [user] = await db.select({ id: users.id, isAdmin: users.isAdmin }).from(users).where(eq(users.email, email)).limit(1);
     if (!user) {
-      if ((await userCount()) > 0 || !row.name) throw new Error("Für diese E-Mail-Adresse gibt es kein Konto.");
-      // The very first account runs the instance.
-      [user] = await db.insert(users).values({ name: row.name, email, isAdmin: true }).returning({ id: users.id });
+      if (!row.name || !maySignUp(email, (await userCount()) === 0)) throw new Error("Für diese E-Mail-Adresse gibt es kein Konto.");
+      // KERN_ADMIN_EMAIL (or the very first account in development) runs the instance.
+      [user] = await db.insert(users).values({ name: row.name, email, isAdmin: true }).returning({ id: users.id, isAdmin: users.isAdmin });
+    } else if (!user.isAdmin && email === adminEmail()) {
+      await db.update(users).set({ isAdmin: true }).where(eq(users.id, user.id));
     }
     await createSession(user.id);
     return null;

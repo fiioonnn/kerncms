@@ -87,6 +87,7 @@ services:
       S3_BUCKET: ${S3_BUCKET:-kern}
       KERN_PUBLIC_URL: ${KERN_PUBLIC_URL:?KERN_PUBLIC_URL fehlt, z.B. https://app.kerncms.com}
       KERN_SECRET: ${KERN_SECRET:?KERN_SECRET fehlt}
+      KERN_ADMIN_EMAIL: ${KERN_ADMIN_EMAIL:?KERN_ADMIN_EMAIL fehlt (Adresse des ersten Administrators)}
       SMTP_URL: ${SMTP_URL:?SMTP_URL fehlt}
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM fehlt}
       KERN_PREVIEW_LAN: "0"

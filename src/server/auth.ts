@@ -71,6 +71,21 @@ export async function requireAdmin() {
   return user;
 }
 
+/** KERN_ADMIN_EMAIL: the address that may create the first (admin) account. */
+export function adminEmail() {
+  return process.env.KERN_ADMIN_EMAIL?.trim().toLowerCase() || null;
+}
+
+/**
+ * Whether this address may create an account by signing in. kerncms is invite-only:
+ * besides invites, only KERN_ADMIN_EMAIL may sign up, or in development the very first person.
+ */
+export function maySignUp(email: string, firstRun: boolean) {
+  const admin = adminEmail();
+  if (admin) return email === admin;
+  return firstRun && process.env.NODE_ENV !== "production";
+}
+
 export async function userCount() {
   const rows = await db.select({ id: users.id }).from(users).limit(1);
   return rows.length;
