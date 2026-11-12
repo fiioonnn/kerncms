@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { ArrowLeft, ArrowUpRight, Pencil, Trash2, X } from "lucide-react";
 import { useKern } from "@/components/kern/kern-provider";
 import { BlockIcon } from "./block-icons";
+import { focusGroup } from "./focus-fields";
+import { getAt } from "./paths";
 import { FieldInput } from "@/components/kern/field-renderer";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -51,6 +53,8 @@ export function EditorSidebar({
   onDuplicate,
   onRemove,
   onOpenGlobal,
+  focusPath,
+  onFocusPathChange,
   drawer = false,
 }: {
   tab: SidebarTab;
@@ -77,6 +81,9 @@ export function EditorSidebar({
   onRemove: (id: string) => void;
   /** Opens a global in the editor's dialog. */
   onOpenGlobal: (key: string) => void;
+  /** Path of the element clicked in the preview (e.g. "buttonLabel", "tiles.0.title"), or null for the whole block. */
+  focusPath: string | null;
+  onFocusPathChange: (path: string | null) => void;
   /** Rendered inside the slide-over panel on small screens. */
   drawer?: boolean;
 }) {
@@ -93,6 +100,14 @@ export function EditorSidebar({
 
   const blocks = page.blocks;
   const def = selected ? defs.get(selected.type) : undefined;
+  const focus = def && selected && focusPath ? focusGroup(def.fields, selected, focusPath) : null;
+  const focusRef = useRef<HTMLDivElement>(null);
+  // Put the cursor into the first field of what was clicked in the preview.
+  useEffect(() => {
+    if (!focusPath) return;
+    const el = focusRef.current?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, [contenteditable=true], button");
+    el?.focus({ preventScroll: true });
+  }, [focusPath, selected?.id]);
   // Tabs share the width so all three stay visible in a narrow sidebar.
   const tabClass = "min-w-0 flex-1 justify-center px-2";
   const Root = drawer ? "div" : "aside";
@@ -163,28 +178,56 @@ export function EditorSidebar({
                 <h2 className="text-xl font-semibold tracking-tight">{label(selected)}</h2>
               </div>
 
-              <div key={`${selected.id}-${revision}`} className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-                {def ? (
-                  def.fields
-                    .filter((f) => f.type !== "blocks")
-                    .map((field) => (
-                      <FieldInput
-                        key={`${field.name}-${fieldRevs[`${selected.id}:${field.name}`] ?? 0}`}
-                        field={field}
-                        value={selected[field.name]}
-                        onChange={(value) => onFieldChange(selected.id, field.name, value)}
-                        marks={marks}
-                        compact
-                      />
-                    ))
-                ) : null}
-                {def?.source && <SourceCard source={def.source} onOpenGlobal={onOpenGlobal} />}
-                {!def && (
-                  <p className="text-[15px] text-muted">
-                    Den Blocktyp „{selected.type}“ gibt es nicht in der kern.config.yaml. Er kann hier nicht bearbeitet werden.
-                  </p>
-                )}
-              </div>
+              {focus ? (
+                /* Only what was clicked in the preview: e.g. a button's text and link. */
+                <div key={`${selected.id}-${revision}-${focusPath}`} ref={focusRef} className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-semibold tracking-wider text-accent uppercase">Ausgewählt</span>
+                    <h3 className="text-lg font-semibold tracking-tight">{focus.title}</h3>
+                    {focus.context && <span className="truncate text-sm text-muted">{focus.context}</span>}
+                  </div>
+                  {focus.fields.map(({ def: field, path }) => (
+                    <FieldInput
+                      key={`${path}-${fieldRevs[`${selected.id}:${path.split(".")[0]}`] ?? 0}`}
+                      field={field}
+                      value={getAt(selected, path)}
+                      onChange={(value) => onFieldChange(selected.id, path, value)}
+                      marks={marks}
+                      compact
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => onFocusPathChange(null)}
+                    className="-mx-2 mt-auto flex items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-medium text-muted transition-colors outline-none hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    Alle Felder von „{label(selected)}“ anzeigen
+                  </button>
+                </div>
+              ) : (
+                <div key={`${selected.id}-${revision}`} className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+                  {def ? (
+                    def.fields
+                      .filter((f) => f.type !== "blocks")
+                      .map((field) => (
+                        <FieldInput
+                          key={`${field.name}-${fieldRevs[`${selected.id}:${field.name}`] ?? 0}`}
+                          field={field}
+                          value={selected[field.name]}
+                          onChange={(value) => onFieldChange(selected.id, field.name, value)}
+                          marks={marks}
+                          compact
+                        />
+                      ))
+                  ) : null}
+                  {def?.source && <SourceCard source={def.source} onOpenGlobal={onOpenGlobal} />}
+                  {!def && (
+                    <p className="text-[15px] text-muted">
+                      Den Blocktyp „{selected.type}“ gibt es nicht in der kern.config.yaml. Er kann hier nicht bearbeitet werden.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {canEdit && (
                 <div className="border-t border-border p-4">

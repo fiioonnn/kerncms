@@ -1,7 +1,8 @@
 /*
  * kerncms overlay. Loaded only inside the editor preview (KERN_PREVIEW=1).
  * Finds data-kern-block / data-kern-field markers, highlights them, lets editors
- * click to select and type to edit text, and talks to the editor via postMessage.
+ * click to select a block or field (edited in the editor's sidebar), and talks to the
+ * editor via postMessage.
  *
  * To the editor (source "kern-preview"): ready, select, edit, commit, pickImage, navigate, global, shortcut.
  * From the editor (source "kern-editor"): schema, select, patch.
@@ -13,8 +14,13 @@
   const ACCENT = "#2f5bea";
   /** Types the editor can show in its panel; anything else (lists, list items) is a container. */
   const LEAF = new Set(["text", "email", "textarea", "inline", "richtext", "number", "boolean", "select", "date", "image", "link", "tags"]);
-  /** Edited right here in the page. */
+  /** Edited right here in the page (only while INLINE_EDITING is on). */
   const INLINE = new Set(["text", "textarea", "inline"]);
+  /**
+   * Inline editing (typing straight into the page) is switched off: clicks only select,
+   * and fields are edited in the sidebar. The code below is kept so it can come back.
+   */
+  const INLINE_EDITING = false;
 
   let fieldTypes = {}; // "hero" -> { "headline": "inline", "tiles": "list", "tiles.*.title": "text" }
   let blockLabels = {};
@@ -39,7 +45,8 @@
     .kern-hover-block { outline: 2px dashed ${ACCENT}66 !important; outline-offset: -2px; }
     .kern-selected-block { outline: 2px solid ${ACCENT} !important; outline-offset: -2px; }
     .kern-hover-field { outline: 2px solid ${ACCENT}aa !important; outline-offset: 3px; border-radius: 3px; cursor: pointer; }
-    .kern-hover-field.kern-kind-inline { cursor: text; }
+    /* .kern-hover-field.kern-kind-inline { cursor: text; }  (inline editing) */
+    .kern-selected-field { outline: 2px solid ${ACCENT} !important; outline-offset: 3px; border-radius: 3px; box-shadow: 0 0 0 6px ${ACCENT}22; }
     .kern-hover-global { outline: 2px dashed #9b9b9b !important; outline-offset: 3px; border-radius: 3px; cursor: help; }
     [data-kern-field][contenteditable] { outline: 2px solid ${ACCENT} !important; outline-offset: 3px; border-radius: 3px; cursor: text; caret-color: ${ACCENT}; }
     #kern-chip { position: fixed; z-index: 2147483647; pointer-events: none; font: 600 12px/1 system-ui, sans-serif; color: #fff;
@@ -96,7 +103,18 @@
 
   let pendingScroll = null;
 
-  function markSelected(id, scroll) {
+  let selectedField = null;
+
+  /** Outlines the selected field (e.g. the button whose text is open in the sidebar). */
+  function markField(blockEl, path) {
+    document.querySelectorAll(".kern-selected-field").forEach((n) => n.classList.remove("kern-selected-field"));
+    selectedField = path || null;
+    if (!blockEl || !selectedField) return;
+    const el = blockEl.querySelector(`[data-kern-field="${CSS.escape(selectedField)}"]`);
+    if (el) el.classList.add("kern-selected-field");
+  }
+
+  function markSelected(id, scroll, field) {
     document.querySelectorAll(".kern-selected-block").forEach((n) => n.classList.remove("kern-selected-block"));
     selectedId = id || null;
     const el = blockById(selectedId);
@@ -107,6 +125,7 @@
     }
     pendingScroll = null;
     el.classList.add("kern-selected-block");
+    markField(el, field);
     if (scroll) {
       const rect = el.getBoundingClientRect();
       if (rect.top < 0 || rect.top > innerHeight * 0.6) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -122,6 +141,7 @@
     if (!selectedId) return;
     const el = blockById(selectedId);
     if (el && !el.classList.contains("kern-selected-block")) el.classList.add("kern-selected-block");
+    if (el && selectedField && !el.querySelector(".kern-selected-field")) markField(el, selectedField);
   }).observe(document.documentElement, { childList: true, subtree: true });
 
   /* ---------- Hover ---------- */
@@ -134,7 +154,7 @@
       const field = fieldOf(e.target, block);
       if (field) {
         field.el.classList.add("kern-hover-field");
-        if (INLINE.has(field.kind)) field.el.classList.add("kern-kind-inline");
+        if (INLINE_EDITING && INLINE.has(field.kind)) field.el.classList.add("kern-kind-inline");
       }
       placeChip(block, blockLabels[block.getAttribute("data-kern-type")] || block.getAttribute("data-kern-type"));
       return;
@@ -262,14 +282,22 @@
       const field = fieldOf(target, block);
       // Commit the previous text before announcing the new selection.
       if (editing && (!field || editing.el !== field.el)) stopEditing();
-      markSelected(blockId, false);
+      markSelected(blockId, false, field ? field.path : null);
       send("select", { blockId, field: field ? field.path : null });
+
+      /* Inline editing, switched off (see INLINE_EDITING):
       if (field && INLINE.has(field.kind)) {
         startEditing(field.el, block, field.path, field.kind);
         return;
       }
       stopEditing();
       if (field && field.kind === "image") send("pickImage", { blockId, field: field.path });
+      */
+      if (INLINE_EDITING && field && INLINE.has(field.kind)) {
+        startEditing(field.el, block, field.path, field.kind);
+        return;
+      }
+      stopEditing();
     },
     true,
   );
@@ -288,7 +316,7 @@
       fieldTypes = msg.fieldTypes || {};
       blockLabels = msg.blockLabels || {};
     } else if (msg.type === "select" || msg.type === "scrollTo") {
-      markSelected(msg.blockId, msg.scroll !== false);
+      markSelected(msg.blockId, msg.scroll !== false, typeof msg.field === "string" ? msg.field : null);
     } else if (msg.type === "patch") {
       const block = blockById(msg.blockId);
       if (!block) return;

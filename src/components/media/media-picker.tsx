@@ -182,8 +182,9 @@ export function ImageField({
           >
             <MediaImage value={value} alt={item?.alt} focusX={item?.focusX} focusY={item?.focusY} className="size-full" />
           </button>
-          <div className="flex items-center gap-1 border-t border-border p-1.5 pl-3">
-            <span className="min-w-0 flex-1 truncate text-sm">{fileName}</span>
+          {/* In a narrow sidebar the buttons wrap below the file name instead of squeezing it. */}
+          <div className="flex flex-wrap items-center justify-end gap-1 border-t border-border p-1.5 pl-3">
+            <span className="min-w-32 flex-1 truncate text-sm text-muted">{fileName}</span>
             {item && kern && (
               <Button variant="ghost" size="sm" onClick={() => setEditorOpen(true)}>
                 <Pencil />

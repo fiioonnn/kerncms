@@ -134,6 +134,9 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
 
   const [doc, setDoc] = useState(() => freshDoc(name, page, pages.find((p) => p.name === name)?.status));
   const [selectedId, setSelectedId] = useState<string | null>(page.blocks[0]?.id ?? null);
+  /** Field clicked in the preview; the sidebar then shows just that (null: all fields). */
+  const [focus, setFocus] = useState<{ blockId: string; path: string } | null>(null);
+  const focusPath = focus && focus.blockId === selectedId ? focus.path : null;
   const [tab, setTab] = useState<SidebarTab>("properties");
   const [device, setDevice] = useState("desktop");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -322,6 +325,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
 
   const selectBlock = (id: string | null, scroll = true) => {
     setSelectedId(id);
+    setFocus(null);
     if (id) post({ type: "select", blockId: id, scroll });
   };
 
@@ -524,6 +528,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
           break;
         }
         setSelectedId(blockId);
+        setFocus(field ? { blockId, path: field } : null);
         setTab("properties");
         // Small screens: the properties live in the slide-over, so selecting a block opens it.
         if (!isDesktop && blockId !== selectedRef.current) setDrawerOpen(true);
@@ -612,6 +617,11 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     onDuplicate: duplicateBlock,
     onRemove: removeBlock,
     onOpenGlobal: (key: string) => setGlobalHint(key),
+    focusPath,
+    onFocusPathChange: (path: string | null) => {
+      setFocus(path && selectedRef.current ? { blockId: selectedRef.current, path } : null);
+      if (selectedRef.current) post({ type: "select", blockId: selectedRef.current, field: path, scroll: false });
+    },
   };
 
   return (
