@@ -52,6 +52,8 @@
     #kern-chip { position: fixed; z-index: 2147483647; pointer-events: none; font: 600 12px/1 system-ui, sans-serif; color: #fff;
       background: ${ACCENT}; padding: 5px 8px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.15); display: none; white-space: nowrap; }
     #kern-chip.kern-chip-global { background: #555; }
+    /* Dev tools of the site's dev server (Astro's toolbar) would cover the page while editing. */
+    astro-dev-toolbar { display: none !important; }
   `;
   (document.head || document.documentElement).appendChild(style);
   const chip = document.createElement("div");
