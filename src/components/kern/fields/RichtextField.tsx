@@ -323,6 +323,13 @@ export function RichtextField({ value, onChange, label, disabled }: FieldProps) 
     }
   }, [editor, disabled]);
 
+  // Follow value changes made elsewhere (e.g. inline in the visual editor) while not being typed in.
+  useEffect(() => {
+    if (!editor || editor.isFocused || htmlMode) return;
+    const next = looksLikeMarkdown(value ?? "") ? markdownToHtml(value ?? "") : (value ?? "");
+    if (next !== editor.getHTML()) editor.commands.setContent(next, { emitUpdate: false });
+  }, [editor, value, htmlMode]);
+
   if (!editor) return null;
 
   function toggleHtmlMode() {

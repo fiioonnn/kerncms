@@ -12,13 +12,8 @@ import {
   ListField,
   RepeaterField,
 } from "./fields";
+import { fieldLabel } from "@/lib/field-label";
 
-function keyToLabel(key: string): string {
-  return key
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 export function FieldRenderer({
   fieldKey,
@@ -35,7 +30,7 @@ export function FieldRenderer({
   disabled?: boolean;
   hideLabel?: boolean;
 }) {
-  const label = hideLabel ? undefined : keyToLabel(fieldKey);
+  const label = hideLabel ? undefined : fieldLabel(fieldKey);
 
   // Simple string types
   if (schemaValue === "text") {

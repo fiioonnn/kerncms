@@ -6,11 +6,14 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useProjects } from "@/components/project-context";
 import { useIsAdmin } from "@/lib/auth-client";
 import { FieldRenderer } from "@/components/kern/FieldRenderer";
 import { FilePicker } from "@/components/file-picker";
+import { SitePreview } from "@/components/kern/site-preview";
+import { fieldLabel, nameLabel } from "@/lib/field-label";
 import {
   Dialog,
   DialogContent,
@@ -144,6 +147,8 @@ function useKernPages(projectId: string | undefined, commitRef?: string | null) 
 type SectionCacheEntry = {
   files: ContentFile[];
   typesJson: Record<string, unknown>;
+  /** Published types.json — the baseline drafts are compared against. */
+  typesOriginal?: Record<string, unknown> | null;
   error: string | null;
 };
 
@@ -159,6 +164,7 @@ function clearSectionCache(projectId?: string) {
 function useSectionFiles(projectId: string | undefined, page: string | null, section: string | null, caching = true, commitRef?: string | null) {
   const [files, setFiles] = useState<ContentFile[]>([]);
   const [typesJson, setTypesJson] = useState<Record<string, unknown>>({});
+  const [typesOriginal, setTypesOriginal] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -172,6 +178,7 @@ function useSectionFiles(projectId: string | undefined, page: string | null, sec
       if (cached) {
         setFiles(cached.files);
         setTypesJson(cached.typesJson);
+        setTypesOriginal(cached.typesOriginal ?? null);
         setError(cached.error);
         setLoading(false);
         return;
@@ -194,11 +201,13 @@ function useSectionFiles(projectId: string | undefined, page: string | null, sec
           const entry: SectionCacheEntry = {
             files: data.files,
             typesJson: data.typesJson ?? {},
+            typesOriginal: data.typesOriginal ?? null,
             error: data.error ?? data.warning ?? null,
           };
           if (caching && !commitRef) sectionCache.set(cacheKey, entry);
           setFiles(entry.files);
           setTypesJson(entry.typesJson);
+          setTypesOriginal(entry.typesOriginal ?? null);
           setError(entry.error);
         }
       })
@@ -207,7 +216,7 @@ function useSectionFiles(projectId: string | undefined, page: string | null, sec
     return () => { cancelled = true; };
   }, [projectId, page, section, caching, commitRef]);
 
-  return { files, typesJson, loading, error };
+  return { files, typesJson, typesOriginal, loading, error };
 }
 
 type DraftChange = {
@@ -658,99 +667,6 @@ function SidebarCommitSelector({
   );
 }
 
-function PageSelector({
-  pages,
-  selected,
-  onSelect,
-  loading,
-}: {
-  pages: PageInfo[];
-  selected: PageInfo | null;
-  onSelect: (page: PageInfo) => void;
-  loading: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const filtered = pages.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  useEffect(() => {
-    if (open && inputRef.current) inputRef.current.focus();
-  }, [open]);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
-    }
-    if (open) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={loading}
-        className="flex h-8 w-full items-center justify-between rounded-lg border border-border bg-transparent px-2.5 text-sm transition-colors hover:bg-muted/30 disabled:opacity-50"
-      >
-        {loading ? (
-          <span className="text-muted-foreground">Loading...</span>
-        ) : selected ? (
-          <div className="flex items-center gap-2 truncate">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted-foreground">
-              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-            </svg>
-            <span className="font-medium truncate">{selected.name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">
-            {pages.length === 0 ? "No pages found" : "Select a page..."}
-          </span>
-        )}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted-foreground ml-2">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-      {open && pages.length > 0 && (
-        <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-full rounded-lg bg-popover shadow-md ring-1 ring-foreground/10">
-          <div className="p-2">
-            <Input ref={inputRef} placeholder="Find page..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm" />
-          </div>
-          <div className="max-h-48 overflow-y-auto px-1 pb-1">
-            {filtered.length === 0 ? (
-              <p className="px-2 py-3 text-center text-sm text-muted-foreground">No pages found.</p>
-            ) : filtered.map((page) => (
-              <button
-                key={page.name}
-                onClick={() => { onSelect(page); setOpen(false); setSearch(""); }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/50"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted-foreground">
-                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                  <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                </svg>
-                <span className="text-sm">{page.name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                {selected?.name === page.name && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-foreground ml-auto">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const FIELD_TYPE_ICONS: Record<string, React.ReactNode> = {
   text: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" x2="15" y1="20" y2="20" /><line x1="12" x2="12" y1="4" y2="20" /></svg>,
   textarea: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 6.1H3" /><path d="M21 12.1H3" /><path d="M15.1 18H3" /></svg>,
@@ -899,10 +815,7 @@ function AddFieldModal({
 }
 
 function keyToLabel(key: string): string {
-  return key
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return fieldLabel(key);
 }
 
 function RenameFieldDialog({
@@ -962,10 +875,10 @@ function RenameFieldDialog({
             className="font-mono text-sm"
           />
           {isDuplicate && (
-            <p className="text-xs text-destructive">Ein Feld mit diesem Namen existiert bereits.</p>
+            <p className="text-xs text-destructive">A field with this name already exists.</p>
           )}
           {hasInvalidChars && !isEmpty && (
-            <p className="text-xs text-destructive">Nur Buchstaben, Zahlen, - und _ erlaubt.</p>
+            <p className="text-xs text-destructive">Only letters, numbers, - and _ are allowed.</p>
           )}
           <div className={`flex items-start gap-2 rounded-md px-3 py-2.5 ${isNew ? "bg-blue-500/10 border border-blue-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 mt-0.5 ${isNew ? "text-blue-500" : "text-amber-500"}`}>
@@ -1129,6 +1042,8 @@ function SortableField({
   existingKeys,
   isDirty,
   readOnly,
+  editStructure,
+  onRevert,
 }: {
   id: string;
   fieldKey: string;
@@ -1143,13 +1058,20 @@ function SortableField({
   existingKeys: string[];
   isDirty?: boolean;
   readOnly?: boolean;
+  /** Show the tools for changing the section's fields (type, rename, delete, reorder). */
+  editStructure?: boolean;
+  /** Put the published value back. */
+  onRevert?: () => void;
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const isRepeater = Array.isArray(schemaValue) && typeof (schemaValue as unknown[])[0] === "object";
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: readOnly });
+  const structure = !!editStructure && !readOnly;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !structure });
+  const typeName = schemaValueToTypeName(schemaValue);
+  const typeLabel = FIELD_TYPES.find((ft) => ft.type === typeName)?.label ?? typeName;
 
   return (
     <div
@@ -1157,11 +1079,12 @@ function SortableField({
       style={{ transform: CSS.Translate.toString(transform), transition: isDragging ? undefined : transition }}
       className={`group ${isDragging ? "opacity-50 z-10" : ""}`}
     >
-      <div className="relative">
-        {!readOnly && (
+      <div className={`relative ${structure ? "rounded-lg border border-dashed border-border p-3" : ""}`}>
+        {structure && (
           <button
             type="button"
-            className="absolute -left-6 top-0.5 cursor-grab touch-none text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute -left-6 top-3 cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
+            aria-label="Drag to reorder"
             {...attributes}
             {...listeners}
           >
@@ -1171,52 +1094,68 @@ function SortableField({
             </svg>
           </button>
         )}
-        <div className="flex items-center gap-1 mb-2">
-          <span className="text-xs font-medium text-muted-foreground">{keyToLabel(fieldKey)}</span>
-          {isDirty && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />}
-          {!readOnly && (
-            <>
+        <div className="flex min-h-5 items-center gap-1.5 mb-2">
+          <span className="text-[13px] font-medium text-foreground/85">{keyToLabel(fieldKey)}</span>
+          {structure && (
+            <span className="flex items-center gap-1 rounded bg-muted/70 px-1.5 py-px text-[10px] text-muted-foreground" title="Field key and type">
+              <span className="text-muted-foreground/80">{FIELD_TYPE_ICONS[typeName]}</span>
+              <span className="font-mono">{fieldKey}</span>
+              <span>· {typeLabel}</span>
+            </span>
+          )}
+          {isDirty && (
+            <span className="rounded-full bg-blue-500/10 px-1.5 py-px text-[10px] font-medium text-blue-500" title="Changed since the last publish">Edited</span>
+          )}
+          {isDirty && onRevert && !readOnly && (
+            <button
+              type="button"
+              onClick={onRevert}
+              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+              title="Put back the published value"
+            >
+              Revert
+            </button>
+          )}
+          {structure && (
+            <div className="ml-auto flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={() => setTypeOpen(true)}
-                className="text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Change field type"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v16" />
-                </svg>
+                Type
               </button>
               {isRepeater && (
                 <button
                   type="button"
                   onClick={() => setSchemaOpen(true)}
-                  className="text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
-                  title="Configure repeater fields"
+                  className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title="Configure the fields of each item"
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="8" x2="21" y1="6" y2="6" /><line x1="8" x2="21" y1="12" y2="12" /><line x1="8" x2="21" y1="18" y2="18" /><line x1="3" x2="3.01" y1="6" y2="6" /><line x1="3" x2="3.01" y1="12" y2="12" /><line x1="3" x2="3.01" y1="18" y2="18" />
-                  </svg>
+                  Item fields
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setRenameOpen(true)}
-                className="text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Rename field key"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
-                </svg>
+                Rename
               </button>
               <button
                 type="button"
                 onClick={() => setDeleteOpen(true)}
-                className="text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                title="Delete field"
+                aria-label="Delete field"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                 </svg>
               </button>
-            </>
+            </div>
           )}
         </div>
         <FieldRenderer fieldKey={fieldKey} value={value} schemaValue={schemaValue} onChange={onChange} hideLabel disabled={readOnly} />
@@ -1323,10 +1262,24 @@ function CodePanel({
   );
 }
 
+function TopbarToggle({ active, onClick, label, title, children }: { active: boolean; onClick: () => void; label: string; title: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      className={`flex h-7 items-center gap-1.5 rounded-md px-2 text-xs transition-colors ${active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+    >
+      {children}
+      <span className="hidden lg:inline">{label}</span>
+    </button>
+  );
+}
+
 function ContentTopbar({
   page,
   section,
-  onDeleteSection,
   changeCount,
   saving,
   publishing,
@@ -1334,10 +1287,14 @@ function ContentTopbar({
   onShowChanges,
   currentBranch,
   readOnly,
+  structureMode,
+  onStructureModeChange,
+  previewOpen,
+  onPreviewToggle,
 }: {
   page: string;
   section: string;
-  onDeleteSection: () => void;
+  onDeleteSection?: () => void;
   changeCount: number;
   saving: boolean;
   publishing: boolean;
@@ -1345,39 +1302,63 @@ function ContentTopbar({
   onShowChanges: () => void;
   currentBranch: string;
   readOnly?: boolean;
+  structureMode?: boolean;
+  onStructureModeChange?: (v: boolean) => void;
+  previewOpen?: boolean;
+  onPreviewToggle?: () => void;
 }) {
-  const displayName = section;
-
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6 h-10">
-      <div className="flex items-center gap-1">
-        <span className="text-sm font-medium pr-1">{displayName.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-        {saving && (
-          <span className="text-[10px] text-muted-foreground/50 ml-1">Saving...</span>
-        )}
+    <div className="sticky top-0 z-10 flex h-11 items-center justify-between gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
+      <div className="flex min-w-0 items-center gap-1.5 text-sm">
+        <span className="truncate text-muted-foreground">{page === "globals" ? "Globals" : nameLabel(page)}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted-foreground/50"><path d="m9 18 6-6-6-6" /></svg>
+        <span className="truncate font-medium">{nameLabel(section)}</span>
       </div>
-      <div className="flex items-center gap-1.5">
-        {!readOnly && changeCount > 0 && (
-          <>
-            <div className="w-px h-4 bg-border mx-0.5" />
+      <div className="flex shrink-0 items-center gap-1">
+        {!readOnly && (
+          saving ? (
+            <span className="flex items-center gap-1.5 px-1.5 text-xs text-muted-foreground">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+              Saving draft…
+            </span>
+          ) : changeCount > 0 ? (
             <button
+              type="button"
               onClick={onShowChanges}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              title="Your changes are saved as a draft. Review them before publishing."
             >
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/10 px-1 text-[10px] leading-none font-medium">
-                {changeCount}
-              </span>
-              <span>changes</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              {changeCount} unpublished {changeCount === 1 ? "change" : "changes"}
             </button>
-            <Button
-              size="xs"
-              onClick={() => onPublish(currentBranch)}
-              disabled={publishing}
-              className="gap-1"
-            >
-              {publishing ? "Publishing..." : "Publish"}
-            </Button>
-          </>
+          ) : (
+            <span className="flex items-center gap-1 px-1.5 text-xs text-muted-foreground/70">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              Everything published
+            </span>
+          )
+        )}
+        {(onStructureModeChange || onPreviewToggle) && <div className="mx-1 h-4 w-px bg-border" />}
+        {onStructureModeChange && (
+          <TopbarToggle active={!!structureMode} onClick={() => onStructureModeChange(!structureMode)} label="Edit structure" title="Add, rename, reorder or remove fields">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>
+          </TopbarToggle>
+        )}
+        {onPreviewToggle && (
+          <TopbarToggle active={!!previewOpen} onClick={onPreviewToggle} label="Preview" title="Show the live page next to the editor">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+          </TopbarToggle>
+        )}
+        {!readOnly && (
+          <Button
+            size="xs"
+            onClick={() => onPublish(currentBranch)}
+            disabled={publishing || changeCount === 0}
+            className="ml-1 gap-1"
+            title={changeCount === 0 ? "Nothing to publish" : `Publish to ${currentBranch}`}
+          >
+            {publishing ? "Publishing…" : "Publish"}
+          </Button>
         )}
       </div>
     </div>
@@ -1659,6 +1640,7 @@ function SectionEditor({
   page,
   section,
   typesJson,
+  typesOriginal,
   draft,
   srcDir,
   projectId,
@@ -1672,12 +1654,17 @@ function SectionEditor({
   onCodeToggle,
   addFieldOpen,
   onAddFieldOpenChange,
+  structureMode,
+  onStructureModeChange,
+  previewOpen,
+  onPreviewToggle,
 }: {
   files: ContentFile[];
   loading: boolean;
   page: string;
   section: string;
   typesJson: Record<string, unknown>;
+  typesOriginal?: Record<string, unknown> | null;
   draft: ReturnType<typeof useDraft>;
   srcDir?: string | null;
   projectId: string;
@@ -1691,6 +1678,10 @@ function SectionEditor({
   onCodeToggle: () => void;
   addFieldOpen: boolean;
   onAddFieldOpenChange: (open: boolean) => void;
+  structureMode?: boolean;
+  onStructureModeChange?: (v: boolean) => void;
+  previewOpen?: boolean;
+  onPreviewToggle?: () => void;
 }) {
   const [fileData, setFileData] = useState<Record<string, Record<string, unknown>>>({});
   const [fileSchemas, setFileSchemas] = useState<Record<string, Record<string, unknown>>>({});
@@ -1751,9 +1742,11 @@ function SectionEditor({
     }
   }, [files]);
 
-  const discardInitRef = useRef(true);
+  // Only react to an actual discard — not to the effect's first run (which React runs twice in development).
+  const lastDiscardRef = useRef(draft.discardVersion);
   useEffect(() => {
-    if (discardInitRef.current) { discardInitRef.current = false; return; }
+    if (draft.discardVersion === lastDiscardRef.current) return;
+    lastDiscardRef.current = draft.discardVersion;
     const restored: Record<string, Record<string, unknown>> = {};
     for (const file of files) {
       restored[file.filename] = file.originalData ? { ...file.originalData } : { ...file.data };
@@ -1891,7 +1884,7 @@ function SectionEditor({
       if (!updated.content[page][filename]) updated.content[page][filename] = {};
       updated.content[page][filename][repeaterKey] = newRepeaterSchema;
     }
-    draft.save(typesPath, updated, typesJson);
+    draft.save(typesPath, updated, typesOriginal ?? typesJson);
   }
 
   function handleRemoveRepeaterSubField(filename: string, repeaterKey: string, subKey: string) {
@@ -1933,7 +1926,7 @@ function SectionEditor({
       if (!updated.content[page][filename]) updated.content[page][filename] = {};
       updated.content[page][filename][repeaterKey] = newRepeaterSchema;
     }
-    draft.save(typesPath, updated, typesJson);
+    draft.save(typesPath, updated, typesOriginal ?? typesJson);
   }
 
   function handleMoveFieldToRepeater(filename: string, repeaterKey: string, fieldKey: string) {
@@ -1988,7 +1981,7 @@ function SectionEditor({
       updated.content[page][filename][repeaterKey] = newRepeaterSchema;
       delete updated.content[page][filename][fieldKey];
     }
-    draft.save(typesPath, updated, typesJson);
+    draft.save(typesPath, updated, typesOriginal ?? typesJson);
   }
 
   if (loading) {
@@ -2050,6 +2043,10 @@ function SectionEditor({
           onShowChanges={() => setChangesOpen(true)}
           currentBranch={currentBranch}
           readOnly={readOnly}
+          structureMode={structureMode}
+          onStructureModeChange={readOnly ? undefined : onStructureModeChange}
+          previewOpen={previewOpen}
+          onPreviewToggle={onPreviewToggle}
         />
         <ChangesDialog
           open={changesOpen}
@@ -2235,12 +2232,12 @@ function SectionEditor({
       if (!updated.content[page][filename]) updated.content[page][filename] = {};
       updated.content[page][filename][key] = newSchemaValue;
     }
-    draft.save(typesPath, updated, typesJson);
+    draft.save(typesPath, updated, typesOriginal ?? typesJson);
   }
 
   return (
     <DndContext sensors={sensors} collisionDetection={containerCollision} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="relative flex flex-col h-full overflow-hidden">
         <ContentTopbar
           page={page}
           section={section}
@@ -2258,6 +2255,10 @@ function SectionEditor({
           onShowChanges={() => setChangesOpen(true)}
           currentBranch={currentBranch}
           readOnly={readOnly}
+          structureMode={structureMode}
+          onStructureModeChange={readOnly ? undefined : onStructureModeChange}
+          previewOpen={previewOpen}
+          onPreviewToggle={onPreviewToggle}
         />
         <ChangesDialog
           open={changesOpen}
@@ -2270,13 +2271,13 @@ function SectionEditor({
         <Dialog open={revertConfirmOpen} onOpenChange={setRevertConfirmOpen}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle>Auf Commit zurücksetzen?</DialogTitle>
+              <DialogTitle>Restore this version?</DialogTitle>
               <DialogDescription>
-                Alle Inhalte werden auf den Stand von <span className="font-mono font-medium text-foreground">{selectedCommit?.slice(0, 7)}</span> zurückgesetzt. Änderungen, die nach diesem Commit gemacht wurden, gehen verloren.
+                All content will be reset to commit <span className="font-mono font-medium text-foreground">{selectedCommit?.slice(0, 7)}</span>. Changes made after that commit will be lost.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setRevertConfirmOpen(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => setRevertConfirmOpen(false)}>Cancel</Button>
               <Button
                 variant="destructive"
                 onClick={async () => {
@@ -2287,7 +2288,7 @@ function SectionEditor({
                   toast.success("Successfully published");
                 }}
               >
-                Zurücksetzen & Publishen
+                Restore &amp; publish
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2322,7 +2323,7 @@ function SectionEditor({
         </Dialog>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-none">
-          <div className="mx-auto max-w-2xl px-8 py-8">
+          <div className="mx-auto max-w-2xl px-8 pt-8 pb-24">
             <div ref={fieldContainerRef} className="flex flex-col gap-8">
               {files.map((file) => {
                 const keys = fieldOrder[file.filename] ?? [];
@@ -2361,6 +2362,10 @@ function SectionEditor({
                                 existingKeys={keys}
                                 isDirty={JSON.stringify((fileData[file.filename] ?? {})[key]) !== JSON.stringify((originalDataRef.current[file.filename] ?? {})[key])}
                                 readOnly={readOnly}
+                                editStructure={structureMode}
+                                onRevert={key in (originalDataRef.current[file.filename] ?? {})
+                                  ? () => handleFieldChange(file.filename, key, JSON.parse(JSON.stringify(originalDataRef.current[file.filename][key])))
+                                  : undefined}
                               />
                               {showGhostAfter && (() => {
                                 const fieldType = activeDragId!.slice(5);
@@ -2394,6 +2399,18 @@ function SectionEditor({
           </div>
         )}
 
+        {!readOnly && structureMode && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => onAddFieldOpenChange(true)}
+              className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-md hover:bg-muted"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></svg>
+              Add field
+            </button>
+          </div>
+        )}
         {!readOnly && !activeDragId && <AddFieldModal open={addFieldOpen} onOpenChange={onAddFieldOpenChange} onAdd={handleAddField} existingKeys={allKeys} />}
       </div>
       <DragOverlay dropAnimation={null}>
@@ -2419,6 +2436,405 @@ function SectionEditor({
         })()}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+type GlobalField = { key: string; type: string };
+type DraftField = { id: number; label: string; key: string; type: string };
+
+const GLOBAL_PRESETS: { id: string; label: string; kind: "list" | "fields"; name: string; fields: GlobalField[] }[] = [
+  { id: "projects", label: "Projects", kind: "list", name: "projects", fields: [
+    { key: "title", type: "text" }, { key: "slug", type: "text" }, { key: "summary", type: "textarea" },
+    { key: "image", type: "image" }, { key: "image_alt", type: "text" }, { key: "url", type: "text" },
+    { key: "year", type: "number" }, { key: "tags", type: "list" },
+  ] },
+  { id: "team", label: "Team", kind: "list", name: "team", fields: [
+    { key: "name", type: "text" }, { key: "role", type: "text" }, { key: "photo", type: "image" }, { key: "photo_alt", type: "text" }, { key: "bio", type: "textarea" },
+  ] },
+  { id: "testimonials", label: "Testimonials", kind: "list", name: "testimonials", fields: [
+    { key: "quote", type: "textarea" }, { key: "author", type: "text" }, { key: "company", type: "text" }, { key: "photo", type: "image" },
+  ] },
+  { id: "faq", label: "FAQ", kind: "list", name: "faq", fields: [{ key: "question", type: "text" }, { key: "answer", type: "richtext" }] },
+  { id: "list", label: "Start empty", kind: "list", name: "", fields: [{ key: "title", type: "text" }] },
+  { id: "contact", label: "Contact details", kind: "fields", name: "contact", fields: [
+    { key: "email", type: "text" }, { key: "phone", type: "text" }, { key: "address", type: "textarea" },
+  ] },
+  { id: "fields", label: "Start empty", kind: "fields", name: "", fields: [{ key: "title", type: "text" }] },
+];
+
+const GLOBAL_FIELD_TYPES = FIELD_TYPES.filter((ft) => ft.type !== "repeater");
+
+function slugKey(v: string) {
+  return v.toLowerCase().trim().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "").replace(/^_+|_+$/g, "");
+}
+
+let draftFieldId = 0;
+function toDraftFields(fields: GlobalField[]): DraftField[] {
+  return fields.map((f) => ({ id: ++draftFieldId, label: fieldLabel(f.key), key: f.key, type: f.type }));
+}
+
+function NewGlobalDialog({
+  open,
+  onOpenChange,
+  projectId,
+  existing,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  projectId: string;
+  existing: string[];
+  onCreated: (name: string) => void | Promise<void>;
+}) {
+  const [kind, setKind] = useState<"list" | "fields">("list");
+  const [presetId, setPresetId] = useState("projects");
+  const [name, setName] = useState("Projects");
+  const [fields, setFields] = useState<DraftField[]>(() => toDraftFields(GLOBAL_PRESETS[0].fields));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+
+  function applyPreset(id: string) {
+    const p = GLOBAL_PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    setPresetId(p.id);
+    setKind(p.kind);
+    setFields(toDraftFields(p.fields));
+    setName(p.name ? nameLabel(p.name) : "");
+    setError(null);
+    setShowErrors(false);
+  }
+
+  useEffect(() => {
+    if (open) applyPreset("projects");
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const key = slugKey(name);
+  const keys = fields.map((f) => f.key);
+  const nameProblem = !key ? "Give it a name." : existing.includes(key) ? `“${nameLabel(key)}” already exists.` : null;
+  const duplicateKeys = new Set(keys.filter((k, i) => k && keys.indexOf(k) !== i));
+  const fieldsProblem = fields.length === 0 ? "Add at least one field."
+    : keys.some((k) => !k) ? "Every field needs a name."
+    : duplicateKeys.size > 0 ? "Two fields have the same name."
+    : null;
+
+  function updateField(id: number, patch: Partial<DraftField>) {
+    setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  async function create() {
+    if (nameProblem || fieldsProblem) { setShowErrors(true); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/kern/globals`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: key, kind, listKey: "items", fields: fields.map(({ key, type }) => ({ key, type })) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not create it");
+      onOpenChange(false);
+      toast.success(`${nameLabel(key)} created — add content, then publish`);
+      await onCreated(key);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const kinds = [
+    {
+      id: "list" as const,
+      title: "List of items",
+      hint: "Many entries with the same fields — projects, team, testimonials",
+      icon: <><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></>,
+    },
+    {
+      id: "fields" as const,
+      title: "Single set of fields",
+      hint: "One of each — contact details, footer, social links",
+      icon: <><path d="M17 6.1H3" /><path d="M21 12.1H3" /><path d="M15.1 18H3" /></>,
+    },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New global</DialogTitle>
+          <DialogDescription>Content you manage once and use on any page.</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid min-w-0 grid-cols-2 gap-2" role="radiogroup" aria-label="Kind">
+            {kinds.map((k) => {
+              const active = kind === k.id;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => { if (!active) applyPreset(k.id === "list" ? "list" : "fields"); }}
+                  className={`flex min-w-0 flex-col gap-1.5 rounded-lg border p-3 text-left transition-colors ${active ? "border-foreground/40 bg-muted/60" : "border-border hover:bg-muted/30"}`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted-foreground">{k.icon}</svg>
+                    {k.title}
+                  </span>
+                  <span className="text-xs leading-snug text-muted-foreground">{k.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-2">
+            <Label>Start from</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {GLOBAL_PRESETS.filter((p) => p.kind === kind).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p.id)}
+                  aria-pressed={presetId === p.id}
+                  className={`h-7 rounded-md border px-2.5 text-xs transition-colors ${presetId === p.id ? "border-foreground/40 bg-muted text-foreground" : "border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-2">
+            <Label htmlFor="new-global-name">Name</Label>
+            <Input
+              id="new-global-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Projects"
+              aria-invalid={showErrors && !!nameProblem}
+            />
+            {showErrors && nameProblem ? (
+              <p className="text-xs text-destructive">{nameProblem}</p>
+            ) : key ? (
+              <p className="text-xs text-muted-foreground">
+                In your site: <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground/80">getGlobal(&apos;{key}&apos;){kind === "list" ? ".items" : ""}</code>
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-2">
+            <Label>{kind === "list" ? "Each item has" : "Fields"}</Label>
+            <div className="flex max-h-60 min-w-0 flex-col gap-1.5 overflow-y-auto">
+              {fields.map((f) => (
+                <div key={f.id} className="flex min-w-0 items-center gap-1.5">
+                  <Input
+                    value={f.label}
+                    onChange={(e) => updateField(f.id, { label: e.target.value, key: slugKey(e.target.value) })}
+                    placeholder="Field name"
+                    aria-label="Field name"
+                    aria-invalid={showErrors && (!f.key || duplicateKeys.has(f.key))}
+                    className="min-w-0 flex-1"
+                  />
+                  <Select value={f.type} onValueChange={(v) => v && updateField(f.id, { type: v as string })}>
+                    <SelectTrigger className="w-36 shrink-0" aria-label="Field type">
+                      <SelectValue>
+                        {(value: string | null) => {
+                          const ft = GLOBAL_FIELD_TYPES.find((t) => t.type === value);
+                          return (
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground">{FIELD_TYPE_ICONS[value ?? "text"]}</span>
+                              {ft?.label ?? "Text"}
+                            </span>
+                          );
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent align="end" className="w-72 p-1">
+                      {GLOBAL_FIELD_TYPES.map((ft) => (
+                        <SelectItem key={ft.type} value={ft.type}>
+                          <span className="flex min-w-0 flex-1 items-center gap-2">
+                            <span className="shrink-0 text-muted-foreground">{FIELD_TYPE_ICONS[ft.type]}</span>
+                            <span className="shrink-0">{ft.label}</span>
+                            <span className="ml-auto min-w-0 truncate pl-2 text-[11px] text-muted-foreground">{ft.desc}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setFields((prev) => prev.filter((x) => x.id !== f.id))}
+                    disabled={fields.length === 1}
+                    aria-label={`Remove ${f.label || "field"}`}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="self-start text-muted-foreground"
+              onClick={() => setFields((prev) => [...prev, { id: ++draftFieldId, label: "", key: "", type: "text" }])}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></svg>
+              Add field
+            </Button>
+            {showErrors && fieldsProblem && <p className="text-xs text-destructive">{fieldsProblem}</p>}
+          </div>
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={create} disabled={saving}>{saving ? "Creating…" : key ? `Create ${nameLabel(key)}` : "Create"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PageTree({
+  pages,
+  loading,
+  selectedPage,
+  activeSection,
+  activeGlobal,
+  sectionBase,
+  changedPaths,
+  deletedPaths,
+  errorItems,
+  canDelete,
+  onOpen,
+  onDelete,
+}: {
+  pages: PageInfo[];
+  loading: boolean;
+  selectedPage: PageInfo | null;
+  activeSection: string | null;
+  activeGlobal: string | null;
+  sectionBase: string;
+  changedPaths: Set<string>;
+  deletedPaths: Set<string>;
+  errorItems: Set<string>;
+  canDelete: boolean;
+  onOpen: (page: PageInfo, section: string | null) => void;
+  onDelete: (page: string, section: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(selectedPage ? [selectedPage.name] : []));
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (selectedPage) setExpanded((prev) => (prev.has(selectedPage.name) ? prev : new Set(prev).add(selectedPage.name)));
+  }, [selectedPage]);
+
+  const q = query.trim().toLowerCase();
+  const visible = pages
+    .map((page) => {
+      const sections = page.sections.filter((s) => !deletedPaths.has(`${sectionBase}/content/${page.name}/${s.name}.json`));
+      if (!q) return { page, sections };
+      const pageHit = page.name.toLowerCase().includes(q) || nameLabel(page.name).toLowerCase().includes(q);
+      const hits = sections.filter((s) => s.name.toLowerCase().includes(q) || nameLabel(s.name).toLowerCase().includes(q));
+      return pageHit ? { page, sections } : hits.length > 0 ? { page, sections: hits } : null;
+    })
+    .filter((x): x is { page: PageInfo; sections: SectionInfo[] } => !!x);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-1">
+        {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-7 rounded-md bg-muted/40 animate-pulse" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {pages.length > 6 && (
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Find page or section…"
+          className="mb-1.5 h-7 text-xs"
+        />
+      )}
+      {visible.length === 0 && (
+        <p className="px-2 py-1.5 text-xs text-muted-foreground/60">{pages.length === 0 ? "No pages yet" : "Nothing found"}</p>
+      )}
+      {visible.map(({ page, sections }) => {
+        const isOpen = !!q || expanded.has(page.name);
+        const isCurrent = selectedPage?.name === page.name;
+        const pageChanged = sections.some((s) => changedPaths.has(`${sectionBase}/content/${page.name}/${s.name}.json`));
+        return (
+          <div key={page.name}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isCurrent) {
+                  onOpen(page, sections[0]?.name ?? null);
+                  setExpanded((prev) => new Set(prev).add(page.name));
+                } else {
+                  setExpanded((prev) => { const n = new Set(prev); if (n.has(page.name)) n.delete(page.name); else n.add(page.name); return n; });
+                }
+              }}
+              aria-expanded={isOpen}
+              className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm transition-colors ${isCurrent ? "text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-muted-foreground/60 transition-transform ${isOpen ? "rotate-90" : ""}`}><path d="m9 18 6-6-6-6" /></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" />
+              </svg>
+              <span className={`flex-1 truncate text-left ${isCurrent ? "font-medium" : ""}`}>{nameLabel(page.name)}</span>
+              {pageChanged && !isOpen && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title="Unpublished changes" />}
+            </button>
+            {isOpen && (
+              <div className="ml-[13px] flex flex-col gap-0.5 border-l border-border pl-2">
+                {sections.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground/60">No sections</p>}
+                {sections.map((section) => {
+                  const isActive = isCurrent && activeSection === section.name && !activeGlobal;
+                  const changed = changedPaths.has(`${sectionBase}/content/${page.name}/${section.name}.json`);
+                  return (
+                    <div
+                      key={section.name}
+                      onClick={() => onOpen(page, section.name)}
+                      className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+                    >
+                      <span className="flex-1 truncate">{nameLabel(section.name)}</span>
+                      {errorItems.has(`section:${page.name}:${section.name}`) && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-destructive">
+                          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" />
+                        </svg>
+                      )}
+                      {changed && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 group-hover:hidden" title="Unpublished changes" />}
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(page.name, section.name); }}
+                          className="hidden shrink-0 text-muted-foreground/50 transition-colors hover:text-destructive group-hover:block"
+                          title="Delete section"
+                          aria-label={`Delete ${nameLabel(section.name)}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2483,6 +2899,33 @@ export default function ContentPage() {
   const [scanFilesCollapsed, setScanFilesCollapsed] = useState<Set<number>>(new Set());
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const draft = useDraft(current?.id);
+
+  // "Edit structure" shows the tools for changing fields; content editing stays uncluttered otherwise.
+  const [structureMode, setStructureModeState] = useState(false);
+  const [previewOpen, setPreviewOpenState] = useState(false);
+  const [previewReloadKey, setPreviewReloadKey] = useState(0);
+  useEffect(() => {
+    try {
+      setStructureModeState(localStorage.getItem("kern-structure-mode") === "1");
+      setPreviewOpenState(localStorage.getItem("kern-preview-open") === "1");
+    } catch { /* */ }
+  }, []);
+  const setStructureMode = useCallback((v: boolean) => {
+    setStructureModeState(v);
+    try { localStorage.setItem("kern-structure-mode", v ? "1" : "0"); } catch { /* */ }
+  }, []);
+  const togglePreview = useCallback(() => {
+    setPreviewOpenState((v) => {
+      try { localStorage.setItem("kern-preview-open", v ? "0" : "1"); } catch { /* */ }
+      return !v;
+    });
+  }, []);
+  // Reload the preview after publishing.
+  const wasPublishingRef = useRef(false);
+  useEffect(() => {
+    if (wasPublishingRef.current && !draft.publishing) setPreviewReloadKey((k) => k + 1);
+    wasPublishingRef.current = draft.publishing;
+  }, [draft.publishing]);
 
   const loadScanFiles = useCallback(() => {
     if (!current?.repo || !current?.branch) return;
@@ -2663,9 +3106,13 @@ export default function ContentPage() {
   const initializedRef = useRef(false);
   const prevProjectIdRef = useRef<string | null>(null);
   const [globals, setGlobals] = useState<string[]>([]);
+  const [globalsLoadedFor, setGlobalsLoadedFor] = useState<string | null>(null);
   const [globalFile, setGlobalFile] = useState<ContentFile | null>(null);
   const globalFiles = useMemo(() => globalFile ? [globalFile] : [] as ContentFile[], [globalFile]);
   const [globalTypesJson, setGlobalTypesJson] = useState<Record<string, unknown>>({});
+  const [globalTypesOriginal, setGlobalTypesOriginal] = useState<Record<string, unknown> | null>(null);
+  const [globalsVersion, setGlobalsVersion] = useState(0);
+  const [newGlobalOpen, setNewGlobalOpen] = useState(false);
   const [globalsLoading, setGlobalsLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [errorItems, setErrorItems] = useState<Set<string>>(new Set());
@@ -2697,10 +3144,11 @@ export default function ContentPage() {
     const url = selectedCommit
       ? `/api/projects/${current.id}/kern/globals?ref=${encodeURIComponent(selectedCommit)}`
       : `/api/projects/${current.id}/kern/globals`;
+    const projectId = current.id;
     fetch(url)
       .then((r) => r.ok ? r.json() : { globals: [] })
-      .then((data) => setGlobals(data.globals ?? []));
-  }, [current?.id, selectedCommit]);
+      .then((data) => { setGlobals(data.globals ?? []); setGlobalsLoadedFor(projectId); });
+  }, [current?.id, selectedCommit, globalsVersion]);
 
   // Load active global file
   useEffect(() => {
@@ -2716,6 +3164,7 @@ export default function ContentPage() {
       if (cached) {
         setGlobalFile(cached.files[0] ?? null);
         setGlobalTypesJson(cached.typesJson);
+        setGlobalTypesOriginal(cached.typesOriginal ?? null);
         setGlobalError(cached.error);
         setGlobalsLoading(false);
         return () => { cancelled = true; };
@@ -2738,10 +3187,11 @@ export default function ContentPage() {
         const file = data.file ?? null;
         const err = data.error ?? data.warning ?? null;
         if (useCaching && !selectedCommit) {
-          sectionCache.set(cacheKey, { files: file ? [file] : [], typesJson: data.typesJson ?? {}, error: err });
+          sectionCache.set(cacheKey, { files: file ? [file] : [], typesJson: data.typesJson ?? {}, typesOriginal: data.typesOriginal ?? null, error: err });
         }
         setGlobalFile(file);
         setGlobalTypesJson(data.typesJson ?? {});
+        setGlobalTypesOriginal(data.typesOriginal ?? null);
         setGlobalError(err);
         if (err && activeGlobal) {
           setErrorItems((prev) => new Set(prev).add(`global:${activeGlobal}`));
@@ -2750,7 +3200,7 @@ export default function ContentPage() {
       .finally(() => { if (!cancelled) setGlobalsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [current?.id, activeGlobal, current?.editorCaching, selectedCommit]);
+  }, [current?.id, activeGlobal, current?.editorCaching, selectedCommit, globalsVersion]);
 
   useEffect(() => {
     if (!current?.id) return;
@@ -2812,7 +3262,6 @@ export default function ContentPage() {
     if (initializedRef.current || pages.length === 0) return;
     // Only initialize when pages are freshly loaded for the current project
     if (loadedForProject !== current?.id) return;
-    initializedRef.current = true;
 
     // Try URL params first, then sessionStorage
     let urlPage = searchParams.get("page");
@@ -2830,6 +3279,10 @@ export default function ContentPage() {
         }
       } catch { /* */ }
     }
+
+    // Restoring a global needs the globals list, which loads separately from the pages.
+    if (urlGlobal && globalsLoadedFor !== current?.id) return;
+    initializedRef.current = true;
 
     if (urlGlobal && globals.includes(urlGlobal)) {
       setActiveGlobal(urlGlobal);
@@ -2850,7 +3303,7 @@ export default function ContentPage() {
       setActiveSection(targetSection);
       saveNavState(targetPage.name, targetSection, null);
     }
-  }, [pages, searchParams, loadedForProject, current?.id, globals]);
+  }, [pages, searchParams, loadedForProject, current?.id, globals, globalsLoadedFor]);
 
   // Auto-select first section when page changes (user-driven, not URL restore)
   useEffect(() => {
@@ -2860,7 +3313,7 @@ export default function ContentPage() {
     }
   }, [selectedPage, activeSection, activeGlobal, activeScan]);
 
-  const { files, typesJson, loading: filesLoading, error: sectionError } = useSectionFiles(
+  const { files, typesJson, typesOriginal, loading: filesLoading, error: sectionError } = useSectionFiles(
     current?.id,
     activeGlobal ? null : selectedPage?.name ?? null,
     activeGlobal ? null : activeSection,
@@ -2966,87 +3419,68 @@ export default function ContentPage() {
             />
           </div>
         )}
-        <div className="sticky top-0 flex flex-col gap-1 p-3 pt-3">
-          <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Page</p>
-          {pagesLoading ? (
-            <div className="h-8 rounded-lg bg-muted/50 animate-pulse" />
-          ) : (
-            <PageSelector
-              pages={pages}
-              selected={selectedPage}
-              onSelect={(page) => {
-                setSelectedPage(page);
-                setActiveGlobal(null);
-                const firstSection = page.sections[0]?.name ?? null;
-                setActiveSection(firstSection);
-                saveNavState(page.name, firstSection, null);
-              }}
-              loading={pagesLoading}
-            />
-          )}
-        </div>
+        <nav className="flex flex-col gap-1 p-3" aria-label="Pages">
+          <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Pages</p>
+          {(() => {
+            const base = current?.srcDir ? `${current.srcDir}/kern` : "kern";
+            const changedPaths = new Set(draft.changes.filter((c) => c.status !== "deleted").map((c) => c.filename));
+            const deletedPaths = new Set(draft.changes.filter((c) => c.status === "deleted").map((c) => c.filename));
+            return (
+              <PageTree
+                pages={pages}
+                loading={pagesLoading}
+                selectedPage={selectedPage}
+                activeSection={activeSection}
+                activeGlobal={activeGlobal}
+                sectionBase={base}
+                changedPaths={changedPaths}
+                deletedPaths={deletedPaths}
+                errorItems={errorItems}
+                canDelete={current?.role !== "viewer"}
+                onOpen={(page, section) => {
+                  if (selectedPage?.name !== page.name) setSelectedPage(page);
+                  if (section) {
+                    selectSection(section);
+                    saveNavState(page.name, section, null);
+                  } else {
+                    setActiveSection(null);
+                    setActiveGlobal(null);
+                    saveNavState(page.name, null, null);
+                  }
+                }}
+                onDelete={(page, section) => setSidebarDeleteTarget({ page, section, type: "section" })}
+              />
+            );
+          })()}
+        </nav>
 
-        {pagesLoading ? (
-          <div className="flex flex-col gap-0.5 px-3 pb-3">
-            <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Sections</p>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-8 w-full rounded-md bg-muted/40 animate-pulse" />
-            ))}
-          </div>
-        ) : selectedPage && selectedPage.sections.length > 0 ? (() => {
-          const sectionBase = current?.srcDir ? `${current.srcDir}/kern` : "kern";
-          const visibleSections = selectedPage.sections.filter((s) => !draft.changes.some((c) => c.filename === `${sectionBase}/content/${selectedPage.name}/${s.name}.json` && c.status === "deleted"));
-          return (
-          <nav className="flex flex-col gap-0.5 px-3 pb-3">
-            <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Sections</p>
-            {visibleSections.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground/50">No sections</p>
-            ) : visibleSections.map((section) => {
-              const isActive = activeSection === section.name && !activeGlobal;
-              return (
-                <div
-                  key={section.name}
-                  className={`group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors cursor-pointer ${
-                    isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                  }`}
-                  onClick={() => selectSection(section.name)}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                  </svg>
-                  <span className="flex-1 text-left">{section.name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                  {selectedPage && errorItems.has(`section:${selectedPage.name}:${section.name}`) && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-destructive">
-                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-                      <path d="M12 9v4" /><path d="M12 17h.01" />
-                    </svg>
-                  )}
-                  {current?.role !== "viewer" && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSidebarDeleteTarget({ page: selectedPage.name, section: section.name, type: "section" }); }}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                    </svg>
-                  </button>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-          );
-        })() : null}
-
-        {globals.length > 0 && (() => {
+        {(globals.length > 0 || (current?.role !== "viewer" && globalsLoadedFor === current?.id)) && (() => {
           const globalBase = current?.srcDir ? `${current.srcDir}/kern` : "kern";
           const visibleGlobals = globals.filter((name) => !draft.changes.some((c) => c.filename === `${globalBase}/globals/${name}.json` && c.status === "deleted"));
           return (
           <nav className="flex flex-col gap-0.5 px-3 pb-3">
-            <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Globals</p>
+            <div className="flex items-center justify-between px-1 mb-1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Globals</p>
+              {current?.role !== "viewer" && !selectedCommit && (
+                <button
+                  type="button"
+                  onClick={() => setNewGlobalOpen(true)}
+                  className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title="New global — shared content like projects, team or contact details"
+                  aria-label="New global"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></svg>
+                </button>
+              )}
+            </div>
             {visibleGlobals.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground/50">No globals</p>
+              <button
+                type="button"
+                onClick={() => setNewGlobalOpen(true)}
+                className="rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground"
+              >
+                Shared content like projects or team members lives here. <span className="underline">Create one</span>
+              </button>
             ) : visibleGlobals.map((name) => {
               const isActive = activeGlobal === name;
               return (
@@ -3062,7 +3496,10 @@ export default function ContentPage() {
                     <line x1="2" x2="22" y1="12" y2="12" />
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
-                  <span className="flex-1 text-left">{name.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                  <span className="flex-1 truncate text-left">{nameLabel(name)}</span>
+                  {draft.changes.some((c) => c.filename === `${globalBase}/globals/${name}.json` && c.status !== "deleted") && (
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 group-hover:hidden" title="Unpublished changes" />
+                  )}
                   {errorItems.has(`global:${name}`) && (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-destructive">
                       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
@@ -3087,10 +3524,10 @@ export default function ContentPage() {
         })()}
 
         <nav className="flex flex-col gap-0.5 px-3 pb-3">
-          <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Features</p>
+          <p className="px-1 mb-1 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Tools</p>
           {current?.role !== "viewer" && (
             <button
-              onClick={() => { if (activeSection || activeGlobal) setAddFieldOpen(true); }}
+              onClick={() => { if (activeSection || activeGlobal) { setStructureMode(true); setAddFieldOpen(true); } }}
               className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${!(activeSection || activeGlobal) ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -3126,7 +3563,8 @@ export default function ContentPage() {
       </aside>
 
       {/* Content Area */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-hidden">
         {activeScan ? (
           <div className="flex flex-col h-full">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6 h-10">
@@ -3622,6 +4060,7 @@ export default function ContentPage() {
             page="globals"
             section={activeGlobal}
             typesJson={globalTypesJson}
+            typesOriginal={globalTypesOriginal}
             draft={draft}
             srcDir={current?.srcDir}
             projectId={current?.id ?? ""}
@@ -3642,6 +4081,10 @@ export default function ContentPage() {
             onCodeToggle={() => setCodeOpen(!codeOpen)}
             addFieldOpen={addFieldOpen}
             onAddFieldOpenChange={setAddFieldOpen}
+            structureMode={structureMode}
+            onStructureModeChange={setStructureMode}
+            previewOpen={previewOpen}
+            onPreviewToggle={selectedPage ? togglePreview : undefined}
           />
         ) : selectedPage && activeSection ? (
           <SectionEditor
@@ -3651,6 +4094,7 @@ export default function ContentPage() {
             page={selectedPage.name}
             section={activeSection}
             typesJson={typesJson}
+            typesOriginal={typesOriginal}
             draft={draft}
             srcDir={current?.srcDir}
             projectId={current?.id ?? ""}
@@ -3671,6 +4115,10 @@ export default function ContentPage() {
             onCodeToggle={() => setCodeOpen(!codeOpen)}
             addFieldOpen={addFieldOpen}
             onAddFieldOpenChange={setAddFieldOpen}
+            structureMode={structureMode}
+            onStructureModeChange={setStructureMode}
+            previewOpen={previewOpen}
+            onPreviewToggle={selectedPage ? togglePreview : undefined}
           />
         ) : activeGlobal && globalsLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -3716,7 +4164,42 @@ export default function ContentPage() {
             )}
           </div>
         )}
+        </div>
+        {previewOpen && selectedPage && !activeScan && (
+          <div className="w-[46%] min-w-[340px] max-w-[960px] shrink-0">
+            <SitePreview
+              key={`${current?.id}:${selectedPage.name}`}
+              projectId={current?.id ?? ""}
+              siteUrl={current?.url}
+              pageName={selectedPage.name}
+              pageNames={pages.map((p) => p.name)}
+              reloadKey={previewReloadKey}
+              onClose={togglePreview}
+              onNavigatePage={(name) => {
+                const target = pages.find((p) => p.name === name);
+                if (!target) return;
+                setSelectedPage(target);
+                setActiveGlobal(null);
+                const first = target.sections[0]?.name ?? null;
+                setActiveSection(first);
+                saveNavState(target.name, first, null);
+              }}
+            />
+          </div>
+        )}
       </main>
+      <NewGlobalDialog
+        open={newGlobalOpen}
+        onOpenChange={setNewGlobalOpen}
+        projectId={current?.id ?? ""}
+        existing={globals}
+        onCreated={async (name) => {
+          clearSectionCache(current?.id);
+          await draft.refresh();
+          setGlobalsVersion((v) => v + 1);
+          selectGlobal(name);
+        }}
+      />
       <Dialog open={!!sidebarDeleteTarget} onOpenChange={(v) => { if (!v) setSidebarDeleteTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>

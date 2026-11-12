@@ -141,6 +141,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
+  // The published types.json is the baseline for change tracking; a drafted one (new fields) is what to show.
+  const typesOriginalRaw = typesRaw;
+  if (!commitRef) {
+    const pendingTypes = db
+      .select({ content: pendingChanges.content })
+      .from(pendingChanges)
+      .where(and(eq(pendingChanges.projectId, id), eq(pendingChanges.filePath, typesPath)))
+      .get();
+    if (pendingTypes && pendingTypes.content !== "__KERN_DELETE__") typesRaw = pendingTypes.content;
+  }
+  let typesOriginal: unknown = null;
+  try { typesOriginal = typesOriginalRaw ? JSON.parse(typesOriginalRaw) : null; } catch { /* */ }
+
   // Extract schema for this section from types.json
   let schema: Record<string, unknown> = Object.create(null);
   let typesJson: unknown = null;
@@ -160,6 +173,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json({
     files: [{ filename: section, data, schema, originalData }],
     typesJson,
+    typesOriginal,
     warning,
   });
 }

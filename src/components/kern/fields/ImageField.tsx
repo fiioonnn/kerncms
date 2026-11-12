@@ -3,6 +3,26 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MediaPickerDialog } from "@/components/media-picker-dialog";
+import { useProjects } from "@/components/project-context";
+
+/** Paths like "/images/hero.jpg" live on the website, not the CMS — preview them from there. */
+function previewUrl(value: string, siteUrl?: string) {
+  if (!value.startsWith("/") || value.startsWith("/api/") || value.startsWith("//") || !siteUrl) return value;
+  try {
+    return new URL(value, /^https?:\/\//.test(siteUrl) ? siteUrl : `https://${siteUrl}`).href;
+  } catch {
+    return value;
+  }
+}
+
+function fileName(value: string) {
+  try {
+    const u = new URL(value, "http://x");
+    return decodeURIComponent((u.searchParams.get("path") ?? u.pathname).split("/").filter(Boolean).pop() ?? value);
+  } catch {
+    return value;
+  }
+}
 
 interface FieldProps {
   value: string | null;
@@ -16,6 +36,7 @@ export function ImageField({ value, onChange, label, disabled }: FieldProps) {
   const [hovered, setHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { current } = useProjects();
 
   function handleEdit() {
     if (!value) return;
@@ -45,7 +66,8 @@ export function ImageField({ value, onChange, label, disabled }: FieldProps) {
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
-          <img src={value} alt="" className="w-full h-full object-contain p-3 rounded-xl" />
+          <img src={previewUrl(value, current?.url)} alt="" className="w-full h-full object-contain p-3 rounded-xl" />
+          <span className="absolute bottom-1.5 left-2 max-w-[90%] truncate rounded bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white/90">{fileName(value)}</span>
           <div
             className="absolute inset-0 flex items-center justify-center gap-2 transition-opacity duration-150"
             style={{ opacity: hovered ? 1 : 0, backgroundColor: "rgba(0,0,0,0.6)" }}

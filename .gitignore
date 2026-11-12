@@ -48,3 +48,6 @@ next-env.d.ts
 
 # superpowers brainstorming sessions
 .superpowers/
+
+# packaged skill
+skills/*.zip
