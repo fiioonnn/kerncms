@@ -86,7 +86,7 @@ export default async function DashboardPage() {
             </Link>
           }
         />
-        <CardContent className="grid gap-10 pt-6 xl:grid-cols-[1fr_340px]">
+        <CardContent className="grid gap-10 pt-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-6">
             <div className="flex flex-wrap gap-x-12 gap-y-4">
               <Kpi label="Besucher" value={numberFormat.format(a.visitors)} change={a.visitorsChange} />
@@ -109,7 +109,7 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardHeader
             title="Letzte Aktivität"

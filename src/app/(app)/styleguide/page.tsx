@@ -78,7 +78,7 @@ const avatarSizes = [
 
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-6 border-t border-border py-8 lg:grid-cols-[260px_1fr]">
+    <section className="grid gap-6 border-t border-border py-8 lg:grid-cols-[260px_minmax(0,1fr)]">
       <div className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         <p className="text-[15px] text-muted">{description}</p>

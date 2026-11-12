@@ -118,7 +118,7 @@ export function MediaDetails({
             </>
           }
         >
-          <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
             <div className="flex flex-col gap-3">
               {isImage ? (
                 <div

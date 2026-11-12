@@ -137,7 +137,7 @@ export function CollectionForm({
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card>
           <CardContent className="py-6">
             {!canEdit && (

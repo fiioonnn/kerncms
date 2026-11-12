@@ -256,7 +256,7 @@ function GithubFlow({
   const busy = checking || connecting;
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[1fr_420px]">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <Card>
         <CardHeader title="Repository wählen" description="Aus den Konten, auf denen die kerncms-App installiert ist." />
         <CardContent className="flex flex-col gap-5">
@@ -426,7 +426,7 @@ function LocalFlow({ customers, initialCustomer, onCustomerCreated, onConnected 
   }
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[1fr_420px]">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <Card>
         <CardHeader title="Ordner auf diesem Rechner" description="Für die Entwicklung: kerncms arbeitet direkt in einem lokalen Git-Repository." />
         <CardContent>

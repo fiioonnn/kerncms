@@ -38,7 +38,7 @@ export function InputDemos() {
         title="Datum und Uhrzeit"
         rule="Datum immer mit dem DatePicker, Uhrzeit mit Select in 30-Minuten-Schritten. Nie native Datums- oder Zeitfelder."
       >
-        <div className="grid w-full gap-4 sm:grid-cols-[1fr_160px]">
+        <div className="grid w-full gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
           <DatePicker label="Veröffentlichen am" defaultValue={new Date(2026, 10, 12)} />
           <Select label="Uhrzeit" items={timeOptions} defaultValue="09:00" />
         </div>

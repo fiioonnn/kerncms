@@ -74,7 +74,7 @@ export function GlobalsEditor({ globals, initialKey }: { globals: GlobalItem[]; 
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <Card className="h-fit p-2">
         {globals.map(({ global, icon }) => {
           const isActive = global.key === key;

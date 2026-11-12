@@ -322,7 +322,7 @@ export function VersionHistory({ file, className }: { file: string; className?: 
   const selected = items.find((v) => v.sha === selectedSha) ?? items[0];
 
   return (
-    <div className={cn("grid min-h-0 md:grid-cols-[320px_1fr]", className)}>
+    <div className={cn("grid min-h-0 md:grid-cols-[320px_minmax(0,1fr)]", className)}>
       <ol className="flex flex-col gap-1 overflow-y-auto border-border p-2 md:border-r">
         {items.map((v) => (
           <li key={v.sha}>
