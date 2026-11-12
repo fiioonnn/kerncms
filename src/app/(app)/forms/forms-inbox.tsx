@@ -115,7 +115,6 @@ export function FormsInbox({
     if (s && !s.read) change([id], { read: true });
   }
 
-  const endpoint = `/api/public/${kern.site.publicKey}/forms/${formKey ?? forms[0]?.key ?? "<formular>"}`;
 
   if (forms.length === 0) {
     return (
@@ -239,7 +238,7 @@ export function FormsInbox({
                 <EmptyState
                   icon={Inbox}
                   title="Noch keine Nachrichten"
-                  description={`Die Website schickt Formulare per POST an ${endpoint} (JSON oder FormData, Feld „_gotcha“ leer lassen, Feld „_t“ mit der Ladezeit füllen). Neue Einsendungen erscheinen dann hier.`}
+                  description="Sobald jemand das Formular auf deiner Website ausfüllt, erscheint die Nachricht hier."
                 />
               ) : (
                 <EmptyState icon={Inbox} title="Keine Nachrichten" description="Neue Einsendungen erscheinen hier automatisch." />
