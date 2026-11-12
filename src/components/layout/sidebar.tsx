@@ -71,7 +71,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Brand */}
       <div className="flex h-16 items-center px-6">
         <Link href="/" onClick={onNavigate} aria-label="kerncms, zur Übersicht" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
-          <Logo className="h-8 w-auto" />
+          <Logo />
         </Link>
       </div>
 

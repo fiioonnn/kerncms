@@ -1,9 +1,17 @@
 import { Check, MousePointer2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function Logo({ className }: { className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element -- static SVG logo
-  return <img src="/logo.svg" alt="kerncms" width={254} height={58} className={cn("dark:invert", className)} />;
+/** Brand mark (public/logo-mark.svg) plus the name set in Geist, bold and lower case. */
+export function Logo({ size = 32, className }: { size?: number; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center", className)} style={{ gap: size * 0.3 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- static SVG mark */}
+      <img src="/logo-mark.svg" alt="" width={size} height={size} className="shrink-0 dark:invert" />
+      <span className="leading-none font-bold tracking-tight lowercase" style={{ fontSize: size * 0.78 }}>
+        kerncms
+      </span>
+    </span>
+  );
 }
 
 /** Stylised preview of editing a page, drawn with markup so it stays crisp and light. */
@@ -74,7 +82,7 @@ export function AuthShell({ title, description, children }: { title: string; des
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="flex flex-col px-6 py-8 sm:px-12 lg:px-16">
-        <Logo className="h-9 w-auto self-start" />
+        <Logo size={36} className="self-start" />
         <div className="flex flex-1 items-center py-12">
           <div className="mx-auto flex w-full max-w-[420px] flex-col gap-8">
             <div className="flex flex-col gap-2">

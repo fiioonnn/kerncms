@@ -33,7 +33,7 @@ export function EditorLoader({
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark */}
-      <img src="/logo-mark.svg" alt="" width={51} height={57} className="size-16 animate-pulse drop-shadow-md" />
+      <img src="/logo-mark.svg" alt="" width={64} height={64} className="size-16 animate-pulse drop-shadow-md dark:invert" />
       <div className="flex flex-col items-center gap-2 text-center">
         <span className="text-xl font-semibold tracking-tight">{title}</span>
         <span className="text-[15px] text-muted">{detail}</span>

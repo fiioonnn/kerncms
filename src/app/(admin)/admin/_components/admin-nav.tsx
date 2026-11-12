@@ -35,7 +35,7 @@ function NavContent({ me, onNavigate }: { me: Me; onNavigate?: () => void }) {
     <>
       <div className="flex h-16 items-center gap-3 px-6">
         <Link href="/admin" onClick={onNavigate} aria-label="kerncms Admin, zur Übersicht" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
-          <Logo className="h-8 w-auto" />
+          <Logo />
         </Link>
         <Badge tone="accent" className="h-6 px-2.5 text-xs">
           Admin
@@ -110,7 +110,7 @@ export function AdminMobileBar({ me }: { me: Me }) {
         </BaseDialog.Portal>
       </BaseDialog.Root>
       <Link href="/admin" aria-label="kerncms Admin" className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
-        <Logo className="h-7 w-auto" />
+        <Logo size={28} />
       </Link>
       <Badge tone="accent" className="h-6 px-2.5 text-xs">
         Admin

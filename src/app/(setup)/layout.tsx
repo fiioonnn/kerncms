@@ -8,7 +8,7 @@ export default function SetupLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="flex h-16 shrink-0 items-center justify-between px-8">
         <Link href="/" aria-label="kerncms">
-          <Logo className="h-8 w-auto" />
+          <Logo />
         </Link>
         <Link href="/" className={buttonStyles({ variant: "ghost", size: "sm" })}>
           Abbrechen
