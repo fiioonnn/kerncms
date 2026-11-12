@@ -125,9 +125,13 @@ export function DeployStatus() {
 
   return (
     <Popover>
-      <PopoverTrigger className="hidden h-9 items-center gap-2 rounded-full bg-warning-soft px-3.5 text-sm font-medium text-warning transition-colors hover:bg-warning/15 sm:inline-flex">
+      <PopoverTrigger
+        aria-label={files.length === 1 ? "1 Änderung im Entwurf" : `${files.length} Änderungen im Entwurf`}
+        className="hidden h-9 shrink-0 items-center gap-2 rounded-full bg-warning-soft px-3.5 text-sm font-medium whitespace-nowrap text-warning transition-colors hover:bg-warning/15 sm:inline-flex"
+      >
         <GitBranch className="size-4" />
-        {files.length === 1 ? "1 Änderung im Entwurf" : `${files.length} Änderungen im Entwurf`}
+        {files.length === 1 ? "1 Änderung" : `${files.length} Änderungen`}
+        <span className="hidden @5xl:inline">im Entwurf</span>
       </PopoverTrigger>
       <PopoverContent>
         <div className="border-b border-border px-5 py-4">

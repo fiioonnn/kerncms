@@ -195,25 +195,23 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => onValueChange?.(cleanMarkHtml(editor.getHTML())),
   });
 
-  const state = useEditorState({
-    editor,
-    selector: ({ editor }) =>
-      editor
-        ? {
-            h2: editor.isActive("heading", { level: 2 }),
-            h3: editor.isActive("heading", { level: 3 }),
-            bold: editor.isActive("bold"),
-            italic: editor.isActive("italic"),
-            activeMarks: markButtons.filter((m) => editor.isActive(m.name)).map((m) => m.name),
-            link: editor.isActive("link"),
-            bulletList: editor.isActive("bulletList"),
-            orderedList: editor.isActive("orderedList"),
-            blockquote: editor.isActive("blockquote"),
-            canUndo: editor.can().undo(),
-            canRedo: editor.can().redo(),
-          }
-        : null,
+  const select = (editor: Editor) => ({
+    h2: editor.isActive("heading", { level: 2 }),
+    h3: editor.isActive("heading", { level: 3 }),
+    bold: editor.isActive("bold"),
+    italic: editor.isActive("italic"),
+    activeMarks: markButtons.filter((m) => editor.isActive(m.name)).map((m) => m.name),
+    link: editor.isActive("link"),
+    bulletList: editor.isActive("bulletList"),
+    orderedList: editor.isActive("orderedList"),
+    blockquote: editor.isActive("blockquote"),
+    canUndo: editor.can().undo(),
+    canRedo: editor.can().redo(),
   });
+  const tracked = useEditorState({ editor, selector: ({ editor }) => (editor ? select(editor) : null) });
+  // useEditorState stays null until the editor's first transaction after it was created,
+  // which left the toolbar empty; fall back to reading the editor directly.
+  const state = tracked ?? (editor && !editor.isDestroyed ? select(editor) : null);
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>

@@ -113,21 +113,21 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur sm:gap-6 sm:px-8">
+    <header className="@container sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur sm:gap-6 sm:px-8">
       <MobileNav />
-      <div className="flex min-w-0 items-center gap-2 text-[15px]">
-        <span className="hidden text-muted sm:inline">{kern.site.name}</span>
-        <span className="hidden text-border-strong sm:inline">/</span>
+      <div className="flex min-w-0 items-center gap-2 text-[15px] whitespace-nowrap">
+        <span className="hidden text-muted @5xl:inline">{kern.site.name}</span>
+        <span className="hidden text-border-strong @5xl:inline">/</span>
         <span className="truncate font-medium">{current?.label ?? "Übersicht"}</span>
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
         <Tooltip label="Suchen (⌘K)">
           <button
             type="button"
             aria-label="Suchen"
             onClick={() => setSearchOpen(true)}
-            className={buttonStyles({ variant: "ghost", size: "icon", className: "md:hidden" })}
+            className={buttonStyles({ variant: "ghost", size: "icon", className: "@3xl:hidden" })}
           >
             <Search strokeWidth={1.75} />
           </button>
@@ -135,7 +135,7 @@ export function Topbar() {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="hidden h-11 w-72 items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 text-[15px] text-muted transition-colors hover:border-border-strong md:flex"
+          className="hidden h-11 w-52 items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 text-[15px] text-muted transition-colors hover:border-border-strong @3xl:flex @6xl:w-72"
         >
           <Search className="size-5 shrink-0" strokeWidth={1.75} />
           <span className="flex-1 text-left">Suchen…</span>

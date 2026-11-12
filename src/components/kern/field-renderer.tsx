@@ -301,6 +301,28 @@ function ListInput({
     if (open === index) setOpen(target);
   }
 
+  /** Moves the item at `from` so it lands before the item that was at `to` (to = length: the end). */
+  function moveTo(from: number, to: number) {
+    const dest = to > from ? to - 1 : to;
+    if (dest === from) return;
+    const next = [...items];
+    const nextKeys = [...itemKeys];
+    const [item] = next.splice(from, 1);
+    const [key] = nextKeys.splice(from, 1);
+    next.splice(dest, 0, item);
+    nextKeys.splice(dest, 0, key);
+    update(next, nextKeys);
+    if (open !== null) setOpen(nextKeys.indexOf(itemKeys[open]));
+  }
+
+  // Dragging starts only from the grip, so text in an open item stays selectable.
+  const [armed, setArmed] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ from: number; over: number; edge: "before" | "after" } | null>(null);
+  const endDrag = () => {
+    setArmed(null);
+    setDrag(null);
+  };
+
   return (
     <div role="group" aria-label={field.label} className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
@@ -313,10 +335,51 @@ function ListInput({
       <div className="flex flex-col gap-2">
         {items.map((item, index) => {
           const isOpen = open === index;
+          const line = drag && drag.over === index && drag.from !== index ? drag.edge : null;
           return (
-            <div key={itemKeys[index]} className={cn("rounded-xl border bg-surface", isOpen ? "border-border-strong" : "border-border")}>
-              <div className="flex items-center gap-1 py-1 pr-1 pl-2">
-                <GripVertical className="size-4 shrink-0 text-muted/60" aria-hidden />
+            <div
+              key={itemKeys[index]}
+              draggable={armed === index}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(index));
+                setDrag({ from: index, over: index, edge: "before" });
+              }}
+              onDragOver={(e) => {
+                if (!drag) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                const rect = e.currentTarget.getBoundingClientRect();
+                const edge = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                if (drag.over !== index || drag.edge !== edge) setDrag({ ...drag, over: index, edge });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (drag) moveTo(drag.from, drag.edge === "before" ? drag.over : drag.over + 1);
+                endDrag();
+              }}
+              onDragEnd={endDrag}
+              className={cn(
+                "relative rounded-xl border bg-surface",
+                isOpen ? "border-border-strong" : "border-border",
+                drag?.from === index && "opacity-40",
+              )}
+            >
+              {line && (
+                <span
+                  aria-hidden
+                  className={cn("pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-accent", line === "before" ? "-top-[5px]" : "-bottom-[5px]")}
+                />
+              )}
+              <div className="flex items-center gap-1 py-1 pr-1 pl-1">
+                <span
+                  aria-hidden
+                  onPointerDown={() => setArmed(index)}
+                  onPointerUp={() => !drag && setArmed(null)}
+                  className="flex h-10 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted/60 hover:bg-subtle hover:text-muted active:cursor-grabbing"
+                >
+                  <GripVertical className="size-4" />
+                </span>
                 <button
                   type="button"
                   aria-expanded={isOpen}

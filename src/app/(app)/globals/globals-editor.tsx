@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { ChevronRight, FileJson } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Fields } from "@/components/kern/field-renderer";
 import { useCan, useKern } from "@/components/kern/kern-provider";
 import { Button } from "@/components/ui/button";
@@ -124,13 +124,8 @@ export function GlobalsEditor({ globals, initialKey }: { globals: GlobalItem[]; 
               onChange={(name, value) => setDrafts((d) => ({ ...d, [key]: { ...d[key], [name]: value } }))}
             />
           </fieldset>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
-            <span className="flex items-center gap-2 text-sm text-muted">
-              <FileJson className="size-4" strokeWidth={1.75} />
-              <span className="font-mono">{active.global.path}</span>
-              {active.updated && <span>· {active.updated}</span>}
-            </span>
-            {canEdit && (
+          {canEdit && (
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-6">
               <div className="flex gap-3">
                 <Button variant="secondary" disabled={!isDirty(key) || pending} onClick={() => setResetOpen(true)}>
                   Zurücksetzen
@@ -139,8 +134,8 @@ export function GlobalsEditor({ globals, initialKey }: { globals: GlobalItem[]; 
                   {pending ? "Speichert…" : "Speichern"}
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
