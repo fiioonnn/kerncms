@@ -7,6 +7,8 @@ import { db } from "@/db";
 import { approvals, deploys, formSettings, formSubmissions, invites, mediaCleanup, memberships, sessions, trash, users } from "@/db/schema";
 import type { Role } from "@/db/schema";
 import { analyticsSummary } from "./analytics";
+import { currentConnection } from "./connection";
+import { cmsOrigin } from "./custom-domains";
 import { hashToken } from "./auth";
 import { CONFIG_FILE, findCollection } from "./config";
 import { getChangeSet, listEntries, listPages, readEntry, readGlobal, readPage, readRedirects } from "./content";
@@ -329,6 +331,8 @@ export async function getSettings() {
     formSettings: await formSettingsOf(ws),
     sender: notificationFrom(ws.site.name),
     media: await mediaStorageInfo(ws),
+    /** kern.public.json in the draft and the values it should contain. */
+    connection: { file: await currentConnection(ws.dir, ws.site.branch), expected: { url: await cmsOrigin(ws.site.customerId), site: ws.site.publicKey } },
   };
 }
 

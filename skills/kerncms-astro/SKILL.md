@@ -37,7 +37,9 @@ existing site's config and content before changing it.
    including list items (`tiles.0.title`) and globals in the layout (`data-kern-global="site#phone"`).
 6. **Wire the layout**: overlay script only in preview, cookieless analytics only outside preview,
    SEO from the page's `seo` object with fallbacks from a `site` global.
-7. **Forms and analytics** post to `PUBLIC_KERN_URL` with the site's public key `PUBLIC_KERN_SITE`.
+7. **Forms and analytics** post to the CMS with the site's public key, both read from `kern.public.json`
+   (kerncms writes it: Einstellungen → Einbindung → „In die Website eintragen“). `PUBLIC_KERN_URL` /
+   `PUBLIC_KERN_SITE` override it.
    Put both in `.env.example` with placeholder values.
 8. **Seed real-looking content** for every page, entry and global, so the customer starts from a
    finished site, not empty boxes.
@@ -79,6 +81,6 @@ existing site's config and content before changing it.
 - [ ] Images work with both `/media/…` paths and full URLs.
 - [ ] Mark classes from `marks:` exist in CSS.
 - [ ] Seed content exists for all pages, entries and globals; `pnpm build` passes.
-- [ ] `.env.example` lists `PUBLIC_KERN_URL` and `PUBLIC_KERN_SITE`; README explains connecting the
-      site in kerncms (Admin → Websites → Website verbinden) and where the public key comes from
-      (Einstellungen → Einbindung).
+- [ ] `src/lib/kern.ts` reads `kern.public.json` (env vars as override); README explains connecting the
+      site in kerncms (Admin → Websites → Website verbinden) and writing the connection file
+      (Einstellungen → Einbindung → „In die Website eintragen“).

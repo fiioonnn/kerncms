@@ -176,6 +176,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           {active === "embed" && (
             <EmbedSettings
               publicKey={site.publicKey}
+              connection={settings.connection}
               allowedOrigins={site.allowedOrigins}
               liveUrl={site.liveUrl}
               cmsUrl={process.env.KERN_PUBLIC_URL ?? `${(await headers()).get("x-forwarded-proto") ?? "http"}://${(await headers()).get("host")}`}

@@ -100,8 +100,11 @@ import type { Link } from "../content.config";
 export const isPreview = Boolean(process.env.KERN_PREVIEW ?? import.meta.env.KERN_PREVIEW);
 export const cmsUrl = (process.env.KERN_CMS_URL ?? import.meta.env.KERN_CMS_URL ?? "").replace(/\/$/, "");
 
-export const kernUrl = (import.meta.env.PUBLIC_KERN_URL ?? "").replace(/\/$/, "");
-export const kernSite = import.meta.env.PUBLIC_KERN_SITE ?? "";
+// kern.public.json (written by kerncms under Einstellungen → Einbindung); env vars override it.
+const connection =
+  Object.values(import.meta.glob<{ url?: string; site?: string }>("/kern.public.json", { eager: true, import: "default" }))[0] ?? {};
+export const kernUrl = (import.meta.env.PUBLIC_KERN_URL || connection.url || "").replace(/\/$/, "");
+export const kernSite = import.meta.env.PUBLIC_KERN_SITE || connection.site || "";
 export const formEndpoint = (form: string) => `${kernUrl}/api/public/${kernSite}/forms/${form}`;
 export const collectEndpoint = () => `${kernUrl}/api/public/${kernSite}/collect`;
 

@@ -159,12 +159,15 @@ Die Website definiert die CSS-Klassen aus `marks` selbst.
 
 ## 5. Formulare und Statistik
 
-Die Website kennt das CMS über zwei öffentliche Variablen (`.env`):
+Die Website kennt das CMS über die Datei `kern.public.json` im Repository. kerncms schreibt sie unter
+Einstellungen → Einbindung („In die Website eintragen“) und hält sie beim Erneuern des Schlüssels aktuell:
 
+```json
+{ "url": "https://app.kerncms.com", "site": "pk_…" }
 ```
-PUBLIC_KERN_URL=http://localhost:3000
-PUBLIC_KERN_SITE=pk_…   # öffentlicher Schlüssel aus kerncms: Einstellungen → Einbindung
-```
+
+Die Website liest sie beim Bauen (Astro: `import.meta.glob("/kern.public.json", { eager: true })`).
+Die Variablen `PUBLIC_KERN_URL` und `PUBLIC_KERN_SITE` haben Vorrang, z. B. für ein lokales CMS.
 
 Der Schlüssel ist nicht geheim (er steht im HTML), aber zufällig und im CMS austauschbar.
 Formulare werden nur von der Live-Adresse der Website (mit/ohne www), von eingetragenen weiteren Domains

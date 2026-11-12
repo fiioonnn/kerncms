@@ -11,6 +11,8 @@ import { defaultTransport } from "../mail";
 import { notificationMail, sendSubmissionMails } from "../site-mail";
 import { cmsOrigin } from "../custom-domains";
 import { getForms } from "../queries";
+import { CONNECTION_FILE, readConnection, writeConnection } from "../connection";
+import { commit, withSiteLock } from "../git";
 import { getWorkspace, requireRole } from "../sites";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -115,13 +117,35 @@ export async function resendSubmissionMail(id: string) {
 
 /* ---------- Public key and allowed domains ---------- */
 
+/** Writes kern.public.json into the draft and commits it; live after the next publish. */
+async function saveConnection(ws: Awaited<ReturnType<typeof getWorkspace>>, publicKey: string, message: string) {
+  const url = await cmsOrigin(ws.site.customerId);
+  await withSiteLock(ws.site.id, async () => {
+    await writeConnection(ws.dir, { url, site: publicKey });
+    await commit(ws.dir, message, { name: ws.user.name, email: ws.user.email }, [CONNECTION_FILE]);
+  });
+  return { url, site: publicKey };
+}
+
+export async function writeConnectionFile() {
+  return run(async () => {
+    const ws = await getWorkspace("admin");
+    const connection = await saveConnection(ws, ws.site.publicKey, "Verbindung zu kerncms eingetragen");
+    refresh();
+    return connection;
+  });
+}
+
 export async function rotatePublicKey() {
   return run(async () => {
-    const ctx = await requireRole("admin");
+    const ws = await getWorkspace("admin");
     const publicKey = `pk_${randomBytes(10).toString("hex")}`;
-    await db.update(sites).set({ publicKey }).where(eq(sites.id, ctx.site.id));
+    await db.update(sites).set({ publicKey }).where(eq(sites.id, ws.site.id));
+    // A site that reads kern.public.json gets the new key with the next publish.
+    const hasFile = Boolean(await readConnection(ws.dir));
+    if (hasFile) await saveConnection(ws, publicKey, "Neuer öffentlicher Schlüssel für kerncms");
     refresh();
-    return { publicKey };
+    return { publicKey, fileUpdated: hasFile };
   });
 }
 
