@@ -13,6 +13,10 @@ everywhere, with no hard-coded customer content left in components.
 Read `references/contract.md` before writing code. It is the authoritative contract (field types,
 file formats, markers, endpoints). `references/patterns.md` has working code for every piece.
 
+If the **kerncms connector** is available (tools `validate_config`, `list_sites`, `get_site_config`,
+`read_content`), validate every `kern.config.yaml` you write with `validate_config`, and look at an
+existing site's config and content before changing it.
+
 ## Workflow
 
 1. **Model the content first.** List every page section and decide for each piece of text or image:

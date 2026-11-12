@@ -11,5 +11,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Everything except auth pages, public API, static files and the overlay script.
-  matcher: ["/((?!login|invite|files/|kern-skill/|api/public|api/webhook|_next|favicon.ico|kern-overlay.js|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
+  matcher: ["/((?!login|invite|files/|kern-skill/|\\.well-known/|oauth/register|oauth/token|mcp|api/public|api/webhook|_next|favicon.ico|kern-overlay.js|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
 };

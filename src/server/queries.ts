@@ -17,6 +17,7 @@ import { publicCmsUrl, siteStorageConfig } from "./storage";
 import { listNotifications } from "./notifications";
 import { notificationFrom } from "./site-mail";
 import { getSiteContext, getWorkspace, type Workspace } from "./sites";
+import { listGrants } from "./oauth";
 
 /* All functions here are for Server Components. They check access themselves. */
 
@@ -364,6 +365,12 @@ export async function getProfile() {
     user: ctx.user,
     sites: ctx.sites,
     sessions: rows.map((s) => ({ id: s.id.slice(0, 8), userAgent: s.userAgent, createdAt: s.createdAt.toISOString(), current: s.id === current })),
+    apps: (await listGrants(ctx.user.id)).map((g) => ({
+      id: g.id,
+      app: g.app,
+      createdAt: g.createdAt.toISOString(),
+      lastUsedAt: g.lastUsedAt?.toISOString() ?? null,
+    })),
   };
 }
 

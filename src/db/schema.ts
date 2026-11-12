@@ -333,3 +333,49 @@ export const mediaCleanup = pgTable("media_cleanup", {
   releasedAt: timestamp(),
 });
 export type Role = (typeof roleEnum.enumValues)[number];
+
+/* ---------- OAuth for the MCP connector (Claude App etc.) ---------- */
+
+/** Apps that registered themselves (RFC 7591), e.g. Claude. Public clients with PKCE, no secret. */
+export const oauthClients = pgTable("oauth_clients", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  redirectUris: jsonb().$type<string[]>().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
+});
+
+/** A user's permission for one app. Deleting it signs the app out (tokens cascade). */
+export const oauthGrants = pgTable(
+  "oauth_grants",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    clientId: text()
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    scope: text().notNull().default(""),
+    createdAt: timestamp().notNull().defaultNow(),
+    lastUsedAt: timestamp(),
+  },
+  (t) => [index().on(t.userId)],
+);
+
+/** Authorization codes (10 minutes, single use) and access/refresh tokens. Only hashes are stored. */
+export const oauthTokens = pgTable(
+  "oauth_tokens",
+  {
+    id: text().primaryKey(),
+    kind: text().$type<"code" | "access" | "refresh">().notNull(),
+    grantId: uuid()
+      .notNull()
+      .references(() => oauthGrants.id, { onDelete: "cascade" }),
+    /** For codes: the PKCE challenge and the redirect URI they were issued for. */
+    codeChallenge: text(),
+    redirectUri: text(),
+    expiresAt: timestamp().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.grantId)],
+);

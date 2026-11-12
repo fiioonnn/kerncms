@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { KeyRound, Loader2, LogOut, Monitor, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { KeyRound, Loader2, LogOut, Monitor, Plug, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog, Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Switch } from "@/components/ui/toggles";
 import { toast } from "@/components/ui/toast";
 import { formatWhen } from "@/lib/admin-format";
-import { deleteAccount, revokeOtherSessions, updatePreferences, updateProfile } from "@/server/actions/auth";
+import { deleteAccount, disconnectApp, revokeOtherSessions, updatePreferences, updateProfile } from "@/server/actions/auth";
 
 type User = { id: string; name: string; email: string; preferences: Record<string, boolean> };
 type Session = { id: string; userAgent: string | null; createdAt: string; current: boolean };
@@ -51,7 +51,58 @@ function describeAgent(ua: string | null) {
   return { label: `${os} · ${browser}`, Icon };
 }
 
-export function ProfileView({ user, sessions: initialSessions }: { user: User; sessions: Session[] }) {
+type ConnectedApp = { id: string; app: string; createdAt: string; lastUsedAt: string | null };
+
+/** Apps such as Claude that were allowed to read kerncms through the connector (OAuth). */
+function ConnectedApps({ apps: initial }: { apps: ConnectedApp[] }) {
+  const [apps, setApps] = useState(initial);
+  const [pending, startTransition] = useTransition();
+  return (
+    <Card>
+      <CardHeader title="Verbundene Apps" description="Apps wie Claude, denen du über den kerncms-Connector Lesezugriff gegeben hast." />
+      <CardContent className="pt-3">
+        {apps.length === 0 ? (
+          <p className="text-[15px] text-muted">Keine Apps verbunden.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border">
+            {apps.map((a) => (
+              <li key={a.id} className="flex items-center gap-4 py-4">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-subtle text-muted">
+                  <Plug className="size-5" strokeWidth={1.75} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[15px] font-medium">{a.app}</span>
+                  <span suppressHydrationWarning className="truncate text-sm text-muted">
+                    Verbunden {formatWhen(a.createdAt)}
+                    {a.lastUsedAt && ` · zuletzt genutzt ${formatWhen(a.lastUsedAt)}`}
+                  </span>
+                </span>
+                <ConfirmDialog
+                  trigger="Trennen"
+                  triggerClassName={buttonStyles({ variant: "secondary", size: "sm" })}
+                  title={`${a.app} trennen?`}
+                  description="Die App verliert sofort den Zugriff. Du kannst sie später neu verbinden."
+                  confirmLabel="Trennen"
+                  danger
+                  onConfirm={() =>
+                    startTransition(async () => {
+                      const result = await disconnectApp(a.id);
+                      if (!result.ok) toast.error("Trennen fehlgeschlagen", { description: result.error });
+                      else setApps((list) => list.filter((x) => x.id !== a.id));
+                    })
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {pending && <span className="sr-only">Wird getrennt…</span>}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ProfileView({ user, sessions: initialSessions, apps }: { user: User; sessions: Session[]; apps: ConnectedApp[] }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [saved, setSaved] = useState({ name: user.name, email: user.email });
@@ -211,6 +262,8 @@ export function ProfileView({ user, sessions: initialSessions }: { user: User; s
             </ul>
           </CardContent>
         </Card>
+
+        <ConnectedApps apps={apps} />
 
         <Card className="border-danger/30">
           <CardHeader title="Konto löschen" description="Dein Zugang zu allen Websites wird entfernt. Deine Änderungen bleiben im Verlauf erhalten." />

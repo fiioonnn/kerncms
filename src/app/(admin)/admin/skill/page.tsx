@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { Bot, Download, FileText, MessageSquareText, Sparkles, SquareTerminal, type LucideIcon } from "lucide-react";
+import { Bot, Download, FileText, MessageSquareText, Plug, Sparkles, SquareTerminal, type LucideIcon } from "lucide-react";
 import { CopyButton } from "@/components/actions/common";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonStyles } from "@/components/ui/button";
@@ -40,6 +40,8 @@ export default async function SkillPage() {
   const h = await headers();
   const base = (process.env.KERN_PUBLIC_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`).replace(/\/+$/, "");
   const zipUrl = `${base}/kern-skill/${SKILL_NAME}.zip`;
+  const mcpUrl = `${base}/mcp`;
+  const publicHttps = base.startsWith("https://") && !/\/\/(localhost|127\.|\[::1\])/.test(base);
   const projectInstall = `mkdir -p .claude/skills && curl -fsSL ${zipUrl} -o /tmp/${SKILL_NAME}.zip && unzip -oq /tmp/${SKILL_NAME}.zip -d .claude/skills`;
   const globalInstall = `mkdir -p ~/.claude/skills && curl -fsSL ${zipUrl} -o /tmp/${SKILL_NAME}.zip && unzip -oq /tmp/${SKILL_NAME}.zip -d ~/.claude/skills`;
   const prompt =
@@ -84,14 +86,30 @@ export default async function SkillPage() {
         </Section>
 
         <Section
-          icon={MessageSquareText}
-          title="claude.ai"
-          text="ZIP herunterladen und unter Einstellungen → Fähigkeiten als Skill hochladen."
+          icon={Plug}
+          title="Claude App (Connector)"
+          text="In Claude unter Einstellungen → Connectors einen benutzerdefinierten Connector mit dieser Adresse hinzufügen und auf „Verbinden“ klicken. Claude öffnet dann die kerncms-Anmeldung, dort den Zugriff erlauben."
         >
-          <div>
-            <a href={`/kern-skill/${SKILL_NAME}.zip`} className={buttonStyles({ variant: "secondary" })}>
+          <Command value={mcpUrl} />
+          <ul className="flex flex-col gap-2 text-[15px] text-muted">
+            <li>
+              Claude bekommt die Anleitung (<span className="font-mono text-sm">kerncms_guide</span>), prüft{" "}
+              <span className="font-mono text-sm">kern.config.yaml</span>-Entwürfe und kann deine Websites, Konfigurationen und Inhalte lesen. Es
+              ändert und veröffentlicht nichts.
+            </li>
+            <li>Verbundene Apps lassen sich im Profil unter „Verbundene Apps“ wieder trennen.</li>
+          </ul>
+          {!publicHttps && (
+            <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
+              Diese kerncms-Instanz läuft unter {base}. Die Claude App verbindet sich über das Internet und braucht eine öffentliche
+              https-Adresse. Setze dafür KERN_PUBLIC_URL, oder teste lokal mit einem Tunnel.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <span className="text-sm text-muted">Ohne Connector: Skill als ZIP unter Einstellungen → Fähigkeiten hochladen.</span>
+            <a href={`/kern-skill/${SKILL_NAME}.zip`} className={buttonStyles({ variant: "secondary", size: "sm" })}>
               <Download />
-              {SKILL_NAME}.zip herunterladen
+              {SKILL_NAME}.zip
             </a>
           </div>
         </Section>

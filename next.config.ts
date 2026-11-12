@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // The AI skill route reads these files at runtime.
   outputFileTracingIncludes: {
     "/kern-skill/[...path]": ["./skills/kerncms-astro/**/*", "./docs/kern-contract.md"],
+    "/mcp": ["./skills/kerncms-astro/**/*", "./docs/kern-contract.md"],
   },
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },

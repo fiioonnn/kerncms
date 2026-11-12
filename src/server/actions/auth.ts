@@ -10,6 +10,7 @@ import { createSession, destroySession, getUser, hashToken, newLoginCode, requir
 import { sendLoginCode } from "../mail";
 import { clientIp, rateLimited } from "../public";
 import { notify } from "../notifications";
+import { revokeGrant } from "../oauth";
 import { SITE_COOKIE } from "../sites";
 
 function cleanEmail(email: unknown) {
@@ -160,6 +161,15 @@ export async function revokeOtherSessions() {
       .where(and(eq(sessions.userId, user.id), ne(sessions.id, hashToken(token))))
       .returning({ id: sessions.id });
     return removed.length;
+  });
+}
+
+/** Removes an app's access (MCP connector, OAuth). */
+export async function disconnectApp(grantId: string) {
+  return run(async () => {
+    const user = await requireUser();
+    await revokeGrant(user.id, grantId);
+    return null;
   });
 }
 

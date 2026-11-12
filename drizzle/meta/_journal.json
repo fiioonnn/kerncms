@@ -50,6 +50,13 @@
       "when": 1794440237607,
       "tag": "0006_bouncy_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794443741644,
+      "tag": "0007_familiar_whirlwind",
+      "breakpoints": true
     }
   ]
 }

@@ -3,5 +3,5 @@ import { ProfileView } from "./profile-view";
 
 export default async function ProfilePage() {
   const profile = await getProfile();
-  return <ProfileView user={profile.user} sessions={profile.sessions} />;
+  return <ProfileView user={profile.user} sessions={profile.sessions} apps={profile.apps} />;
 }
