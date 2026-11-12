@@ -3,10 +3,10 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, like, ne, or } from "drizzle-orm";
 import sharp from "sharp";
 import { db } from "@/db";
-import { media, type MediaLocation, trash } from "@/db/schema";
+import { media, mediaFolders, type MediaLocation, trash } from "@/db/schema";
 import type { KernConfig, MediaItem } from "@/lib/kern-types";
 import { S3_BUCKET, s3 } from "@/lib/s3";
 import { type ChangeSet, safeJoin, slugify, statusOf } from "./content";
@@ -106,6 +106,7 @@ export async function listMedia(siteId: string, dir: string, config: KernConfig,
           focusX: meta?.focusX ?? 50,
           focusY: meta?.focusY ?? 50,
           tags: meta?.tags ?? [],
+          folder: meta?.folder ?? "",
           usedIn: usedIn(value),
           status: statusOf(changes, rel),
           updatedAt: info.mtime.toISOString(),
@@ -129,6 +130,7 @@ export async function listMedia(siteId: string, dir: string, config: KernConfig,
         focusX: row.focusX,
         focusY: row.focusY,
         tags: row.tags,
+        folder: row.folder,
         usedIn: usedIn(row.url!),
         status: "live",
         updatedAt: row.updatedAt.toISOString(),
@@ -342,7 +344,7 @@ export async function duplicateMedia(siteId: string, userId: string, dir: string
       alt: original?.alt ?? "",
       caption: original?.caption ?? "",
       tags: original?.tags ?? [],
-      ...(original ? { focusX: original.focusX, focusY: original.focusY } : {}),
+      ...(original ? { focusX: original.focusX, focusY: original.focusY, folder: original.folder } : {}),
     })
     .where(and(eq(media.siteId, siteId), eq(media.name, targetName)));
   if (source.location === "repo") void backupToS3(siteId, targetName, source.body);
@@ -370,4 +372,95 @@ export async function moveMediaToTrash(siteId: string, userId: string, dir: stri
   }
   await db.delete(media).where(and(eq(media.siteId, siteId), eq(media.name, name)));
   return location;
+}
+
+/* ---------- Folders (CMS only: files keep their name and address) ---------- */
+
+/** "  Team / Portraits/ " → "Team/Portraits". Throws for names that cannot be a folder. */
+export function cleanFolder(input: string) {
+  const parts = input
+    .split("/")
+    .map((p) => p.trim().replace(/\s+/g, " "))
+    .filter(Boolean);
+  if (parts.some((p) => p === "." || p === ".." || p.length > 60)) throw new Error("Ungültiger Ordnername.");
+  if (parts.length > 6) throw new Error("Höchstens 6 Ebenen.");
+  return parts.join("/");
+}
+
+const parentsOf = (folder: string) => folder.split("/").map((_, i, all) => all.slice(0, i + 1).join("/"));
+
+/** Every folder of a site: created ones plus those that hold files, with their parents. */
+export async function listFolders(siteId: string) {
+  const [created, used] = await Promise.all([
+    db.select({ path: mediaFolders.path }).from(mediaFolders).where(eq(mediaFolders.siteId, siteId)),
+    db.selectDistinct({ path: media.folder }).from(media).where(and(eq(media.siteId, siteId), ne(media.folder, ""))),
+  ]);
+  const all = new Set<string>();
+  for (const { path: p } of [...created, ...used]) for (const parent of parentsOf(p)) all.add(parent);
+  return [...all].sort((a, b) => a.localeCompare(b, "de"));
+}
+
+export async function createFolder(siteId: string, folder: string) {
+  const clean = cleanFolder(folder);
+  if (!clean) throw new Error("Bitte gib einen Namen ein.");
+  await db.insert(mediaFolders).values({ siteId, path: clean }).onConflictDoNothing();
+  return clean;
+}
+
+/** Puts files into a folder ("" = top level). Files without a row yet get one. */
+export async function moveToFolder(siteId: string, names: string[], folder: string) {
+  const clean = cleanFolder(folder);
+  for (const name of names) {
+    await db
+      .insert(media)
+      .values({ siteId, name, folder: clean })
+      .onConflictDoUpdate({ target: [media.siteId, media.name], set: { folder: clean } });
+  }
+  if (clean) await db.insert(mediaFolders).values({ siteId, path: clean }).onConflictDoNothing();
+  return clean;
+}
+
+const inside = (column: typeof media.folder | typeof mediaFolders.path, folder: string) =>
+  or(eq(column, folder), like(column, `${folder.replace(/[\\%_]/g, "\\$&")}/%`));
+
+/** Renames or moves a folder with everything in it ("Team" → "Über uns/Team"). */
+export async function renameFolder(siteId: string, from: string, to: string) {
+  const source = cleanFolder(from);
+  const target = cleanFolder(to);
+  if (!source || !target) throw new Error("Bitte gib einen Namen ein.");
+  if (target === source) return target;
+  if (target.startsWith(`${source}/`)) throw new Error("Ein Ordner kann nicht in sich selbst liegen.");
+  const swap = (p: string) => target + p.slice(source.length);
+  await db.transaction(async (tx) => {
+    const files = await tx.select({ name: media.name, folder: media.folder }).from(media).where(and(eq(media.siteId, siteId), inside(media.folder, source)));
+    for (const f of files) await tx.update(media).set({ folder: swap(f.folder) }).where(and(eq(media.siteId, siteId), eq(media.name, f.name)));
+    const folders = await tx.select({ path: mediaFolders.path }).from(mediaFolders).where(and(eq(mediaFolders.siteId, siteId), inside(mediaFolders.path, source)));
+    if (folders.length) {
+      await tx.delete(mediaFolders).where(and(eq(mediaFolders.siteId, siteId), inArray(mediaFolders.path, folders.map((f) => f.path))));
+    }
+    const paths = new Set([target, ...folders.map((f) => swap(f.path))]);
+    await tx.insert(mediaFolders).values([...paths].map((p) => ({ siteId, path: p }))).onConflictDoNothing();
+  });
+  return target;
+}
+
+/** Removes a folder; its files and subfolders move up one level. */
+export async function deleteFolder(siteId: string, folder: string) {
+  const source = cleanFolder(folder);
+  if (!source) return;
+  const parent = source.split("/").slice(0, -1).join("/");
+  const lift = (p: string) => [parent, p.slice(source.length + 1)].filter(Boolean).join("/");
+  await db.transaction(async (tx) => {
+    const files = await tx.select({ name: media.name, folder: media.folder }).from(media).where(and(eq(media.siteId, siteId), inside(media.folder, source)));
+    for (const f of files) {
+      const next = f.folder === source ? parent : lift(f.folder);
+      await tx.update(media).set({ folder: next }).where(and(eq(media.siteId, siteId), eq(media.name, f.name)));
+    }
+    const folders = await tx.select({ path: mediaFolders.path }).from(mediaFolders).where(and(eq(mediaFolders.siteId, siteId), inside(mediaFolders.path, source)));
+    if (folders.length) {
+      await tx.delete(mediaFolders).where(and(eq(mediaFolders.siteId, siteId), inArray(mediaFolders.path, folders.map((f) => f.path))));
+    }
+    const kept = folders.map((f) => f.path).filter((p) => p !== source).map(lift).filter(Boolean);
+    if (kept.length) await tx.insert(mediaFolders).values(kept.map((p) => ({ siteId, path: p }))).onConflictDoNothing();
+  });
 }

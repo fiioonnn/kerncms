@@ -135,6 +135,8 @@ export type MediaItem = {
   focusX: number;
   focusY: number;
   tags: string[];
+  /** Folder in the CMS ("" = top level), e.g. "Team/Portraits". */
+  folder: string;
   usedIn: string[];
   status: ContentStatus;
   updatedAt: string;

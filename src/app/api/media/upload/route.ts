@@ -1,7 +1,7 @@
 import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { commit, withSiteLock } from "@/server/git";
-import { saveUpload } from "@/server/media";
+import { moveToFolder, saveUpload } from "@/server/media";
 import { ForbiddenError, getWorkspace } from "@/server/sites";
 
 /** Multipart upload of one or more files into the site's media folder. */
@@ -26,6 +26,9 @@ export async function POST(request: Request) {
       }
       return result;
     });
+    // Uploaded into an open folder of the media library.
+    const folder = form.get("folder");
+    if (typeof folder === "string" && folder.trim()) await moveToFolder(ws.site.id, saved.map((s) => s.name), folder);
     revalidatePath("/", "layout");
     return Response.json({ ok: true, names: saved.map((s) => s.name), values: saved.map((s) => s.value) });
   } catch (error) {

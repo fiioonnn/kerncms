@@ -164,9 +164,24 @@ export const media = pgTable(
     width: integer(),
     height: integer(),
     uploadedBy: uuid().references(() => users.id, { onDelete: "set null" }),
+    /** Folder in the CMS only ("Team/Portraits"; "" = top level). The file and its address stay the same. */
+    folder: text().notNull().default(""),
     updatedAt: timestamp().notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.siteId, t.name] })],
+);
+
+/** Media folders that exist without files in them (folders with files also come from media.folder). */
+export const mediaFolders = pgTable(
+  "media_folders",
+  {
+    siteId: uuid()
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    path: text().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.path] })],
 );
 
 export const formSubmissions = pgTable(

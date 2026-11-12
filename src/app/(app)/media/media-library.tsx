@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, CheckSquare, Cloud, Copy, Download, Eye, FileText, Film, ImageIcon, Link2, MoreHorizontal, Search, SlidersHorizontal, Trash2, UploadCloud, X } from "lucide-react";
+import { Check, CheckSquare, Cloud, Copy, Download, Eye, FileText, Film, FolderInput, FolderOpen, FolderPlus, ImageIcon, Link2, MoreHorizontal, Search, SlidersHorizontal, Trash2, UploadCloud, X } from "lucide-react";
 import { formatBytes, UploadDialog } from "@/components/actions/common";
 import { useCan } from "@/components/kern/kern-provider";
-import { reloadMedia, uploadMedia, useMedia } from "@/components/kern/use-media";
+import { reloadMedia, uploadMedia, useMedia, useMediaFolders } from "@/components/kern/use-media";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -19,7 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import type { MediaItem } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
-import { deleteMedia, duplicateMedia } from "@/server/actions/media";
+import { createMediaFolder, deleteMedia, deleteMediaFolder, duplicateMedia, moveMediaToFolder, renameMediaFolder } from "@/server/actions/media";
+import { DRAG_TYPE, FolderNameDialog, FolderPath, FolderTile, folderName, MoveDialog, parentOf } from "./media-folders";
 import { MediaDetails } from "./media-details";
 
 const typeFilters = [
@@ -70,7 +71,18 @@ export function MediaThumb({ item, className }: { item: MediaItem; className?: s
 
 export function MediaLibrary() {
   const { items } = useMedia();
+  const folders = useMediaFolders() ?? [];
   const canEdit = useCan("editor");
+  const [folder, setFolder] = useState("");
+  // The page-wide drop handler uploads into the open folder.
+  const folderRef = useRef(folder);
+  useEffect(() => {
+    folderRef.current = folder;
+  }, [folder]);
+  const [folderDialog, setFolderDialog] = useState<{ mode: "create" } | { mode: "rename"; path: string } | null>(null);
+  const [folderDialogKey, setFolderDialogKey] = useState(0);
+  const [dissolve, setDissolve] = useState<string | null>(null);
+  const [moving, setMoving] = useState<string[] | null>(null);
   const [query, setQuery] = useState("");
   const [type, setType] = useState("all");
   const [usage, setUsage] = useState("all");
@@ -96,6 +108,10 @@ export function MediaLibrary() {
         item.caption.toLowerCase().includes(q) ||
         item.tags.some((t) => t.toLowerCase().includes(q))),
   );
+  // Searching looks through every folder; otherwise only the open folder is shown.
+  const visible = q ? filtered : filtered.filter((item) => item.folder === folder);
+  const subfolders = q ? [] : folders.filter((f) => parentOf(f) === folder);
+  const countIn = (path: string) => (items ?? []).filter((i) => i.folder === path || i.folder.startsWith(`${path}/`)).length;
   const detailItem = items?.find((i) => i.name === detail) ?? null;
   const deleteTargets = deleteOne ? (items ?? []).filter((i) => i.name === deleteOne) : (items ?? []).filter((i) => selected.has(i.name));
   const selectedInUse = deleteTargets.filter((i) => i.usedIn.length > 0).length;
@@ -131,7 +147,7 @@ export function MediaLibrary() {
       const files = Array.from(e.dataTransfer?.files ?? []);
       if (files.length === 0) return;
       setUploading(files.length);
-      uploadMedia(files)
+      uploadMedia(files, folderRef.current)
         .then((names) => toast.success(names.length === 1 ? `„${names[0]}“ hochgeladen` : `${names.length} Dateien hochgeladen`))
         .catch((err: Error) => toast.error("Hochladen fehlgeschlagen", { description: err.message }))
         .finally(() => setUploading(0));
@@ -154,6 +170,64 @@ export function MediaLibrary() {
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
+    });
+  }
+
+  async function moveTo(names: string[], target: string) {
+    const moved = names.filter((n) => items?.find((i) => i.name === n)?.folder !== target);
+    if (moved.length === 0) return true;
+    const result = await moveMediaToFolder(moved, target);
+    if (!result.ok) {
+      toast.error("Verschieben fehlgeschlagen", { description: result.error });
+      return false;
+    }
+    await reloadMedia();
+    setSelected(new Set());
+    toast.success(`${moved.length === 1 ? `„${moved[0]}“` : `${moved.length} Dateien`} nach „${target ? folderName(target) : "Alle Medien"}“ verschoben`);
+    return true;
+  }
+
+  function uploadInto(files: File[], target: string) {
+    setUploading(files.length);
+    uploadMedia(files, target)
+      .then((names) => toast.success(`${names.length === 1 ? `„${names[0]}“` : `${names.length} Dateien`} in „${target ? folderName(target) : "Alle Medien"}“ hochgeladen`))
+      .catch((err: Error) => toast.error("Hochladen fehlgeschlagen", { description: err.message }))
+      .finally(() => setUploading(0));
+  }
+
+  async function saveFolderName(name: string) {
+    if (!folderDialog) return false;
+    if (folderDialog.mode === "create") {
+      const result = await createMediaFolder([folder, name].filter(Boolean).join("/"));
+      if (!result.ok) {
+        toast.error("Ordner nicht angelegt", { description: result.error });
+        return false;
+      }
+      await reloadMedia();
+      toast.success(`Ordner „${name}“ angelegt`);
+      return true;
+    }
+    const from = folderDialog.path;
+    const to = [parentOf(from), name].filter(Boolean).join("/");
+    const result = await renameMediaFolder(from, to);
+    if (!result.ok) {
+      toast.error("Nicht umbenannt", { description: result.error });
+      return false;
+    }
+    if (folder === from || folder.startsWith(`${from}/`)) setFolder(to + folder.slice(from.length));
+    await reloadMedia();
+    return true;
+  }
+
+  function dissolveFolder(path: string) {
+    startDelete(async () => {
+      const result = await deleteMediaFolder(path);
+      if (!result.ok) {
+        toast.error("Ordner nicht aufgelöst", { description: result.error });
+        return;
+      }
+      await reloadMedia();
+      toast.success(`Ordner „${folderName(path)}“ aufgelöst`);
     });
   }
 
@@ -209,6 +283,30 @@ export function MediaLibrary() {
         )}
       </div>
 
+      {/* Folder path and new folder */}
+      {items !== null && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          {q ? (
+            <p className="text-[15px] text-muted">Suchergebnisse aus allen Ordnern</p>
+          ) : (
+            <FolderPath folder={folder} onOpen={setFolder} onMove={(names, target) => void moveTo(names, target)} canEdit={canEdit} />
+          )}
+          {canEdit && !q && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setFolderDialogKey((k) => k + 1);
+                setFolderDialog({ mode: "create" });
+              }}
+            >
+              <FolderPlus />
+              Neuer Ordner
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Selection bar */}
       {selected.size > 0 && (
         // Floating at the bottom centre of the content area (the sidebar is 18rem wide from lg).
@@ -218,13 +316,17 @@ export function MediaLibrary() {
           className="fixed bottom-6 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-2xl border border-border bg-surface p-2 pl-5 shadow-popover lg:left-[calc(50%+9rem)] lg:max-w-[calc(100vw-20rem)]"
         >
           <span className="mr-1 text-[15px] font-medium whitespace-nowrap">{selected.size === 1 ? "1 Datei ausgewählt" : `${selected.size} Dateien ausgewählt`}</span>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set(filtered.map((i) => i.name)))}>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set(visible.map((i) => i.name)))}>
             Alle sichtbaren auswählen
           </Button>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => setSelected(new Set())}>
               <X />
               Auswahl aufheben
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setMoving([...selected])}>
+              <FolderInput />
+              Verschieben
             </Button>
             <Button variant="danger" size="sm" disabled={deleting} onClick={() => setConfirmDelete(true)}>
               <Trash2 />
@@ -247,9 +349,16 @@ export function MediaLibrary() {
             <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 && subfolders.length === 0 ? (
         <Card>
-          {items.length === 0 ? (
+          {!q && folder && filtered.length === (items ?? []).length ? (
+            <EmptyState
+              icon={FolderOpen}
+              title="Ordner ist leer"
+              description={canEdit ? "Zieh Dateien hierher, auf diese Seite oder auf den Ordner in der Übersicht." : "In diesem Ordner liegen noch keine Dateien."}
+              action={canEdit && <UploadDialog folder={folder} />}
+            />
+          ) : items.length === 0 ? (
             <EmptyState
               icon={ImageIcon}
               title="Noch keine Medien"
@@ -261,8 +370,30 @@ export function MediaLibrary() {
           )}
         </Card>
       ) : (
+        <div className="flex flex-col gap-5">
+        {subfolders.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+            {subfolders.map((path) => (
+              <FolderTile
+                key={path}
+                path={path}
+                count={countIn(path)}
+                canEdit={canEdit}
+                onOpen={() => setFolder(path)}
+                onMove={(names) => void moveTo(names, path)}
+                onUpload={(files) => uploadInto(files, path)}
+                onRename={() => {
+                  setFolderDialogKey((k) => k + 1);
+                  setFolderDialog({ mode: "rename", path });
+                }}
+                onDelete={() => setDissolve(path)}
+              />
+            ))}
+          </div>
+        )}
+        {visible.length > 0 && (
         <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((item) => {
+          {visible.map((item) => {
             const isSelected = selected.has(item.name);
             const actions = (
               <MediaActions
@@ -272,6 +403,7 @@ export function MediaLibrary() {
                 onOpen={() => setDetail(item.name)}
                 onEdit={() => setEditing(item.name)}
                 onDuplicate={() => duplicate(item.name)}
+                onMove={() => setMoving([item.name])}
                 onSelect={() => toggle(item.name)}
                 onDelete={() => {
                   setDeleteOne(item.name);
@@ -282,6 +414,13 @@ export function MediaLibrary() {
             return (
               <ContextMenu key={item.name}>
               <ContextMenuTrigger
+                draggable={canEdit}
+                onDragStart={(e: React.DragEvent) => {
+                  // Dragging a selected file takes the whole selection along.
+                  const names = isSelected ? [...selected] : [item.name];
+                  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(names));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
                 className={cn(
                   // The focus ring sits on the card (outside the image) so it is not cut off.
                   "group relative flex flex-col overflow-hidden rounded-2xl border bg-surface shadow-card transition-shadow hover:shadow-popover has-[[data-card-open]:focus-visible]:border-accent has-[[data-card-open]:focus-visible]:ring-4 has-[[data-card-open]:focus-visible]:ring-accent/30",
@@ -353,6 +492,8 @@ export function MediaLibrary() {
             );
           })}
         </div>
+        )}
+        </div>
       )}
 
       {detailItem && (
@@ -366,6 +507,40 @@ export function MediaLibrary() {
           tagSuggestions={[...new Set((items ?? []).flatMap((i) => i.tags))].sort((a, b) => a.localeCompare(b, "de"))}
         />
       )}
+
+      {folderDialog && (
+        <FolderNameDialog
+          key={folderDialogKey}
+          open
+          onOpenChange={(open) => !open && setFolderDialog(null)}
+          title={folderDialog.mode === "create" ? "Neuer Ordner" : "Ordner umbenennen"}
+          initial={folderDialog.mode === "rename" ? folderName(folderDialog.path) : ""}
+          parent={folderDialog.mode === "create" ? folder : parentOf(folderDialog.path)}
+          confirmLabel={folderDialog.mode === "create" ? "Anlegen" : "Umbenennen"}
+          onSubmit={saveFolderName}
+        />
+      )}
+
+      {moving && (
+        <MoveDialog
+          key={moving.join("|")}
+          open
+          onOpenChange={(open) => !open && setMoving(null)}
+          count={moving.length}
+          folders={folders}
+          current={folder}
+          onMove={(target) => moveTo(moving, target)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={dissolve !== null}
+        onOpenChange={(open) => !open && setDissolve(null)}
+        title={dissolve ? `Ordner „${folderName(dissolve)}“ auflösen?` : ""}
+        description={`Die Dateien und Unterordner wandern eine Ebene nach oben${dissolve && parentOf(dissolve) ? ` in „${folderName(parentOf(dissolve))}“` : ""}. Es wird nichts gelöscht.`}
+        confirmLabel="Auflösen"
+        onConfirm={() => dissolve && dissolveFolder(dissolve)}
+      />
 
       {editingItem && (
         <ImageEditor
@@ -419,6 +594,7 @@ function MediaActions({
   onOpen,
   onEdit,
   onDuplicate,
+  onMove,
   onSelect,
   onDelete,
 }: {
@@ -428,6 +604,7 @@ function MediaActions({
   onOpen: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
+  onMove: () => void;
   onSelect: () => void;
   onDelete: () => void;
 }) {
@@ -444,6 +621,11 @@ function MediaActions({
       {canEdit && (
         <MenuItem icon={Copy} onClick={onDuplicate}>
           Duplizieren
+        </MenuItem>
+      )}
+      {canEdit && (
+        <MenuItem icon={FolderInput} onClick={onMove}>
+          Verschieben…
         </MenuItem>
       )}
       <MenuItem

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import path from "node:path";
 import { run } from "../action";
 import { commit, withSiteLock } from "../git";
-import { duplicateMedia as copyMedia, editImage, type ImageEdit, type MediaMetaInput, moveMediaToTrash, updateMediaMeta } from "../media";
+import { createFolder, deleteFolder, duplicateMedia as copyMedia, editImage, moveToFolder, renameFolder, type ImageEdit, type MediaMetaInput, moveMediaToTrash, updateMediaMeta } from "../media";
 import { getWorkspace } from "../sites";
 
 export async function saveMediaMeta(name: string, input: MediaMetaInput) {
@@ -67,5 +67,36 @@ export async function deleteMedia(names: string[]) {
       revalidatePath("/", "layout");
       return null;
     });
+  });
+}
+
+/* ---------- Folders ---------- */
+
+export async function createMediaFolder(folder: string) {
+  return run(async () => {
+    const ws = await getWorkspace("editor");
+    return createFolder(ws.site.id, folder);
+  });
+}
+
+export async function moveMediaToFolder(names: string[], folder: string) {
+  return run(async () => {
+    const ws = await getWorkspace("editor");
+    return moveToFolder(ws.site.id, names, folder);
+  });
+}
+
+export async function renameMediaFolder(from: string, to: string) {
+  return run(async () => {
+    const ws = await getWorkspace("editor");
+    return renameFolder(ws.site.id, from, to);
+  });
+}
+
+export async function deleteMediaFolder(folder: string) {
+  return run(async () => {
+    const ws = await getWorkspace("editor");
+    await deleteFolder(ws.site.id, folder);
+    return null;
   });
 }

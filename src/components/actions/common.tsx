@@ -123,12 +123,15 @@ export function UploadDialog({
   triggerClassName = buttonStyles(),
   onUploaded,
   accept = "image/*,.pdf,.svg,.mp4",
+  folder,
 }: {
   trigger?: React.ReactNode;
   triggerClassName?: string;
   /** Called with the stored file names after a successful upload. */
   onUploaded?: (names: string[]) => void;
   accept?: string;
+  /** Media library folder the files go into. */
+  folder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -140,7 +143,7 @@ export function UploadDialog({
     setUploading(true);
     setError(null);
     try {
-      const names = await uploadMedia(files);
+      const names = await uploadMedia(files, folder);
       toast.success(names.length === 1 ? `„${names[0]}“ hochgeladen` : `${names.length} Dateien hochgeladen`);
       onUploaded?.(names);
       setOpen(false);
