@@ -91,6 +91,9 @@ services:
       SMTP_URL: ${SMTP_URL:?SMTP_URL fehlt}
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM fehlt}
       KERN_PREVIEW_LAN: "0"
+      # Previews for the visual editor at https://preview-<site>.<domain>, e.g. kerncms.com (needs *.kerncms.com in DNS).
+      KERN_PREVIEW_DOMAIN: ${KERN_PREVIEW_DOMAIN:-}
+      KERN_PREVIEW_PORT: "3100"
       # Customer domains via Cloudflare for SaaS (optional, see .env.prod.example)
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
@@ -107,6 +110,13 @@ services:
       - traefik.http.routers.kern-customer-domains.tls=true
       - traefik.http.routers.kern-customer-domains.service=kern-customer-domains
       - traefik.http.services.kern-customer-domains.loadbalancer.server.port=3000
+      # Previews: preview-<site id>.<KERN_PREVIEW_DOMAIN> → the preview gateway inside the app on port 3100.
+      - traefik.http.routers.kern-previews.rule=HostRegexp(`^preview-[0-9a-f-]+[.]${KERN_PREVIEW_DOMAIN:-preview.invalid}$$`)
+      - traefik.http.routers.kern-previews.priority=100
+      - traefik.http.routers.kern-previews.entrypoints=websecure
+      - traefik.http.routers.kern-previews.tls=true
+      - traefik.http.routers.kern-previews.service=kern-previews
+      - traefik.http.services.kern-previews.loadbalancer.server.port=3100
     networks:
       - default
       - dokploy-network
@@ -115,6 +125,7 @@ services:
       - kern-data:/data
     expose:
       - "3000"
+      - "3100"
 
   # Optional: Cloudflare Tunnel instead of an open port and a reverse proxy.
   #   docker compose -f docker-compose.prod.yml --env-file .env.prod --profile tunnel up -d

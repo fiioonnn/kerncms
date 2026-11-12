@@ -8,6 +8,7 @@ import type { Site } from "@/db/schema";
 import type { KernConfig } from "@/lib/kern-types";
 import { loadConfig } from "./config";
 import { linkNodeModules } from "./git";
+import { publicPreviewUrl, startPreviewGateway } from "./preview-gateway";
 
 export type PreviewState = {
   status: "installing" | "starting" | "ready" | "error" | "stopped";
@@ -43,6 +44,12 @@ type Entry = PreviewState & {
 };
 
 const registry = ((globalThis as { __kernPreviews?: Map<string, Entry> }).__kernPreviews ??= new Map());
+
+// With KERN_PREVIEW_DOMAIN set, previews are reached through the gateway instead of 127.0.0.1:<port>.
+startPreviewGateway((siteId) => {
+  const entry = registry.get(siteId);
+  return entry && entry.status !== "stopped" && entry.status !== "error" ? entry.port : null;
+});
 
 function pushLog(entry: Entry, chunk: string) {
   for (const line of chunk.split("\n")) {
@@ -149,7 +156,8 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
       if (site.source !== "github") await linkNodeModules(site.repoPath, dir);
       const port = await freePort(4400 + (registry.size % 50) * 2);
       entry.port = port;
-      entry.url = `http://127.0.0.1:${port}`;
+      const local = `http://127.0.0.1:${port}`;
+      entry.url = publicPreviewUrl(site.id) ?? local;
       // Listen on all interfaces so a phone in the same network can open the preview too.
       const host = lanEnabled() ? "0.0.0.0" : "127.0.0.1";
       const lan = lanEnabled() ? lanAddress() : null;
@@ -167,7 +175,7 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
         entry.status = "error";
         entry.error = `Der Vorschau-Server wurde beendet (Code ${code}).`;
       });
-      await waitForHttp(entry.url, entry, 90_000);
+      await waitForHttp(local, entry, 90_000);
       if (entry.status === "starting") entry.status = "ready";
     } catch (error) {
       entry.status = "error";
