@@ -13,9 +13,9 @@ import { hashToken, newToken, requireAdmin } from "../auth";
 import { parseConfig } from "../config";
 import { git, worktreeDir } from "../git";
 import { fetchRemote, listBranches, listRepos, readRemoteConfig } from "../github";
-import { sendInvite } from "../mail";
+import { sendDomainInstructions, sendInvite, type DnsRecordMail } from "../mail";
 import { stopPreview } from "../preview";
-import { cloudflareConfigured, cmsOrigin, domainReachable, hostnameInfo, normalizeDomain, registerHostname, removeHostname } from "../custom-domains";
+import { cloudflareConfigured, cmsOrigin, cnameTarget, domainReachable, hostnameInfo, normalizeDomain, registerHostname, removeHostname } from "../custom-domains";
 import { connectGithubSite, connectSite, inspectRepo } from "../sites";
 
 function refresh() {
@@ -111,6 +111,32 @@ export async function checkCustomerDomain(id: string) {
     await db.update(customers).set({ domainStatus: status }).where(eq(customers.id, id));
     refresh();
     return { status };
+  });
+}
+
+/** Mails the customer the DNS records their own CMS address needs. */
+export async function mailDomainInstructions(id: string, input: { email: string }) {
+  return run(async () => {
+    await requireAdmin();
+    const email = input.email.trim().toLowerCase();
+    if (!validEmail(email)) throw new Error("Bitte gib eine gültige E-Mail-Adresse ein.");
+    const [row] = await db.select().from(customers).where(eq(customers.id, id));
+    if (!row?.domain) throw new Error("Der Kunde hat keine eigene Domain.");
+    const target = cnameTarget();
+    if (!target) throw new Error("KERN_CUSTOM_DOMAIN_TARGET ist nicht gesetzt, es gibt kein Ziel für den CNAME.");
+    const records: DnsRecordMail[] = [{ type: "CNAME", name: row.domain, value: target, note: "Bei Cloudflare: Nur DNS (graue Wolke)" }];
+    if (row.domainHostnameId) {
+      const info = await hostnameInfo(row.domainHostnameId).catch(() => null);
+      for (const r of info?.txtRecords ?? []) records.push({ type: "TXT", name: r.name, value: r.value, note: "Nur nötig, falls der CNAME allein nicht reicht." });
+    }
+    const greeting = row.contactName && email === row.contactEmail?.toLowerCase() ? `Hallo ${row.contactName},` : "Hallo,";
+    try {
+      await sendDomainInstructions(email, { greeting, domain: row.domain, records });
+    } catch (error) {
+      console.error("[kern] Mailversand fehlgeschlagen:", error);
+      throw new Error("Die E-Mail konnte nicht verschickt werden.");
+    }
+    return null;
   });
 }
 

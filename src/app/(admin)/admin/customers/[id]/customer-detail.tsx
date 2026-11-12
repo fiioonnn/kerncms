@@ -176,7 +176,7 @@ export function CustomerDetail({ customer, domain, sites, people }: { customer: 
 
         <div className="flex flex-col gap-6">
           <DetailsCard customer={customer} />
-          <DomainCard customerId={customer.id} state={domain} />
+          <DomainCard customerId={customer.id} state={domain} contactEmail={customer.contactEmail} />
 
           <Card>
             <CardHeader title="Kunde löschen" description="Die Websites bleiben verbunden und sind danach keinem Kunden zugeordnet." />

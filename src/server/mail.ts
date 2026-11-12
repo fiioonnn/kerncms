@@ -49,3 +49,48 @@ export async function sendInvite(email: string, siteName: string, inviter: strin
     ),
   });
 }
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+export type DnsRecordMail = { type: string; name: string; value: string; note?: string };
+
+/** Tells a customer which DNS records their own CMS address needs. */
+export async function sendDomainInstructions(to: string, opts: { greeting: string; domain: string; records: DnsRecordMail[] }) {
+  const { domain, records } = opts;
+  const text = [
+    `${opts.greeting}`,
+    "",
+    `damit du das CMS unter ${domain} öffnen kannst, lege bitte bei deinem Domain-Anbieter diesen DNS-Eintrag an:`,
+    "",
+    ...records.flatMap((r) => [`Typ:  ${r.type}`, `Name: ${r.name}`, `Ziel: ${r.value}`, ...(r.note ? [`Hinweis: ${r.note}`] : []), ""]),
+    "Liegt deine Domain bei Cloudflare, stell den Eintrag auf „Nur DNS“ (graue Wolke).",
+    `Sobald der Eintrag aktiv ist, meist nach wenigen Minuten, erreichst du das CMS unter https://${domain}.`,
+  ].join("\n");
+  const cell = "padding:8px 0;vertical-align:top;font-size:14px";
+  const label = `${cell};color:#6b6b72;width:56px`;
+  const mono = `${cell};font-family:ui-monospace,Menlo,monospace;word-break:break-all`;
+  const blocks = records
+    .map(
+      (r) => `<div style="background:#f6f6f4;border-radius:12px;padding:12px 16px;margin:0 0 12px">
+<table style="width:100%;border-collapse:collapse">
+<tr><td style="${label}">Typ</td><td style="${mono};font-weight:700">${esc(r.type)}</td></tr>
+<tr><td style="${label}">Name</td><td style="${mono}">${esc(r.name)}</td></tr>
+<tr><td style="${label}">Ziel</td><td style="${mono}">${esc(r.value)}</td></tr>
+${r.note ? `<tr><td style="${label}">Hinweis</td><td style="${cell}">${esc(r.note)}</td></tr>` : ""}
+</table></div>`,
+    )
+    .join("");
+  await defaultTransport.sendMail({
+    from: DEFAULT_FROM,
+    to,
+    subject: `DNS-Eintrag für ${domain}`,
+    text,
+    html: mailLayout(
+      `Dein CMS unter ${esc(domain)}`,
+      `<p style="font-size:15px;color:#6b6b72;margin:0 0 20px">${esc(opts.greeting)}<br>damit du das CMS unter deiner eigenen Adresse öffnen kannst, lege bitte bei deinem Domain-Anbieter ${records.length === 1 ? "diesen DNS-Eintrag" : "diese DNS-Einträge"} an:</p>
+${blocks}
+<p style="font-size:14px;color:#6b6b72;margin:8px 0 0">Liegt deine Domain bei Cloudflare, stell den Eintrag auf <strong>„Nur DNS“</strong> (graue Wolke). Sobald er aktiv ist, meist nach wenigen Minuten, erreichst du das CMS unter <a href="https://${esc(domain)}" style="color:#2f5bea">${esc(domain)}</a>.</p>`,
+      { footer: "Fragen dazu? Antworte einfach auf diese Mail." },
+    ),
+  });
+}

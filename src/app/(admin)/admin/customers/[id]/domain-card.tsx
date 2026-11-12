@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Globe, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Copy, Globe, Loader2, Mail, RefreshCw, Trash2 } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/dialog";
+import { ConfirmDialog, Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Badge, Card, CardContent, CardHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { checkCustomerDomain, removeCustomerDomain, setCustomerDomain } from "@/server/actions/admin";
+import { checkCustomerDomain, mailDomainInstructions, removeCustomerDomain, setCustomerDomain } from "@/server/actions/admin";
+import { cn } from "@/lib/utils";
 import { ErrorNote } from "../../_components/shared";
 
 export type DomainState = {
@@ -28,7 +29,7 @@ const statusBadge = {
 } as const;
 
 /** The customer's own CMS address (cms.kundendomain.de) and the DNS records it needs. */
-export function DomainCard({ customerId, state }: { customerId: string; state: DomainState }) {
+export function DomainCard({ customerId, state, contactEmail }: { customerId: string; state: DomainState; contactEmail?: string | null }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -97,10 +98,8 @@ export function DomainCard({ customerId, state }: { customerId: string; state: D
   }
 
   const badge = statusBadge[state.status ?? "pending"];
-  const records = [
-    ...(state.target ? [{ type: "CNAME", name: state.domain, value: state.target }] : []),
-    ...state.txtRecords.map((r) => ({ type: "TXT", name: r.name, value: r.value })),
-  ];
+  const cname = state.target ? { type: "CNAME", name: state.domain, value: state.target } : null;
+  const showSetup = state.cloudflare && state.status !== "active";
 
   return (
     <Card>
@@ -117,17 +116,18 @@ export function DomainCard({ customerId, state }: { customerId: string; state: D
           {state.domain}
         </a>
 
-        {state.cloudflare && state.status !== "active" && (
+        {showSetup && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted">
-              Diese Einträge kommen ins DNS des Kunden. Liegt sein DNS bei Cloudflare, den CNAME auf „Nur DNS“ stellen. Die TXT-Einträge braucht es nur, wenn die
-              Prüfung über den CNAME nicht klappt.
-            </p>
-            <ul className="flex flex-col gap-2">
-              {records.map((r) => (
-                <DnsRecord key={`${r.type}-${r.name}`} {...r} />
-              ))}
-            </ul>
+            <p className="text-sm text-muted">Diesen Eintrag legt der Kunde bei seinem Domain-Anbieter an. Danach dauert es meist ein paar Minuten.</p>
+            {cname && <DnsRecord {...cname} note="Bei Cloudflare auf „Nur DNS“ stellen (graue Wolke)." />}
+            {state.txtRecords.length > 0 && (
+              <>
+                <p className="pt-1 text-sm text-muted">Nur falls die Prüfung über den CNAME nicht klappt, zusätzlich:</p>
+                {state.txtRecords.map((r) => (
+                  <DnsRecord key={r.name + r.value} type="TXT" name={r.name} value={r.value} />
+                ))}
+              </>
+            )}
           </div>
         )}
         {!state.cloudflare && (
@@ -136,6 +136,7 @@ export function DomainCard({ customerId, state }: { customerId: string; state: D
         {state.errors.length > 0 && <ErrorNote>{state.errors.join(" ")}</ErrorNote>}
 
         <div className="flex flex-wrap items-center gap-3">
+          {showSetup && cname && <MailInstructions customerId={customerId} defaultEmail={contactEmail ?? ""} />}
           {state.cloudflare && (
             <Button variant="secondary" onClick={check} disabled={pending}>
               {pending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
@@ -162,25 +163,106 @@ export function DomainCard({ customerId, state }: { customerId: string; state: D
   );
 }
 
-function DnsRecord({ type, name, value }: { type: string; name: string; value: string }) {
+function DnsRecord({ type, name, value, note }: { type: string; name: string; value: string; note?: string }) {
   return (
-    <li className="flex flex-col gap-1.5 rounded-xl bg-subtle px-4 py-3 text-sm">
-      <span className="flex items-center justify-between gap-3">
-        <Badge>{type}</Badge>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            void navigator.clipboard?.writeText(value);
-            toast.success("Ziel kopiert");
+    <div className="overflow-hidden rounded-xl border border-border">
+      <div className="flex items-center gap-2 border-b border-border bg-subtle px-4 py-2">
+        <Badge tone="accent">{type}</Badge>
+        <span className="text-xs text-muted">TTL: Auto</span>
+      </div>
+      <dl className="divide-y divide-border">
+        <CopyRow label="Name" value={name} />
+        <CopyRow label="Ziel" value={value} />
+      </dl>
+      {note && <p className="border-t border-border px-4 py-2.5 text-xs text-muted">{note}</p>}
+    </div>
+  );
+}
+
+/** One record field with a copy button; the whole value stays selectable. */
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    void navigator.clipboard?.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  return (
+    <div className="flex items-center gap-3 py-1.5 pr-1.5 pl-4">
+      <dt className="w-10 shrink-0 text-xs text-muted">{label}</dt>
+      <dd className="min-w-0 flex-1 font-mono text-[13px] break-all select-all">{value}</dd>
+      <Button variant="ghost" size="icon" onClick={copy} aria-label={`${label} kopieren`} className={cn("size-9 shrink-0", copied && "text-success")}>
+        {copied ? <Check /> : <Copy />}
+      </Button>
+    </div>
+  );
+}
+
+/** Lets the admin mail the DNS instructions to the customer. */
+function MailInstructions({ customerId, defaultEmail }: { customerId: string; defaultEmail: string }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState(defaultEmail);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function send() {
+    setError(null);
+    startTransition(async () => {
+      const result = await mailDomainInstructions(customerId, { email });
+      if (!result.ok) return setError(result.error);
+      setOpen(false);
+      toast.success("Anleitung verschickt", { description: email });
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending) return;
+        setOpen(next);
+        if (next) {
+          setEmail(defaultEmail);
+          setError(null);
+        }
+      }}
+    >
+      <Button onClick={() => setOpen(true)}>
+        <Mail />
+        Anleitung senden
+      </Button>
+      <DialogContent
+        title="Anleitung per E-Mail senden"
+        description="Der Kunde bekommt den DNS-Eintrag mit kurzer Erklärung, wo er ihn anlegt."
+        size="sm"
+        footer={
+          <>
+            <DialogClose className={buttonStyles({ variant: "secondary" })} disabled={pending}>
+              Abbrechen
+            </DialogClose>
+            <Button onClick={send} disabled={pending || !email.trim()}>
+              {pending ? <Loader2 className="animate-spin" /> : <Mail />}
+              Senden
+            </Button>
+          </>
+        }
+      >
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
           }}
         >
-          <Copy />
-          Ziel kopieren
-        </Button>
-      </span>
-      <span className="break-all font-mono">{name}</span>
-      <span className="break-all font-mono text-muted">→ {value}</span>
-    </li>
+          <Field invalid={Boolean(error)}>
+            <Label>E-Mail-Adresse</Label>
+            <Input type="email" value={email} onValueChange={setEmail} disabled={pending} autoComplete="off" />
+            <Description>{defaultEmail ? "Vorausgefüllt mit dem Ansprechpartner des Kunden." : "Beim Kunden ist keine E-Mail-Adresse hinterlegt."}</Description>
+          </Field>
+          {error && <ErrorNote>{error}</ErrorNote>}
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
