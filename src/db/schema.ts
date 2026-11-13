@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { Turn } from "@/lib/assistant";
 import { boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export type MediaLocation = "repo" | "cms" | "s3";
@@ -471,3 +472,22 @@ export const aiSettings = pgTable("ai_settings", {
   access: text().$type<AiAccess>().notNull().default("app_admin"),
   updatedAt: timestamp().notNull().defaultNow(),
 });
+
+/** Saved chats with the AI assistant, per person and site. `turns` is the chat as the panel shows it. */
+export const assistantChats = pgTable(
+  "assistant_chats",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    siteId: uuid()
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    turns: jsonb().$type<Turn[]>().notNull().default([]),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.siteId, t.userId, t.updatedAt)],
+);

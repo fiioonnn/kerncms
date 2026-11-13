@@ -13,9 +13,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldType, PageData, PageSeo, PageSummary } from "@/lib/kern-types";
 import { discardPage, loadPage, savePage, writePageDraft } from "@/server/actions/content";
-import { AssistantPanel, useAssistantChat } from "./assistant-panel";
+import { AssistantPanel, useAssistantChat, type AssistantContext } from "./assistant-panel";
 import { NewPageDialog } from "./page-picker";
-import { changedLeaves, fieldTypesFor, getAt, newBlockId, samePath, setAt, typeAt } from "./paths";
+import { blockSummary, changedLeaves, fieldLabel, fieldTypesFor, getAt, newBlockId, samePath, setAt, typeAt } from "./paths";
 import { PreviewFrame, PreviewLoader, usePreview } from "./preview";
 import { GlobalDialog } from "./global-dialog";
 import { EditorSidebar, SidebarDrawer, type SidebarTab } from "./sidebar";
@@ -474,6 +474,14 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     onDone: (files) => void afterAssistant(files),
   });
 
+  const assistantContext: AssistantContext = {
+    page: { name, title: data.title },
+    blocks: blocks.map((b) => ({ id: b.id, label: defs.get(b.type)?.label ?? b.type, summary: blockSummary(b, defs.get(b.type)) })),
+    selected: selected ? { id: selected.id, label: defs.get(selected.type)?.label ?? selected.type } : null,
+    field: selected && focusPath ? { blockId: selected.id, path: focusPath, label: fieldLabel(defs.get(selected.type), focusPath) } : null,
+    globals: config.globals.map((g) => ({ key: g.key, label: g.label })),
+  };
+
   const openPage = async (target: string) => {
     await flushWrite();
     setSwitchTitle(pages.find((p) => p.name === target)?.title ?? null);
@@ -718,7 +726,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
           }}
         >
         </PreviewFrame>
-        {kern.assistant && <AssistantPanel chat={assistant} open={assistantOpen} onOpenChange={setAssistantOpen} docked={isDesktop} />}
+        {kern.assistant && <AssistantPanel chat={assistant} context={assistantContext} open={assistantOpen} onOpenChange={setAssistantOpen} docked={isDesktop} />}
       </div>
 
       <MediaPickerDialog

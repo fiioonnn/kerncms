@@ -92,6 +92,22 @@ export function stripHtml(value: unknown) {
     : "";
 }
 
+/** Readable name of a field path, e.g. "Kacheln 2 › Titel" for `tiles.1.title`. */
+export function fieldLabel(def: BlockDef | undefined, path: string) {
+  const names: string[] = [];
+  let fields: FieldDef[] | undefined = def?.fields;
+  for (const part of segments(path)) {
+    if (/^\d+$/.test(part)) {
+      if (names.length) names[names.length - 1] += ` ${Number(part) + 1}`;
+      continue;
+    }
+    const field = fields?.find((f) => f.name === part);
+    names.push(field?.label ?? part);
+    fields = field?.fields;
+  }
+  return names.join(" › ") || path;
+}
+
 /** Short text describing a block in the outline: its first non-empty text field. */
 export function blockSummary(block: BlockData, def: BlockDef | undefined) {
   for (const field of def?.fields ?? []) {
