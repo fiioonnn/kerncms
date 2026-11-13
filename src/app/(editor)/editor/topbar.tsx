@@ -62,6 +62,7 @@ export function EditorTopbar({
   canRedo,
   previewHref,
   phoneHref,
+  phoneAnywhere,
   onUndo,
   onRedo,
   onOpenPanel,
@@ -85,6 +86,7 @@ export function EditorTopbar({
   previewHref: string | null;
   /** Preview address reachable from other devices in the network. */
   phoneHref: string | null;
+  phoneAnywhere: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onOpenPanel: () => void;
@@ -261,7 +263,7 @@ export function EditorTopbar({
             <PublishButton showDone className="min-w-36 max-sm:min-w-0 max-sm:px-3 max-sm:text-sm" />
           ))}
       </div>
-      <PhonePreviewDialog open={phoneOpen} onOpenChange={setPhoneOpen} href={phoneHref} pageTitle={title} />
+      <PhonePreviewDialog open={phoneOpen} onOpenChange={setPhoneOpen} href={phoneHref} anywhere={phoneAnywhere} pageTitle={title} />
     </header>
   );
 }

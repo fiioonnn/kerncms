@@ -1,23 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Smartphone, Wifi } from "lucide-react";
+import { Link2, Smartphone, Wifi } from "lucide-react";
 import QRCode from "qrcode";
 import { CopyButton } from "@/components/actions/common";
 import { buttonStyles } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 
-/** QR code that opens the current preview page on a phone in the same network. */
+/** QR code that opens the current preview page on a phone (public preview address, or same network). */
 export function PhonePreviewDialog({
   open,
   onOpenChange,
   href,
+  anywhere,
   pageTitle,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** LAN address of the preview incl. path, or null when it isn't reachable from other devices. */
   href: string | null;
+  /** The address works from any network (public preview domain), not only the same Wi-Fi. */
+  anywhere: boolean;
   pageTitle: string;
 }) {
   const [svg, setSvg] = useState<string | null>(null);
@@ -55,10 +58,18 @@ export function PhonePreviewDialog({
               <span className="min-w-0 flex-1 truncate font-mono text-sm">{href}</span>
               <CopyButton value={href} />
             </div>
-            <p className="flex items-start gap-2.5 text-sm text-muted">
-              <Wifi className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-              Das Handy muss im selben WLAN sein wie dieser Rechner. Es zeigt den aktuellen Entwurf, auch ungespeicherte Änderungen.
-            </p>
+            {anywhere ? (
+              <p className="flex items-start gap-2.5 text-sm text-muted">
+                <Link2 className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+                Funktioniert in jedem Netz, solange die Vorschau hier läuft. Zeigt den aktuellen Entwurf, auch ungespeicherte
+                Änderungen. Teile den Link nur mit Leuten, die den Entwurf sehen dürfen.
+              </p>
+            ) : (
+              <p className="flex items-start gap-2.5 text-sm text-muted">
+                <Wifi className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+                Das Handy muss im selben WLAN sein wie dieser Rechner. Es zeigt den aktuellen Entwurf, auch ungespeicherte Änderungen.
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4 text-center">

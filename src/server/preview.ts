@@ -14,8 +14,13 @@ export type PreviewState = {
   status: "installing" | "starting" | "ready" | "error" | "stopped";
   port: number | null;
   url: string | null;
-  /** Address on the local network (same Wi-Fi), e.g. for a phone. Null when the preview only listens locally. */
-  lanUrl: string | null;
+  /**
+   * Address a phone can open: the public preview address (KERN_PREVIEW_DOMAIN, reachable from anywhere)
+   * or else the address on the local network (same Wi-Fi). Null when neither exists.
+   */
+  phoneUrl: string | null;
+  /** True when phoneUrl works from any network, not only the same Wi-Fi. */
+  phoneAnywhere: boolean;
   error: string | null;
   log: string[];
   startedAt: number;
@@ -144,12 +149,13 @@ function runToEnd(command: string, cwd: string, entry: Entry) {
 export function getPreview(siteId: string, opts: { touch?: boolean } = {}): PreviewState {
   const entry = registry.get(siteId);
   if (entry && opts.touch) entry.lastUsed = Date.now();
-  if (!entry) return { status: "stopped", port: null, url: null, lanUrl: null, error: null, log: [], startedAt: 0 };
+  if (!entry) return { status: "stopped", port: null, url: null, phoneUrl: null, phoneAnywhere: false, error: null, log: [], startedAt: 0 };
   return {
     status: entry.status,
     port: entry.port,
     url: entry.url,
-    lanUrl: entry.lanUrl,
+    phoneUrl: entry.phoneUrl,
+    phoneAnywhere: entry.phoneAnywhere,
     error: entry.error,
     startedAt: entry.startedAt,
     log: entry.log.slice(-40),
@@ -165,7 +171,8 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
     status: "starting",
     port: null,
     url: null,
-    lanUrl: null,
+    phoneUrl: null,
+    phoneAnywhere: false,
     error: null,
     log: existing?.log ?? [],
     startedAt: Date.now(),
@@ -191,11 +198,13 @@ export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUr
       const port = await freePort(4400 + (registry.size % 50) * 2);
       entry.port = port;
       const local = `http://127.0.0.1:${port}`;
-      entry.url = publicPreviewUrl(site.id) ?? local;
+      const publicUrl = publicPreviewUrl(site.id);
+      entry.url = publicUrl ?? local;
       // Listen on all interfaces so a phone in the same network can open the preview too.
       const host = lanEnabled() ? "0.0.0.0" : "127.0.0.1";
       const lan = lanEnabled() ? lanAddress() : null;
-      entry.lanUrl = lan ? `http://${lan}:${port}` : null;
+      entry.phoneUrl = publicUrl ?? (lan ? `http://${lan}:${port}` : null);
+      entry.phoneAnywhere = Boolean(publicUrl);
       const command = config.preview.command
         .replaceAll("{port}", String(port))
         .replaceAll("{host}", host)
