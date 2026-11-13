@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, ArchiveRestore, Bell, BellOff, ChevronDown, CircleAlert, CircleCheck, Download, Inbox, Loader2, Mail, MailOpen, RefreshCw, Reply, Settings2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { refreshStatus, useStatus } from "@/components/history/use-status";
 import { useKern } from "@/components/kern/kern-provider";
@@ -141,6 +142,34 @@ export function FormsInbox({
     const s = items.find((x) => x.id === id);
     if (s && !s.read) change([id], { read: true });
   }
+
+  // Deep link from a notification: /forms?open=<id> opens that message (loading it first if it is new).
+  const router = useRouter();
+  const deepLink = useSearchParams().get("open");
+  const linked = deepLink ? items.find((x) => x.id === deepLink) : undefined;
+  const [shownLink, setShownLink] = useState<string | null>(null);
+  if (linked && shownLink !== linked.id) {
+    setShownLink(linked.id);
+    setFormKey(null);
+    setTab(linked.spam ? "spam" : linked.archived ? "archive" : "inbox");
+    setOpenId(linked.id);
+    setDialogOpen(true);
+    if (!linked.read) setItems((list) => list.map((x) => (x.id === linked.id ? { ...x, read: true } : x)));
+  }
+  const triedLoad = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deepLink || triedLoad.current === `done:${deepLink}`) return;
+    if (!linked && triedLoad.current !== deepLink) {
+      triedLoad.current = deepLink;
+      void reload();
+      return;
+    }
+    triedLoad.current = `done:${deepLink}`;
+    router.replace("/forms", { scroll: false });
+    if (!linked) toast.info("Diese Nachricht gibt es nicht mehr");
+    else void updateSubmissions([linked.id], { read: true }).then(() => refreshStatus());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per link
+  }, [deepLink, linked]);
 
 
   if (forms.length === 0) {

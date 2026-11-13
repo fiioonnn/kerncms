@@ -1,0 +1,1 @@
+ALTER TABLE "notifications" ADD COLUMN "dismissed_by" jsonb DEFAULT '[]'::jsonb NOT NULL;

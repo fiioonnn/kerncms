@@ -78,6 +78,13 @@
       "when": 1794513707511,
       "tag": "0010_media_folders",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794530681771,
+      "tag": "0011_notification_dismiss",
+      "breakpoints": true
     }
   ]
 }

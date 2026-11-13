@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { Check, CircleCheck, CircleX, ExternalLink, Inbox, Send, X } from "lucide-react";
 import { RemoteFileDiff, useFileLabel } from "@/components/history/version-history";
 import { useCan, useKern } from "@/components/kern/kern-provider";
@@ -68,6 +68,21 @@ export function ApprovalsView({ requests, pendingFiles }: { requests: ApprovalRo
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [pending, startTransition] = useTransition();
+
+  // Deep link from a notification: /approvals?open=<id> selects that request in its tab.
+  const deepLink = useSearchParams().get("open");
+  const [shownLink, setShownLink] = useState<string | null>(null);
+  if (deepLink && shownLink !== deepLink) {
+    setShownLink(deepLink);
+    const r = requests.find((x) => x.id === deepLink);
+    if (r) {
+      setTab(r.status);
+      setSelectedId(r.id);
+    }
+  }
+  useEffect(() => {
+    if (deepLink) router.replace("/approvals", { scroll: false });
+  }, [deepLink, router]);
 
   const list = requests.filter((r) => r.status === tab);
   const selected = list.find((r) => r.id === selectedId) ?? list[0];

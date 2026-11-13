@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, Search, X } from "lucide-react";
 import { DeployStatus } from "@/components/history/deploy-status";
 import { refreshStatus, useStatus } from "@/components/history/use-status";
 import { PublishButton } from "@/components/actions/publish";
@@ -12,7 +11,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger, Tooltip } from "@/components/ui/overlay";
 import { formatWhen } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
-import { markNotificationsRead } from "@/server/actions/site";
+import { deleteNotifications, markNotificationsRead } from "@/server/actions/site";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./sidebar";
 import { findNavItem } from "./nav";
@@ -22,6 +21,8 @@ type Notification = { id: string; kind: string; title: string; href: string | nu
 function Notifications() {
   const status = useStatus();
   const unread = status?.unread ?? 0;
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,18 +31,34 @@ function Notifications() {
     if (res.ok) setItems(await res.json());
   }
 
-  function markAll() {
+  /** Optimistic change; reloads the list when the server refuses. */
+  function apply(change: (list: Notification[]) => Notification[], action: () => Promise<{ ok: boolean }>) {
+    setItems((list) => (list ? change(list) : list));
     startTransition(async () => {
-      const result = await markNotificationsRead();
-      if (result.ok) {
-        setItems((list) => list?.map((n) => ({ ...n, read: true })) ?? null);
-        void refreshStatus();
-      }
+      const result = await action();
+      if (!result.ok) await load();
+      void refreshStatus();
     });
   }
 
+  const markAll = () => apply((list) => list.map((n) => ({ ...n, read: true })), () => markNotificationsRead());
+  const removeAll = () => apply(() => [], () => deleteNotifications());
+  const remove = (id: string) => apply((list) => list.filter((n) => n.id !== id), () => deleteNotifications(id));
+
+  function openItem(n: Notification) {
+    setOpen(false);
+    if (!n.read) apply((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)), () => markNotificationsRead(n.id));
+    if (n.href) router.push(n.href);
+  }
+
   return (
-    <Popover onOpenChange={(open) => open && void load()}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) void load();
+      }}
+    >
       <Tooltip label="Benachrichtigungen">
         <PopoverTrigger
           aria-label={unread ? `Benachrichtigungen, ${unread} ungelesen` : "Benachrichtigungen"}
@@ -52,7 +69,7 @@ function Notifications() {
         </PopoverTrigger>
       </Tooltip>
       <PopoverContent>
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
           <h3 className="text-base font-semibold">Benachrichtigungen</h3>
           {items?.some((n) => !n.read) && (
             <button type="button" onClick={markAll} disabled={pending} className="text-sm font-medium text-accent hover:underline disabled:opacity-50">
@@ -65,30 +82,43 @@ function Notifications() {
         ) : items.length === 0 ? (
           <p className="px-5 py-8 text-center text-[15px] text-muted">Keine Benachrichtigungen</p>
         ) : (
-          <ul className="flex max-h-96 flex-col overflow-y-auto p-2">
-            {items.map((n) => {
-              const body = (
-                <>
-                  <span className={cn("mt-2 size-2 shrink-0 rounded-full", n.read ? "bg-transparent" : "bg-accent")} />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-[15px]">{n.title}</span>
-                    <span suppressHydrationWarning className="text-sm text-muted">{formatWhen(n.createdAt)}</span>
-                  </span>
-                </>
-              );
-              return (
-                <li key={n.id}>
-                  {n.href ? (
-                    <Link href={n.href} className="flex gap-3 rounded-xl px-3 py-3 hover:bg-subtle">
-                      {body}
-                    </Link>
-                  ) : (
-                    <div className="flex gap-3 rounded-xl px-3 py-3">{body}</div>
-                  )}
+          <>
+            <ul className="flex max-h-96 flex-col overflow-y-auto p-2">
+              {items.map((n) => (
+                <li key={n.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => openItem(n)}
+                    className={cn(
+                      "flex w-full gap-3 rounded-xl py-3 pr-12 pl-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      n.href ? "hover:bg-subtle" : "cursor-default",
+                    )}
+                  >
+                    <span className={cn("mt-2 size-2 shrink-0 rounded-full", n.read ? "bg-transparent" : "bg-accent")} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-[15px] [overflow-wrap:anywhere]">{n.title}</span>
+                      <span suppressHydrationWarning className="text-sm text-muted">{formatWhen(n.createdAt)}</span>
+                    </span>
+                  </button>
+                  <Tooltip label="Löschen">
+                    <button
+                      type="button"
+                      aria-label="Benachrichtigung löschen"
+                      onClick={() => remove(n.id)}
+                      className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-lg text-muted opacity-0 transition-[opacity,color,background-color] outline-none group-hover:opacity-100 hover:bg-surface hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-accent pointer-coarse:opacity-100"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </Tooltip>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+            <div className="flex justify-center border-t border-border px-5 py-3">
+              <button type="button" onClick={removeAll} disabled={pending} className="text-sm font-medium text-muted hover:text-danger disabled:opacity-50">
+                Alle löschen
+              </button>
+            </div>
+          </>
         )}
       </PopoverContent>
     </Popover>

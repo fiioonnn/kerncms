@@ -317,6 +317,8 @@ export const notifications = pgTable(
     title: text().notNull(),
     href: text(),
     readBy: jsonb().$type<string[]>().notNull().default([]),
+    /** Users who deleted it from their list (shared notifications stay for the others). */
+    dismissedBy: jsonb().$type<string[]>().notNull().default([]),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.siteId, t.createdAt)],

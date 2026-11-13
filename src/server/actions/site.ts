@@ -15,7 +15,7 @@ import { safeJoin } from "../content";
 import { startPublish } from "../deploy";
 import { commit, discard, DRAFT_BRANCH, git, uncommittedFiles, unpublishedFiles, withSiteLock, worktreeDir } from "../git";
 import { restartDraft } from "../draft-reset";
-import { markAllRead, notify } from "../notifications";
+import { dismiss, markRead, notify } from "../notifications";
 import { ensurePreview, getPreview, stopPreview } from "../preview";
 import { ForbiddenError, getSiteContext, getWorkspace, hasRole, requireRole, SITE_COOKIE, type Workspace } from "../sites";
 
@@ -160,15 +160,18 @@ export async function requestApproval(input: { title: string; note: string }) {
       const files = (await unpublishedFiles(ws.dir, ws.site.branch)).map((f) => f.file);
       if (files.length === 0) throw new Error("Es gibt keine Änderungen zum Freigeben.");
       const sha = (await git(ws.dir, ["rev-parse", DRAFT_BRANCH])).trim();
-      await db.insert(approvals).values({
-        siteId: ws.site.id,
-        requestedBy: ws.user.id,
-        title: input.title.trim() || "Änderungen",
-        note: input.note.trim(),
-        files,
-        commit: sha,
-      });
-      await notify(ws.site.id, null, "approval", `${ws.user.name} bittet um Freigabe: ${input.title.trim() || "Änderungen"}`, "/approvals");
+      const [created] = await db
+        .insert(approvals)
+        .values({
+          siteId: ws.site.id,
+          requestedBy: ws.user.id,
+          title: input.title.trim() || "Änderungen",
+          note: input.note.trim(),
+          files,
+          commit: sha,
+        })
+        .returning({ id: approvals.id });
+      await notify(ws.site.id, null, "approval", `${ws.user.name} bittet um Freigabe: ${input.title.trim() || "Änderungen"}`, `/approvals?open=${created.id}`);
       refresh();
       return null;
     });
@@ -190,7 +193,7 @@ export async function reviewApproval(id: string, decision: "approved" | "rejecte
         approval.requestedBy,
         "approval",
         decision === "approved" ? `„${approval.title}“ wurde freigegeben` : `„${approval.title}“ wurde abgelehnt`,
-        "/approvals",
+        `/approvals?open=${approval.id}`,
       );
     }
     let deployId: string | null = null;
@@ -325,11 +328,20 @@ export async function deleteSubmissions(ids: string[]) {
 
 /* ---------- Notifications ---------- */
 
-export async function markNotificationsRead() {
+/** Without id: all of this user's notifications. */
+export async function markNotificationsRead(id?: string) {
   return run(async () => {
     const ctx = await getSiteContext();
-    await markAllRead(ctx.site.id, ctx.user.id);
-    refresh();
+    await markRead(ctx.site.id, ctx.user.id, id);
+    return null;
+  });
+}
+
+/** Without id: clears the whole list for this user. */
+export async function deleteNotifications(id?: string) {
+  return run(async () => {
+    const ctx = await getSiteContext();
+    await dismiss(ctx.site.id, ctx.user.id, id);
     return null;
   });
 }

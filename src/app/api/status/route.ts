@@ -1,8 +1,9 @@
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { approvals, formSubmissions, notifications } from "@/db/schema";
 import { latestDeploy } from "@/server/deploy";
 import { uncommittedFiles, unpublishedFiles } from "@/server/git";
+import { visibleTo } from "@/server/notifications";
 import { getPreview } from "@/server/preview";
 import { getWorkspace } from "@/server/sites";
 
@@ -16,13 +17,7 @@ export async function GET(request: Request) {
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(notifications)
-      .where(
-        and(
-          eq(notifications.siteId, ws.site.id),
-          or(isNull(notifications.userId), eq(notifications.userId, ws.user.id)),
-          sql`not (${notifications.readBy} ? ${ws.user.id})`,
-        ),
-      ),
+      .where(and(visibleTo(ws.site.id, ws.user.id), sql`not (${notifications.readBy} ? ${ws.user.id})`)),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(formSubmissions)

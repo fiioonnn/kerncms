@@ -63,7 +63,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
   }
   const [submission] = await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page }).returning({ id: formSubmissions.id });
   const who = data.name || data.email || "Jemand";
-  await notify(site.id, null, "form", `Neue Nachricht von ${who} über „${form.label}“`, "/forms");
+  await notify(site.id, null, "form", `Neue Nachricht von ${who} über „${form.label}“`, `/forms?open=${submission.id}`);
   // Mail in the background: the visitor gets the answer right away.
   const cmsUrl = await cmsOrigin(site.customerId);
   void sendSubmissionMails({ site, form, submissionId: submission.id, data, page, cmsUrl });
