@@ -337,7 +337,14 @@
         if (value) el.src = value;
         el.removeAttribute("srcset");
       } else if (msg.html) el.innerHTML = value;
-      else el.textContent = value;
+      else {
+        el.textContent = value;
+        // A textarea field may be rendered as paragraphs (<p> per blank line, pre-line inside); the
+        // plain text replaces them, so keep its line breaks visible until the page reloads.
+        if (typeOf(block, msg.field) === "textarea" && /^(normal|nowrap)$/.test(getComputedStyle(el).whiteSpace)) {
+          el.style.whiteSpace = "pre-line";
+        }
+      }
     }
   });
 
