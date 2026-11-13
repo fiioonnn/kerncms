@@ -12,6 +12,7 @@ import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldType, PageData, PageSeo, PageSummary } from "@/lib/kern-types";
+import { RESTART_FILES } from "@/lib/preview-files";
 import { discardPage, loadPage, savePage, writePageDraft } from "@/server/actions/content";
 import { AssistantPanel, useAssistantChat, type AssistantContext } from "./assistant-panel";
 import { NewPageDialog } from "./page-picker";
@@ -453,6 +454,14 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
   /** After the assistant ran: take over what it changed in this page and reload everything else. */
   const afterAssistant = async (files: string[]) => {
     router.refresh();
+    // The dev server does not always reload the page by itself; give it a moment to rebuild, then reload.
+    if (files.length > 0 && !files.some((f) => RESTART_FILES.test(f))) {
+      setTimeout(() => {
+        const frame = frameRef.current;
+        const url = frame?.src;
+        if (frame && url) frame.src = url;
+      }, 800);
+    }
     const target = docRef.current.name;
     if (!files.includes(`${config.pages.path}/${target}.json`)) return;
     const result = await loadPage(target);
@@ -705,7 +714,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
         onLeave={() => (dirty ? setGuard({ kind: "leave" }) : void leave())}
         assistant={kern.assistant ? { open: assistantOpen, busy: assistant.busy, onToggle: () => setAssistantOpen((v) => !v) } : null}
       />
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {isDesktop ? (
           <EditorSidebar {...sidebarProps} />
         ) : (

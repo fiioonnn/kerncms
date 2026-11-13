@@ -287,11 +287,7 @@ export function stopPreview(siteId: string) {
   registry.delete(siteId);
 }
 
-/**
- * Files whose change a running dev server does not pick up reliably. Astro, for one,
- * stops reloading content after src/content.config.ts changes underneath it.
- */
-export const RESTART_FILES = /^(astro\.config\.[cm]?[jt]s|src\/content\.config\.[cm]?[jt]s|src\/content\/config\.[cm]?[jt]s|kern\.config\.yaml|package\.json|pnpm-lock\.yaml)$/;
+export { RESTART_FILES } from "@/lib/preview-files";
 
 /** Starts a running preview again, e.g. after the draft took over a config change. */
 export async function restartPreviewFor(siteId: string) {

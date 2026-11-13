@@ -645,7 +645,7 @@ function ChatBody({ chat, context, onClose }: { chat: AssistantChat; context: As
   );
 }
 
-/** Desktop: a column right of the preview. Smaller screens: a drawer from the right. */
+/** Desktop: a panel floating over the preview. Smaller screens: a drawer from the right. */
 export function AssistantPanel({
   chat,
   context,
@@ -662,7 +662,10 @@ export function AssistantPanel({
   if (docked) {
     if (!open) return null;
     return (
-      <aside aria-label="KI-Assistent" className="flex w-[400px] shrink-0 flex-col border-l border-border bg-surface">
+      <aside
+        aria-label="KI-Assistent"
+        className="absolute inset-y-3 right-3 z-30 flex w-[400px] max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-popover"
+      >
         <ChatBody chat={chat} context={context} onClose={() => onOpenChange(false)} />
       </aside>
     );

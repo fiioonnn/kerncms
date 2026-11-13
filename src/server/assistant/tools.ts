@@ -4,6 +4,7 @@ import { mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises
 import path from "node:path";
 import { CONFIG_FILE, loadConfig } from "../config";
 import { git, withSiteLock } from "../git";
+import { getPreview } from "../preview";
 
 /*
  * The assistant's tools: plain file access inside the site's draft checkout (kern/draft worktree),
@@ -203,6 +204,45 @@ export const TOOLS: ToolDef[] = [
         // git grep exits with 1 when nothing matches.
         return "Keine Treffer.";
       }
+    },
+  },
+  {
+    name: "check_preview",
+    description:
+      "Opens a page of the running preview (the site's dev server on the draft) and reports the HTTP status, whether a text appears, the visible text of the page, and recent dev server errors. Use it after changes to confirm the page renders them, e.g. that a new block shows up. If the site's content schema (src/content.config.ts) rejects a page JSON, the dev server logs the error here and the page keeps showing old content.",
+    schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "URL path of the page, e.g. / or /leistungen" },
+        contains: { type: "string", description: "Text that should appear on the page (optional)" },
+      },
+      required: ["path"],
+    },
+    label: (a) => `Prüft die Vorschau von ${String(a.path ?? "/")}`,
+    async run(ctx, args) {
+      const urlPath = str(args, "path").trim() || "/";
+      if (!urlPath.startsWith("/") || urlPath.startsWith("//")) throw new ToolError("path muss mit / beginnen, z. B. /kontakt.");
+      const preview = getPreview(ctx.siteId);
+      // From the first problem on, everything after it (Zod lists the failing fields on the following lines).
+      const first = preview.log.findIndex((l) => /error|warn|fail|invalid|does not match/i.test(l));
+      const logs = first < 0 ? [] : preview.log.slice(first).slice(-30);
+      const logText = logs.length ? `\nMeldungen des Dev-Servers (neueste zuletzt):\n${logs.join("\n")}` : "\nKeine Fehler im Log des Dev-Servers.";
+      if (preview.status !== "ready" || !preview.port) return `Die Vorschau läuft gerade nicht (Status: ${preview.status}${preview.error ? `, ${preview.error}` : ""}).${logText}`;
+      // Give the dev server a moment to pick up files written just now.
+      await new Promise((r) => setTimeout(r, 1200));
+      const response = await fetch(`http://127.0.0.1:${preview.port}${urlPath}`, { signal: AbortSignal.timeout(30_000) }).catch((error: Error) => error);
+      if (response instanceof Error) return `Die Seite konnte nicht geladen werden: ${response.message}${logText}`;
+      const html = await response.text();
+      const text = html
+        .replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/\s+/g, " ")
+        .trim();
+      const contains = str(args, "contains", false);
+      const found = contains ? (text.toLowerCase().includes(contains.toLowerCase()) ? `\n„${contains}“ steht auf der Seite.` : `\n„${contains}“ steht NICHT auf der Seite.`) : "";
+      return `HTTP ${response.status}${found}${logText}\n\nSichtbarer Text:\n${text.slice(0, 12_000)}`;
     },
   },
   {
