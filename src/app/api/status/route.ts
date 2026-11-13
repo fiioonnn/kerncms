@@ -4,12 +4,15 @@ import { approvals, formSubmissions, notifications } from "@/db/schema";
 import { latestDeploy } from "@/server/deploy";
 import { uncommittedFiles, unpublishedFiles } from "@/server/git";
 import { visibleTo } from "@/server/notifications";
-import { getPreview } from "@/server/preview";
+import { getPreview, previewSeen } from "@/server/preview";
 import { getWorkspace } from "@/server/sites";
 
 /** Polled by the topbar and the editor: deploy progress, preview server, pending changes, unread notifications, nav badges. */
 export async function GET(request: Request) {
   const ws = await getWorkspace();
+  // Sent by open editor tabs (see usePreview): the preview stops once the last one leaves.
+  const editorClient = request.headers.get("x-kern-editor");
+  if (editorClient && /^[\w-]{8,64}$/.test(editorClient)) previewSeen(ws.site.id, editorClient);
   const [deploy, unsaved, unpublished, [unread], [formsUnread], [approvalsOpen]] = await Promise.all([
     latestDeploy(ws.site.id),
     uncommittedFiles(ws.dir),

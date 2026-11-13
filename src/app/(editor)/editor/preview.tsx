@@ -27,25 +27,45 @@ export const devices = [
   { value: "mobile", label: "Smartphone", icon: Smartphone, width: 390 },
 ];
 
-/** Starts the site's dev server and polls /api/status: every second until it is ready, then every 10 s. */
+/**
+ * Starts the site's dev server and polls /api/status: every second until it is ready, then every 10 s.
+ * Each poll says this tab is present; closing or leaving the editor sends a beacon, and the server
+ * stops the preview once the last editor is gone. If it was stopped while this tab stayed open
+ * (e.g. a long-hidden tab), it is started again.
+ */
 export function usePreview() {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [run, setRun] = useState(0);
+  const [client] = useState(() => crypto.randomUUID());
+
+  useEffect(() => {
+    const leave = () => navigator.sendBeacon("/api/preview/leave", client);
+    addEventListener("pagehide", leave);
+    return () => {
+      removeEventListener("pagehide", leave);
+      leave();
+    };
+  }, [client]);
 
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let status: PreviewState["status"] = "starting";
+    let restarting = false;
 
     async function poll() {
       try {
-        const res = await fetch("/api/status", { cache: "no-store" });
+        const res = await fetch("/api/status", { cache: "no-store", headers: { "x-kern-editor": client } });
         if (res.ok) {
           const json = (await res.json()) as { preview?: PreviewState };
           if (!stopped && json.preview) {
             status = json.preview.status;
             setPreview(json.preview);
+            if (status === "stopped" && !restarting) {
+              restarting = true;
+              void startPreview().finally(() => (restarting = false));
+            }
           }
         }
       } catch {
@@ -70,7 +90,7 @@ export function usePreview() {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [run]);
+  }, [run, client]);
 
   const restart = async () => {
     setStartError(null);

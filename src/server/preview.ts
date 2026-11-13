@@ -86,6 +86,52 @@ if (!gIdle.__kernPreviewIdle && IDLE_MS > 0) {
   gIdle.__kernPreviewIdle.unref();
 }
 
+/*
+ * Editors present: every open editor tab sends its id with each status poll and a beacon when it closes.
+ * When the last one leaves, the preview stops after a short grace period (a reload or page switch
+ * comes back within it). Tabs that vanished without a beacon count until VIEWER_TIMEOUT_MS
+ * (hidden tabs poll about once a minute).
+ */
+const LEAVE_GRACE_MS = 15_000;
+const VIEWER_TIMEOUT_MS = 3 * 60_000;
+type Viewers = { clients: Map<string, number>; timer?: NodeJS.Timeout };
+const viewers = ((globalThis as { __kernPreviewViewers?: Map<string, Viewers> }).__kernPreviewViewers ??= new Map());
+
+function viewersOf(siteId: string) {
+  let v = viewers.get(siteId);
+  if (!v) viewers.set(siteId, (v = { clients: new Map() }));
+  return v;
+}
+
+function cancelStop(siteId: string) {
+  const v = viewers.get(siteId);
+  if (v?.timer) clearTimeout(v.timer);
+  if (v) v.timer = undefined;
+}
+
+/** An editor tab is showing this site's preview. */
+export function previewSeen(siteId: string, client: string) {
+  const v = viewersOf(siteId);
+  v.clients.set(client, Date.now());
+  cancelStop(siteId);
+}
+
+/** An editor tab closed or navigated away; stops the preview when no other editor is left. */
+export function previewLeft(siteId: string, client: string) {
+  const v = viewersOf(siteId);
+  v.clients.delete(client);
+  cancelStop(siteId);
+  v.timer = setTimeout(() => {
+    v.timer = undefined;
+    for (const [id, seen] of v.clients) if (Date.now() - seen > VIEWER_TIMEOUT_MS) v.clients.delete(id);
+    const entry = registry.get(siteId);
+    if (v.clients.size > 0 || !entry || entry.status === "installing") return;
+    console.info(`[kern] Vorschau ${entry.args.site.name} wird gestoppt: niemand hat den Editor mehr offen.`);
+    stopPreview(siteId);
+  }, LEAVE_GRACE_MS);
+  v.timer.unref();
+}
+
 function pushLog(entry: Entry, chunk: string) {
   for (const line of chunk.split("\n")) {
     if (!line.trim()) continue;
@@ -164,6 +210,8 @@ export function getPreview(siteId: string, opts: { touch?: boolean } = {}): Prev
 
 /** Starts (or reuses) the site's dev server on the draft worktree. Resolves when it answers. */
 export function ensurePreview(site: Site, dir: string, config: KernConfig, cmsUrl: string) {
+  // Someone opened the editor: a stop scheduled by the last one leaving no longer applies.
+  cancelStop(site.id);
   const existing = registry.get(site.id);
   if (existing && existing.status !== "error" && existing.status !== "stopped" && existing.ready) return existing.ready;
 
