@@ -257,11 +257,35 @@ Globals in the layout: `<a data-kern-global="site#phone" href={`tel:${site.phone
 {isPreview && <script is:inline src={`${cmsUrl}/kern-overlay.js`}></script>}
 {!isPreview && (
   <script is:inline define:vars={{ collectUrl: collectEndpoint() }}>
-    if (navigator.doNotTrack !== "1" && navigator.sendBeacon) {
-      try {
-        navigator.sendBeacon(collectUrl, JSON.stringify({ path: location.pathname, referrer: document.referrer, width: innerWidth }));
-      } catch (e) {}
-    }
+    // kerncms statistics: no cookies, nothing stored in the browser.
+    (function () {
+      if (!navigator.sendBeacon) return;
+      var path = location.pathname, visible = 0, since = Date.now();
+      function send(data) {
+        try { navigator.sendBeacon(collectUrl, JSON.stringify(data)); } catch (e) {}
+      }
+      var tz;
+      try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+      send({ path: path, query: location.search, referrer: document.referrer, width: innerWidth, tz: tz });
+      // Visible time on the page, reported whenever the tab is hidden or closed.
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "hidden") {
+          visible += Date.now() - since;
+          send({ type: "leave", path: path, time: Math.round(visible / 1000) });
+        } else since = Date.now();
+      });
+      // Clicks on phone numbers, mail addresses, downloads and links to other websites.
+      document.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest("a[href]");
+        if (!a) return;
+        var href = a.getAttribute("href"), kind = null;
+        if (/^tel:/i.test(href)) kind = "tel";
+        else if (/^mailto:/i.test(href)) kind = "mailto";
+        else if (a.hasAttribute("download") || /\.(pdf|zip|docx?|xlsx?|pptx?|csv|mp3|mp4)(\?|$)/i.test(href)) kind = "download";
+        else if (a.host && a.host !== location.host) kind = "outbound";
+        if (kind) send({ type: "click", path: path, kind: kind, target: kind === "tel" || kind === "mailto" ? href : a.href });
+      }, true);
+    })();
   </script>
 )}
 ```

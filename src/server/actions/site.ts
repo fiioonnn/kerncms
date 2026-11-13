@@ -53,14 +53,14 @@ export async function resetDraft() {
   });
 }
 
-export async function updateSiteSettings(input: { name: string; liveUrl: string; requireApproval: boolean; analyticsEnabled: boolean }) {
+export async function updateSiteSettings(input: { name: string; liveUrl: string; requireApproval: boolean; analyticsEnabled: boolean; analyticsPersonal: boolean }) {
   return run(async () => {
     const ctx = await requireRole("admin");
     if (!input.name.trim()) throw new Error("Die Website braucht einen Namen.");
     if (input.liveUrl && !/^https?:\/\//.test(input.liveUrl)) throw new Error("Die Adresse muss mit http:// oder https:// beginnen.");
     await db
       .update(sites)
-      .set({ name: input.name.trim(), liveUrl: input.liveUrl.trim() || null, requireApproval: input.requireApproval, analyticsEnabled: input.analyticsEnabled })
+      .set({ name: input.name.trim(), liveUrl: input.liveUrl.trim() || null, requireApproval: input.requireApproval, analyticsEnabled: input.analyticsEnabled, analyticsPersonal: input.analyticsPersonal })
       .where(eq(sites.id, ctx.site.id));
     refresh();
     return null;

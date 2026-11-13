@@ -85,6 +85,20 @@
       "when": 1794530681771,
       "tag": "0011_notification_dismiss",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794531323874,
+      "tag": "0012_analytics_more",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794532022813,
+      "tag": "0013_form_visitor",
+      "breakpoints": true
     }
   ]
 }

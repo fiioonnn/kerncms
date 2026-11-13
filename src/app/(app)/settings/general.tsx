@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, useTransition } from "react";
-import { BarChart3, ExternalLink, Globe, Loader2, ShieldCheck, Type, type LucideIcon } from "lucide-react";
+import { BarChart3, ExternalLink, Globe, Loader2, ShieldCheck, Type, UserSearch, type LucideIcon } from "lucide-react";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
@@ -10,7 +10,7 @@ import { updateSiteSettings } from "@/server/actions/site";
 import { cn } from "@/lib/utils";
 import { SettingsRow, SettingsSection } from "./settings-ui";
 
-type Values = { name: string; liveUrl: string; requireApproval: boolean; analyticsEnabled: boolean };
+type Values = { name: string; liveUrl: string; requireApproval: boolean; analyticsEnabled: boolean; analyticsPersonal: boolean };
 
 function ToggleRow({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
@@ -117,10 +117,19 @@ export function GeneralSettings({ initial, canEdit }: { initial: Values; canEdit
         <ToggleRow icon={BarChart3}>
           <Switch
             label="Besucherstatistik erfassen"
-            description="Zählt Besucher und Seitenaufrufe ohne Cookies und ohne IP-Adressen zu speichern."
+            description="Zählt Besucher, Seitenaufrufe, Herkunft, Verweildauer und Klicks. Ohne Cookies."
             checked={values.analyticsEnabled}
             onCheckedChange={(checked) => set({ analyticsEnabled: checked })}
             disabled={!canEdit}
+          />
+        </ToggleRow>
+        <ToggleRow icon={UserSearch}>
+          <Switch
+            label="Personenbezogene Statistik"
+            description="Speichert zusätzlich IP-Adresse und Browser-Kennung und erkennt wiederkehrende Besucher. Nur einschalten, wenn die Besucher schriftlich eingewilligt haben."
+            checked={values.analyticsEnabled && values.analyticsPersonal}
+            onCheckedChange={(checked) => set({ analyticsPersonal: checked })}
+            disabled={!canEdit || !values.analyticsEnabled}
           />
         </ToggleRow>
       </SettingsSection>

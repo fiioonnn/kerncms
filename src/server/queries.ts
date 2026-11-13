@@ -303,7 +303,7 @@ export async function getTeam() {
 
 export async function getAnalytics(days = 30) {
   const ctx = await getSiteContext();
-  return analyticsSummary(ctx.site.id, days);
+  return analyticsSummary(ctx.site.id, days, ctx.site.analyticsPersonal);
 }
 
 /* ---------- Settings ---------- */
@@ -320,6 +320,7 @@ export async function getSettings() {
       liveUrl: ws.site.liveUrl,
       requireApproval: ws.site.requireApproval,
       analyticsEnabled: ws.site.analyticsEnabled,
+      analyticsPersonal: ws.site.analyticsPersonal,
       publicKey: ws.site.publicKey,
       allowedOrigins: ws.site.allowedOrigins,
     },

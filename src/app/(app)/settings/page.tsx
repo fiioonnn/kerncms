@@ -161,6 +161,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 liveUrl: site.liveUrl ?? "",
                 requireApproval: site.requireApproval,
                 analyticsEnabled: site.analyticsEnabled,
+                analyticsPersonal: site.analyticsPersonal,
               }}
             />
           )}

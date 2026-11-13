@@ -99,6 +99,11 @@ export const sites = pgTable("sites", {
   requireApproval: boolean().notNull().default(false),
   analyticsEnabled: boolean().notNull().default(true),
   /**
+   * Personal statistics: also store IP, user agent and a lasting visitor id (visitors gave written
+   * consent). Off = anonymous counting with a daily salt.
+   */
+  analyticsPersonal: boolean().notNull().default(false),
+  /**
    * Random public key the website uses for forms and analytics (/api/public/<key>/…).
    * Not secret (it is in the site's HTML), but not guessable and can be replaced.
    */
@@ -204,6 +209,8 @@ export const formSubmissions = pgTable(
     spam: boolean().notNull().default(false),
     /** Why the filter flagged it, shown in the CMS so a false alarm is easy to judge. */
     spamReason: text(),
+    /** Visitor id from the statistics (same hash as page_views.visitor), links the message to its visit. */
+    visitor: text(),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.siteId, t.createdAt)],
@@ -229,7 +236,11 @@ export const formSettings = pgTable(
   (t) => [primaryKey({ columns: [t.siteId, t.form] })],
 );
 
-/** Cookieless page views. `visitor` is a daily-rotating salted hash, never the IP. */
+/**
+ * Cookieless page views. Anonymous mode: `visitor` is a hash of IP + browser with a random salt that is
+ * thrown away after the day, and the IP is not stored. Personal mode (sites.analyticsPersonal): `visitor`
+ * is a lasting id and `ip` / `userAgent` are stored.
+ */
 export const pageViews = pgTable(
   "page_views",
   {
@@ -241,11 +252,49 @@ export const pageViews = pgTable(
     referrer: text(),
     device: text().notNull(),
     browser: text().notNull(),
+    os: text(),
+    /** ISO 3166 code from the CDN's geo header or the browser's time zone. */
+    country: text(),
+    /** Main browser language, e.g. "de". */
+    language: text(),
+    utmSource: text(),
+    utmMedium: text(),
+    utmCampaign: text(),
+    visitor: text().notNull(),
+    /** Only with personal statistics (sites.analyticsPersonal). */
+    ip: text(),
+    userAgent: text(),
+    /** One visit: page views of the same visitor without a 30-minute break. */
+    session: text(),
+    /** Seconds the page was visible (leave ping) or until the next page of the visit. */
+    duration: integer(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.siteId, t.createdAt), index().on(t.siteId, t.visitor, t.createdAt)],
+);
+
+/** Clicks on phone numbers, mail addresses, downloads and external links. */
+export const analyticsEvents = pgTable(
+  "analytics_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    siteId: uuid()
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    kind: text().$type<"tel" | "mailto" | "download" | "outbound">().notNull(),
+    target: text().notNull(),
+    path: text().notNull(),
     visitor: text().notNull(),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.siteId, t.createdAt)],
 );
+
+/** Random salt per day for visitor hashes. Old salts are deleted, so old hashes can't be recomputed. */
+export const analyticsSalts = pgTable("analytics_salts", {
+  day: text().primaryKey(),
+  salt: text().notNull(),
+});
 
 export type DeployStep = { label: string; status: "pending" | "running" | "done" | "failed"; log?: string };
 

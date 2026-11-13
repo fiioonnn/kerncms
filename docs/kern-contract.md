@@ -182,10 +182,18 @@ und lokal von localhost angenommen.
   Jede Einsendung erscheint im CMS unter Formulare. Optional schickt das CMS eine Benachrichtigung per E-Mail
   (Empfänger und Betreff pro Formular im CMS einstellbar, Versand über den SMTP des CMS, ohne Reply-To;
   die Mail enthält einen Button, der eine neue Mail an den Besucher öffnet).
-- Statistik (ohne Cookies, ohne IP-Speicherung):
-  `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/collect` mit `{ "path": "/", "referrer": "…", "width": 1280 }`,
-  gesendet per `navigator.sendBeacon` beim Laden jeder Seite. Nicht senden, wenn `KERN_PREVIEW` aktiv ist
-  oder `navigator.doNotTrack === "1"`.
+- Statistik (ohne Cookies, im Browser wird nichts gespeichert):
+  `POST {PUBLIC_KERN_URL}/api/public/{PUBLIC_KERN_SITE}/collect` per `navigator.sendBeacon`, JSON als Text:
+  - Seitenaufruf beim Laden: `{ "path": "/", "query": "?utm_source=…", "referrer": "…", "width": 1280, "tz": "Europe/Berlin" }`
+  - Sichtbare Zeit, wenn der Tab verborgen oder geschlossen wird: `{ "type": "leave", "path": "/", "time": 42 }` (Sekunden)
+  - Klick auf `tel:`, `mailto:`, Download oder externen Link: `{ "type": "click", "path": "/", "kind": "tel" | "mailto" | "download" | "outbound", "target": "…" }`
+
+  Nicht senden, wenn `KERN_PREVIEW` aktiv ist. Das Snippet steht in `skills/kerncms-astro/references/patterns.md`.
+  Alte Websites, die nur `{ path, referrer, width }` senden, funktionieren weiter.
+  Land, Sprache, Betriebssystem, Browser und Besuche ermittelt kerncms auf dem Server (Geo-Header von CDN oder
+  Zeitzone, Accept-Language, User-Agent). Standard ist anonym (IP wird nicht gespeichert, Tages-Salt, „Do Not Track“
+  wird beachtet). Mit „Personenbezogene Statistik“ in den Einstellungen speichert kerncms zusätzlich IP-Adresse und
+  User-Agent und erkennt wiederkehrende Besucher; nur mit Einwilligung der Besucher einschalten.
 
 ### Medien-Speicher
 

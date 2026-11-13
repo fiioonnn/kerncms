@@ -4,6 +4,7 @@ import { loadConfig } from "@/server/config";
 import { cmsOrigin } from "@/server/custom-domains";
 import { ensureWorktree } from "@/server/git";
 import { notify } from "@/server/notifications";
+import { visitorHash } from "@/server/analytics";
 import { clientIp, corsHeaders, json, originAllowed, rateLimited, siteByPublicKey } from "@/server/public";
 import { sendSubmissionMails } from "@/server/site-mail";
 import { validateValues } from "@/server/sanitize";
@@ -61,7 +62,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/public/[sit
     await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page, spam: true, spamReason: check.reasons.join(" · "), read: true, mailStatus: "off" });
     return json({ ok: true });
   }
-  const [submission] = await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page }).returning({ id: formSubmissions.id });
+  // Same id as the statistics, so the message counts as a contact of that visit (no cookies involved).
+  const visitor = site.analyticsEnabled ? await visitorHash(site.id, clientIp(request), request.headers.get("user-agent") ?? "", site.analyticsPersonal) : null;
+  const [submission] = await db.insert(formSubmissions).values({ siteId: site.id, form: form.key, data, page, visitor }).returning({ id: formSubmissions.id });
   const who = data.name || data.email || "Jemand";
   await notify(site.id, null, "form", `Neue Nachricht von ${who} über „${form.label}“`, `/forms?open=${submission.id}`);
   // Mail in the background: the visitor gets the answer right away.
