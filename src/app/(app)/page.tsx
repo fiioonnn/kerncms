@@ -164,13 +164,13 @@ export default async function DashboardPage() {
   );
 }
 
-function Kpi({ label, value, change }: { label: string; value: string; change?: number }) {
+function Kpi({ label, value, change }: { label: string; value: string; change?: number | null }) {
   return (
     <div className="flex min-w-0 flex-col">
       <span className="text-sm text-muted sm:text-[15px]">{label}</span>
       <span className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2.5">
         <span className="text-2xl font-semibold tracking-tight">{value}</span>
-        {change !== undefined && <Change value={change} />}
+        {change != null && <Change value={change} />}
       </span>
     </div>
   );

@@ -43,7 +43,8 @@ function linkLabel(kind: string, target: string) {
 /* ---------- Pieces ---------- */
 
 /** Small arrow with the change against the period before; neutral when nothing changed. */
-function Trend({ value, days }: { value: number; days: number }) {
+function Trend({ value, days }: { value: number | null; days: number }) {
+  if (value === null) return null;
   const title = `Im Vergleich zu den ${days} Tagen davor`;
   if (value === 0) return <span className="text-sm text-muted" title={title}>±0 %</span>;
   const up = value > 0;

@@ -209,8 +209,9 @@ function rate(part: number, whole: number) {
   return whole ? Math.round((part / whole) * 1000) / 10 : 0;
 }
 
-function change(now: number, before: number) {
-  if (before === 0) return now > 0 ? 100 : 0;
+/** Percent change against the period before; null when there is nothing to compare with. */
+function change(now: number, before: number): number | null {
+  if (before === 0) return null;
   return Math.round(((now - before) / before) * 100);
 }
 
@@ -220,10 +221,11 @@ type VisitTotals = { views: number; visitors: number; visits: number; avgDuratio
 async function totals(siteId: string, range: Range): Promise<VisitTotals> {
   const [row] = await db.execute<{ views: string; visitors: string; visits: string; avg_duration: string | null }>(sql`
     with v as (
-      select session, visitor, duration from page_views
+      -- Views without a session id (older data) count as one visit per visitor and day.
+      select coalesce(session, visitor || ':' || to_char(created_at, 'YYYY-MM-DD')) as session, visitor, duration from page_views
       where site_id = ${siteId} and created_at >= ${range.from.toISOString()} and created_at < ${range.to.toISOString()}
     ), s as (
-      select session, coalesce(sum(duration), 0) as seconds from v where session is not null group by session
+      select session, coalesce(sum(duration), 0) as seconds from v group by session
     )
     select
       (select count(*) from v) as views,
