@@ -2,8 +2,6 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { VisitorsChart, type DailyPoint } from "@/components/charts/visitors-chart";
-import { Card, CardContent, CardHeader } from "@/components/ui/display";
 import { SegmentedControl } from "@/components/ui/overlay";
 import { cn } from "@/lib/utils";
 
@@ -31,16 +29,5 @@ export function RangeControl({ days }: { days: number }) {
         startTransition(() => router.replace(`${pathname}?${next}`, { scroll: false }));
       }}
     />
-  );
-}
-
-export function VisitorsCard({ data, days }: { data: DailyPoint[]; days: number }) {
-  return (
-    <Card className="mt-6">
-      <CardHeader title="Besucher pro Tag" description={`Letzte ${days} Tage, eindeutige Besucher je Tag`} />
-      <CardContent className="pt-4">
-        <VisitorsChart data={data} label={`Besucher pro Tag, letzte ${days} Tage`} />
-      </CardContent>
-    </Card>
   );
 }

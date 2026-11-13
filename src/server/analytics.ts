@@ -214,44 +214,29 @@ function change(now: number, before: number) {
   return Math.round(((now - before) / before) * 100);
 }
 
-type VisitTotals = { views: number; visitors: number; visits: number; bounces: number; avgDuration: number };
+type VisitTotals = { views: number; visitors: number; visits: number; avgDuration: number };
 
-/** Views, visitors and visit figures (bounce = visit with one page, duration = sum of page times). */
+/** Views, visitors and visit figures (duration of a visit = sum of its page times). */
 async function totals(siteId: string, range: Range): Promise<VisitTotals> {
-  const [row] = await db.execute<{ views: string; visitors: string; visits: string; bounces: string; avg_duration: string | null }>(sql`
+  const [row] = await db.execute<{ views: string; visitors: string; visits: string; avg_duration: string | null }>(sql`
     with v as (
       select session, visitor, duration from page_views
       where site_id = ${siteId} and created_at >= ${range.from.toISOString()} and created_at < ${range.to.toISOString()}
     ), s as (
-      select session, count(*) as pages, coalesce(sum(duration), 0) as seconds from v where session is not null group by session
+      select session, coalesce(sum(duration), 0) as seconds from v where session is not null group by session
     )
     select
       (select count(*) from v) as views,
       (select count(distinct visitor) from v) as visitors,
       (select count(*) from s) as visits,
-      (select count(*) from s where pages = 1) as bounces,
       (select avg(seconds) from s) as avg_duration
   `);
   return {
     views: Number(row.views),
     visitors: Number(row.visitors),
     visits: Number(row.visits),
-    bounces: Number(row.bounces),
     avgDuration: Math.round(Number(row.avg_duration ?? 0)),
   };
-}
-
-/** First or last page of each visit, ranked. */
-async function edgePages(siteId: string, range: Range, edge: "entry" | "exit") {
-  const order = edge === "entry" ? sql`created_at asc` : sql`created_at desc`;
-  const rows = await db.execute<{ path: string; visits: string }>(sql`
-    select path, count(*) as visits from (
-      select distinct on (session) session, path from page_views
-      where site_id = ${siteId} and created_at >= ${range.from.toISOString()} and created_at < ${range.to.toISOString()} and session is not null
-      order by session, ${order}
-    ) e group by path order by visits desc limit 10
-  `);
-  return rows.map((r) => ({ path: r.path, visits: Number(r.visits) }));
 }
 
 export type RecentVisit = {
@@ -394,7 +379,7 @@ export async function analyticsSummary(siteId: string, days: number, personal = 
   const eventsWhere = and(eq(analyticsEvents.siteId, siteId), gte(analyticsEvents.createdAt, range.from), lt(analyticsEvents.createdAt, range.to));
   const visitors = countDistinct(pageViews.visitor);
 
-  const [now, before, perDay, pages, entries, exits, referrers, sources, campaigns, devices, browsers, systems, countries, languages, events, live, recent, contacts, contactsBefore, forms, peaks, returning] =
+  const [now, before, perDay, pages, referrers, sources, campaigns, devices, browsers, countries, events, live, recent, contacts, contactsBefore, forms, peaks, returning] =
     await Promise.all([
       totals(siteId, range),
       totals(siteId, previousRange(range)),
@@ -415,8 +400,6 @@ export async function analyticsSummary(siteId: string, days: number, personal = 
         .groupBy(pageViews.path)
         .orderBy(desc(count()))
         .limit(10),
-      edgePages(siteId, range, "entry"),
-      edgePages(siteId, range, "exit"),
       db
         .select({ source: sql<string>`coalesce(${pageViews.referrer}, 'Direkt')`, visitors })
         .from(pageViews)
@@ -439,9 +422,7 @@ export async function analyticsSummary(siteId: string, days: number, personal = 
         .limit(10),
       db.select({ device: pageViews.device, visitors }).from(pageViews).where(where).groupBy(pageViews.device),
       db.select({ browser: pageViews.browser, visitors }).from(pageViews).where(where).groupBy(pageViews.browser).orderBy(desc(visitors)).limit(10),
-      db.select({ os: pageViews.os, visitors }).from(pageViews).where(and(where, isNotNull(pageViews.os))).groupBy(pageViews.os).orderBy(desc(visitors)).limit(10),
       db.select({ country: pageViews.country, visitors }).from(pageViews).where(and(where, isNotNull(pageViews.country))).groupBy(pageViews.country).orderBy(desc(visitors)).limit(15),
-      db.select({ language: pageViews.language, visitors }).from(pageViews).where(and(where, isNotNull(pageViews.language))).groupBy(pageViews.language).orderBy(desc(visitors)).limit(10),
       db
         .select({ kind: analyticsEvents.kind, target: analyticsEvents.target, clicks: count(), visitors: countDistinct(analyticsEvents.visitor) })
         .from(analyticsEvents)
@@ -498,26 +479,20 @@ export async function analyticsSummary(siteId: string, days: number, personal = 
     views: now.views,
     visits: now.visits,
     viewsPerVisit: now.visits ? Math.round((now.views / now.visits) * 10) / 10 : 0,
-    bounceRate: now.visits ? Math.round((now.bounces / now.visits) * 100) : 0,
     avgDuration: now.avgDuration,
     visitorsChange: change(now.visitors, before.visitors),
     viewsChange: change(now.views, before.views),
-    bounceChange: before.visits && now.visits ? Math.round((now.bounces / now.visits - before.bounces / before.visits) * 100) : 0,
     durationChange: change(now.avgDuration, before.avgDuration),
     returning: Number(returning[0]?.n ?? 0),
     live: live[0]?.visitors ?? 0,
     series,
     pages: pages.map((p) => ({ ...p, avgSeconds: p.avgSeconds == null ? null : Math.round(Number(p.avgSeconds)) })),
-    entries,
-    exits,
     referrers,
     channels,
     campaigns,
     devices: devices.map((d) => ({ ...d, share: Math.round((d.visitors / totalDevices) * 100) })),
     browsers,
-    systems: systems.map((s) => ({ os: s.os as string, visitors: s.visitors })),
     countries: countries.map((c) => ({ country: c.country as string, visitors: c.visitors })),
-    languages: languages.map((l) => ({ language: l.language as string, visitors: l.visitors })),
     events,
     eventTotals,
     recent,
