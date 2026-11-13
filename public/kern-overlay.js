@@ -315,6 +315,30 @@
   // Forms in the preview must not submit; summaries must not toggle while selecting.
   document.addEventListener("submit", (e) => e.preventDefault(), true);
 
+  /**
+   * Live text for a textarea field. Sites often render it as one <p> per blank-line paragraph (with
+   * pre-line inside), so rebuild those paragraphs from the first one to keep their styling. Otherwise
+   * write the text and make sure line breaks stay visible. The next page reload renders it for real.
+   */
+  function patchMultiline(el, value) {
+    const template = el.firstElementChild;
+    const paragraphs = Array.from(el.children);
+    if (template && paragraphs.every((child) => child.tagName === "P")) {
+      const parts = value.split(/\n\s*\n/).filter((part) => part.trim());
+      el.replaceChildren(
+        ...(parts.length ? parts : [""]).map((part) => {
+          const p = template.cloneNode(false);
+          p.textContent = part;
+          if (/^(normal|nowrap)$/.test(getComputedStyle(template).whiteSpace)) p.style.whiteSpace = "pre-line";
+          return p;
+        }),
+      );
+      return;
+    }
+    el.textContent = value;
+    if (/^(normal|nowrap)$/.test(getComputedStyle(el).whiteSpace)) el.style.whiteSpace = "pre-line";
+  }
+
   /* ---------- Messages from the editor ---------- */
   addEventListener("message", (e) => {
     if (e.source !== window.parent) return;
@@ -337,14 +361,8 @@
         if (value) el.src = value;
         el.removeAttribute("srcset");
       } else if (msg.html) el.innerHTML = value;
-      else {
-        el.textContent = value;
-        // A textarea field may be rendered as paragraphs (<p> per blank line, pre-line inside); the
-        // plain text replaces them, so keep its line breaks visible until the page reloads.
-        if (typeOf(block, msg.field) === "textarea" && /^(normal|nowrap)$/.test(getComputedStyle(el).whiteSpace)) {
-          el.style.whiteSpace = "pre-line";
-        }
-      }
+      else if (typeOf(block, msg.field) === "textarea") patchMultiline(el, value);
+      else el.textContent = value;
     }
   });
 
