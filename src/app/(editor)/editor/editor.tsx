@@ -12,7 +12,8 @@ import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldType, PageData, PageSeo, PageSummary } from "@/lib/kern-types";
-import { discardPage, savePage, writePageDraft } from "@/server/actions/content";
+import { discardPage, loadPage, savePage, writePageDraft } from "@/server/actions/content";
+import { AssistantPanel, useAssistantChat } from "./assistant-panel";
 import { NewPageDialog } from "./page-picker";
 import { changedLeaves, fieldTypesFor, getAt, newBlockId, samePath, setAt, typeAt } from "./paths";
 import { PreviewFrame, PreviewLoader, usePreview } from "./preview";
@@ -152,6 +153,8 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
   const [switchTitle, setSwitchTitle] = useState<string | null>(null);
   const [imagePick, setImagePick] = useState<{ blockId: string; field: string } | null>(null);
   const [globalHint, setGlobalHint] = useState<string | null>(null);
+  const kern = useKern();
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   // Another page was opened (router.replace → new props): start over with its content.
   if (doc.name !== name) {
@@ -447,6 +450,30 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
     return true;
   };
 
+  /** After the assistant ran: take over what it changed in this page and reload everything else. */
+  const afterAssistant = async (files: string[]) => {
+    router.refresh();
+    const target = docRef.current.name;
+    if (!files.includes(`${config.pages.path}/${target}.json`)) return;
+    const result = await loadPage(target);
+    if (!result.ok) return;
+    if (!result.data) {
+      router.replace("/editor");
+      return;
+    }
+    if (docRef.current.name !== target) return;
+    lastEdit.current = null;
+    apply(freshDoc(target, result.data.page, result.data.unsaved ? "unsaved" : "draft"));
+    setSelectedId(result.data.page.blocks.find((b) => b.id === selectedRef.current)?.id ?? result.data.page.blocks[0]?.id ?? null);
+    setRevision((n) => n + 1);
+  };
+
+  const assistant = useAssistantChat({
+    page: { name, title: data.title, path: data.path },
+    beforeSend: () => flushWrite(),
+    onDone: (files) => void afterAssistant(files),
+  });
+
   const openPage = async (target: string) => {
     await flushWrite();
     setSwitchTitle(pages.find((p) => p.name === target)?.title ?? null);
@@ -668,6 +695,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
         onSave={() => void save()}
         onDiscard={() => void discardChanges()}
         onLeave={() => (dirty ? setGuard({ kind: "leave" }) : void leave())}
+        assistant={kern.assistant ? { open: assistantOpen, busy: assistant.busy, onToggle: () => setAssistantOpen((v) => !v) } : null}
       />
       <div className="flex min-h-0 flex-1">
         {isDesktop ? (
@@ -690,6 +718,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
           }}
         >
         </PreviewFrame>
+        {kern.assistant && <AssistantPanel chat={assistant} open={assistantOpen} onOpenChange={setAssistantOpen} docked={isDesktop} />}
       </div>
 
       <MediaPickerDialog

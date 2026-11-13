@@ -23,6 +23,8 @@ export type KernClientData = {
   pages: { name: string; title: string; path: string; status: ContentStatus }[];
   /** e.g. "/media/" — stored image values start with this. */
   mediaPrefix: string;
+  /** The AI assistant is set up and this user may use it. */
+  assistant: boolean;
 };
 
 const KernContext = createContext<KernClientData | null>(null);

@@ -99,6 +99,13 @@
       "when": 1794532022813,
       "tag": "0013_form_visitor",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794581110261,
+      "tag": "0014_ai_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,18 @@ function newBlockId() {
   return "b-" + Math.random().toString(36).slice(2, 7);
 }
 
+/** The page as it is on disk now, e.g. after the AI assistant changed it. Null when it was deleted. */
+export async function loadPage(name: string) {
+  return run(async () => {
+    const ws = await getWorkspace("viewer");
+    if (!isValidName(name)) throw new Error("Ungültiger Seitenname.");
+    if (!existsSync(safeJoin(ws.dir, pageFile(ws.config, name)))) return null;
+    const changes = await getChangeSet(ws.dir, ws.site.branch);
+    const page = await readPage(ws.dir, ws.config, name);
+    return { page, unsaved: changes.unsaved.has(pageFile(ws.config, name)) };
+  });
+}
+
 /** Writes the page without committing, so the preview shows it. Used by the editor while typing. */
 export async function writePageDraft(name: string, data: PageData) {
   return run(async () => {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { ArrowLeft, Building2, Globe, LayoutDashboard, Menu as MenuIcon, Sparkles, Users, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Bot, Building2, Globe, LayoutDashboard, Menu as MenuIcon, Sparkles, Users, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/auth/auth-shell";
 import { buttonStyles } from "@/components/ui/button";
 import { Avatar, Badge } from "@/components/ui/display";
@@ -19,6 +19,7 @@ const items: Item[] = [
   { label: "Websites", href: "/admin/sites", icon: Globe },
   { label: "Nutzer", href: "/admin/users", icon: Users },
   { label: "GitHub", href: "/admin/github", icon: GithubIcon },
+  { label: "KI-Assistent", href: "/admin/ai", icon: Bot },
   { label: "KI-Skill", href: "/admin/skill", icon: Sparkles },
 ];
 

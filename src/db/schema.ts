@@ -456,3 +456,18 @@ export const oauthTokens = pgTable(
   },
   (t) => [index().on(t.grantId)],
 );
+
+export type AiProvider = "anthropic" | "openai";
+/** Who may use the AI assistant in the editor: platform admins only, or site members from this role up. */
+export type AiAccess = "app_admin" | "owner" | "admin" | "editor";
+
+/** Instance-wide settings of the AI assistant. API keys are encrypted (AES-GCM, KERN_SECRET). */
+export const aiSettings = pgTable("ai_settings", {
+  id: text().primaryKey().default("default"),
+  provider: text().$type<AiProvider>().notNull().default("anthropic"),
+  model: text().notNull().default("claude-opus-5-5"),
+  anthropicKey: text(),
+  openaiKey: text(),
+  access: text().$type<AiAccess>().notNull().default("app_admin"),
+  updatedAt: timestamp().notNull().defaultNow(),
+});

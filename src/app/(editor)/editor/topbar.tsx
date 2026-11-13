@@ -15,6 +15,7 @@ import type { PageSummary } from "@/lib/kern-types";
 import { cn } from "@/lib/utils";
 import { PagePicker } from "./page-picker";
 import { devices } from "./preview";
+import { AssistantButton } from "./assistant-panel";
 
 const noSubscribe = () => () => {};
 
@@ -72,6 +73,7 @@ export function EditorTopbar({
   onSave,
   onDiscard,
   onLeave,
+  assistant,
 }: {
   pages: PageSummary[];
   name: string;
@@ -97,6 +99,8 @@ export function EditorTopbar({
   onDiscard: () => void;
   /** Back to the page list (asks first when there are unsaved changes). */
   onLeave: () => void;
+  /** The AI assistant toggle; null when the user has no access. */
+  assistant: { open: boolean; busy: boolean; onToggle: () => void } | null;
 }) {
   const isMac = useIsMac();
   const mod = isMac ? "⌘" : "Strg+";
@@ -149,6 +153,7 @@ export function EditorTopbar({
       <span className="flex-1 md:hidden" />
 
       <div className="flex items-center gap-2">
+        {assistant && <AssistantButton active={assistant.open} busy={assistant.busy} onClick={assistant.onToggle} />}
         {/* Wide screens: every tool in the bar. */}
         <div className="flex items-center gap-2 max-xl:hidden">
           {previewHref && (

@@ -1,5 +1,6 @@
 import "server-only";
 import type { KernClientData } from "@/components/kern/kern-provider";
+import { assistantFor } from "./assistant/settings";
 import { getChangeSet, listPages } from "./content";
 import { mediaValue } from "./media";
 import { getWorkspace } from "./sites";
@@ -27,5 +28,6 @@ export async function loadKernClientData(): Promise<KernClientData> {
     config: ws.config,
     pages: pages.map((p) => ({ name: p.name, title: p.title, path: p.path, status: p.status })),
     mediaPrefix: mediaValue(ws.config, ""),
+    assistant: (await assistantFor(ws.user, ws.role)) !== null,
   };
 }
