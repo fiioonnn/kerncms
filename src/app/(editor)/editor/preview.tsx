@@ -107,15 +107,6 @@ function startPhase(status: PreviewState["status"] | undefined, lines: string[])
   return "Server wird gestartet…";
 }
 
-/** Fixed-height status line, so the loader does not jump while the server starts. */
-function PhaseLine({ text }: { text: string }) {
-  return (
-    <p className="h-5 w-[min(40rem,100%)] truncate text-center text-sm text-muted" aria-live="polite">
-      {text}
-    </p>
-  );
-}
-
 /** Full-page loader while the preview server starts, or its error with a restart button. */
 export function PreviewLoader({
   preview,
@@ -159,10 +150,8 @@ export function PreviewLoader({
     <EditorLoader
       visible={visible}
       title={title ?? (ready ? "Visueller Editor wird geladen" : status === "installing" ? "Abhängigkeiten werden installiert" : "Vorschau wird gestartet")}
-      detail={ready || title ? "Einen Moment…" : "Die Website wird im Entwurf gestartet. Das dauert beim ersten Mal etwas länger."}
-    >
-      {!ready && !title && <PhaseLine text={startPhase(status, preview?.log ?? [])} />}
-    </EditorLoader>
+      detail={ready || title ? "Einen Moment…" : startPhase(status, preview?.log ?? [])}
+    />
   );
 }
 

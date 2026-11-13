@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Full-page loader shown while the visual editor and the site preview are
- * starting. `children` (e.g. the preview server's log) goes below the bar. The bar fills once over `duration`; the overlay fades
+ * starting: logo, title, one status line, progress bar. `children` (e.g. the error log) goes below. The bar fills once over `duration`; the overlay fades
  * out when `visible` turns false. Without a duration (route-level loading
  * state) the bar fills slowly and stops just short of the end.
  */
@@ -34,9 +34,10 @@ export function EditorLoader({
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark */}
       <img src="/logo-mark.svg" alt="" width={64} height={64} className="size-16 animate-pulse drop-shadow-md dark:invert" />
-      <div className="flex flex-col items-center gap-2 text-center">
-        <span className="text-xl font-semibold tracking-tight">{title}</span>
-        <span className="text-[15px] text-muted">{detail}</span>
+      {/* Fixed line heights, single lines: changing texts must not move the logo or the bar. */}
+      <div className="flex w-[min(28rem,100%)] flex-col items-center gap-2 text-center">
+        <span className="h-7 max-w-full truncate text-xl font-semibold tracking-tight">{title}</span>
+        <span className={cn("max-w-full text-[15px] text-muted", hideBar ? "[overflow-wrap:anywhere]" : "h-6 truncate")}>{detail}</span>
       </div>
       <div className={cn("h-1.5 w-64 overflow-hidden rounded-full bg-subtle", hideBar && "hidden")}>
         <div
