@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
     "/kern-skill/[...path]": ["./skills/kerncms-astro/**/*", "./docs/kern-contract.md"],
     "/mcp": ["./skills/kerncms-astro/**/*", "./docs/kern-contract.md"],
   },
+  // The overlay is loaded by every site's preview under a fixed name: always revalidate (cheap via ETag),
+  // so a fix reaches open editors on the next reload instead of after the CDN/browser cache expires.
+  async headers() {
+    return [{ source: "/kern-overlay.js", headers: [{ key: "Cache-Control", value: "no-cache" }] }];
+  },
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },
   },
