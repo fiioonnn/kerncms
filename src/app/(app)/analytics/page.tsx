@@ -1,5 +1,6 @@
 import { getAnalytics, getPages, getSettings } from "@/server/queries";
 import { AnalyticsView } from "./analytics-view";
+import { GoogleCards } from "./google-cards";
 
 export const metadata = { title: "Statistiken" };
 
@@ -17,6 +18,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
       canManage={settings.role === "admin" || settings.role === "owner"}
       siteKey={settings.site.key}
       titles={new Map(pages.map((p) => [p.path, p.title]))}
+      google={<GoogleCards />}
     />
   );
 }

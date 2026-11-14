@@ -1,0 +1,1 @@
+DROP TABLE "google_settings" CASCADE;

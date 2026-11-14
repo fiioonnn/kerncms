@@ -120,6 +120,13 @@
       "when": 1794612538955,
       "tag": "0016_seo",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794661101868,
+      "tag": "0017_drop_google_settings",
+      "breakpoints": true
     }
   ]
 }

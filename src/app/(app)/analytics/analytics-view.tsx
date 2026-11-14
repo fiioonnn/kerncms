@@ -127,6 +127,7 @@ export function AnalyticsView({
   canManage,
   siteKey,
   titles,
+  google,
 }: {
   a: AnalyticsSummary;
   days: number;
@@ -135,6 +136,8 @@ export function AnalyticsView({
   siteKey: string;
   /** Page path → page title, so customers see "Kontakt" instead of "/kontakt". */
   titles: Map<string, string>;
+  /** Google cards (PageSpeed, Maps position); they stream in on their own. */
+  google?: React.ReactNode;
 }) {
   const pageLabel = (path: string) => titles.get(path) ?? path;
   const empty = a.views === 0;
@@ -339,6 +342,8 @@ export function AnalyticsView({
           </div>
         </>
       )}
+
+      {google}
 
       {/* Privacy, one line */}
       <p className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">

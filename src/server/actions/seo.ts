@@ -1,16 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { googleSettings, seoKeywords } from "@/db/schema";
+import { seoKeywords } from "@/db/schema";
 import type { SeoFacts } from "@/lib/seo";
 import { run } from "../action";
-import { requireAdmin } from "../auth";
 import { readPage } from "../content";
-import { encrypt } from "../crypto";
 import { analyzePreview } from "../seo/analyze";
-import { clearSearchConsoleCache, listProperties, pagePerformance, parseServiceAccount, searchConsoleFor, type PagePerformance } from "../seo/search-console";
+import { liveUrlOf, mapsEnabled, mapsRank, pageSpeed, pageSpeedEnabled, searchRank, serperEnabled, type MapsRank, type PageSpeed, type SearchRank } from "../seo/google";
 import { getWorkspace } from "../sites";
 
 /** Reads the page as the preview renders it (the draft) and returns its SEO facts and focus keyword. */
@@ -47,53 +44,43 @@ export async function saveSeoKeyword(name: string, keyword: string) {
   });
 }
 
-export type SearchResult =
-  | { state: "off" }
-  | { state: "no-url"; email: string }
-  | { state: "no-property"; email: string }
-  | { state: "ok"; data: PagePerformance; liveUrl: string };
+export type PageSpeedResult = { state: "off" } | { state: "no-url" } | { state: "ok"; data: PageSpeed };
 
-/** Google Search Console figures of the live page, or why there are none. */
-export async function searchPerformance(name: string) {
-  return run(async (): Promise<SearchResult> => {
+/** PageSpeed of the live page (cached for a few hours; `fresh` runs it again). */
+export async function pageSpeedOf(name: string, fresh = false) {
+  return run(async (): Promise<PageSpeedResult> => {
     const ws = await getWorkspace("viewer");
     const page = await readPage(ws.dir, ws.config, name);
-    const sc = await searchConsoleFor(ws.site.liveUrl);
-    if (sc.state !== "ok") return sc;
-    return { state: "ok", data: await pagePerformance(sc.account, sc.property, sc.liveUrl, page.path), liveUrl: sc.liveUrl };
+    if (!pageSpeedEnabled()) return { state: "off" };
+    if (!ws.site.liveUrl) return { state: "no-url" };
+    return { state: "ok", data: await pageSpeed(liveUrlOf(ws.site.liveUrl, page.path), fresh) };
   });
 }
 
-/** Stores the service account key after checking that Google accepts it. Returns its properties. */
-export async function saveGoogleServiceAccount(json: string) {
-  return run(async () => {
-    await requireAdmin();
-    const account = parseServiceAccount(json.trim());
-    clearSearchConsoleCache();
-    const properties = await listProperties(account, true);
-    const values = { serviceAccount: encrypt(JSON.stringify(account)), email: account.client_email, updatedAt: new Date() };
-    await db.insert(googleSettings).values({ id: "default", ...values }).onConflictDoUpdate({ target: googleSettings.id, set: values });
-    revalidatePath("/admin/seo");
-    return properties;
-  });
+type Outcome<T> = { state: "off" } | { state: "ok"; data: T } | { state: "error"; error: string };
+export type PositionsResult = { state: "no-url" } | { state: "ok"; search: Outcome<SearchRank>; maps: Outcome<MapsRank> };
+
+async function outcome<T>(enabled: boolean, load: () => Promise<T>): Promise<Outcome<T>> {
+  if (!enabled) return { state: "off" };
+  try {
+    return { state: "ok", data: await load() };
+  } catch (error) {
+    return { state: "error", error: (error as Error).message };
+  }
 }
 
-export async function removeGoogleServiceAccount() {
-  return run(async () => {
-    await requireAdmin();
-    await db.delete(googleSettings).where(eq(googleSettings.id, "default"));
-    clearSearchConsoleCache();
-    revalidatePath("/admin/seo");
-    return null;
-  });
-}
-
-/** Reloads the property list (after adding the service account to a property in Search Console). */
-export async function refreshSearchConsole() {
-  return run(async () => {
-    await requireAdmin();
-    clearSearchConsoleCache();
-    revalidatePath("/admin/seo");
-    return null;
+/** Where the site shows up for a search phrase: normal Google results (Serper) and Google Maps. Cached for a day. */
+export async function googlePositions(phrase: string) {
+  return run(async (): Promise<PositionsResult> => {
+    const ws = await getWorkspace("viewer");
+    const liveUrl = ws.site.liveUrl;
+    if (!liveUrl) return { state: "no-url" };
+    const query = phrase.replace(/\s+/g, " ").trim().slice(0, 100);
+    if (query.length < 2) throw new Error("Die Suchphrase ist zu kurz.");
+    const [search, maps] = await Promise.all([
+      outcome(serperEnabled(), () => searchRank(query, liveUrl)),
+      outcome(mapsEnabled(), () => mapsRank(query, liveUrl)),
+    ]);
+    return { state: "ok", search, maps };
   });
 }

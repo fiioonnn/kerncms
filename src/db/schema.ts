@@ -506,15 +506,3 @@ export const seoKeywords = pgTable(
   },
   (t) => [primaryKey({ columns: [t.siteId, t.page] })],
 );
-
-/**
- * Google Search Console access for the whole instance: a service account whose address is added as a
- * user to each site's Search Console property. The JSON key is encrypted (AES-GCM, KERN_SECRET).
- */
-export const googleSettings = pgTable("google_settings", {
-  id: text().primaryKey().default("default"),
-  serviceAccount: text(),
-  /** client_email of the service account, shown so admins can add it in Search Console. */
-  email: text(),
-  updatedAt: timestamp().notNull().defaultNow(),
-});

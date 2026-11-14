@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronRight, CircleAlert, CircleCheck, CircleDashed, Loader2, RotateCw, Search } from "lucide-react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { ChevronRight, CircleAlert, CircleCheck, CircleDashed, Loader2, RotateCw, Search } from "lucide-react";
+import { PageSpeedView, PositionsView } from "@/components/seo/google-views";
 import { Button } from "@/components/ui/button";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Tooltip } from "@/components/ui/overlay";
 import { toast } from "@/components/ui/toast";
-import { SEO_GROUPS, matchesPhrase, scoreSeo, scoreTone, type SeoCheck, type SeoFacts, type SeoStatus, type SeoTarget } from "@/lib/seo";
+import { SEO_GROUPS, scoreSeo, scoreTone, type SeoCheck, type SeoFacts, type SeoStatus, type SeoTarget } from "@/lib/seo";
 import { cn } from "@/lib/utils";
-import { analyzeSeo, saveSeoKeyword, searchPerformance, type SearchResult } from "@/server/actions/seo";
+import type { ActionResult } from "@/server/action";
+import { analyzeSeo, googlePositions, pageSpeedOf, saveSeoKeyword, type PageSpeedResult, type PositionsResult } from "@/server/actions/seo";
 
 /** Re-analysis after a change waits this long, so the preview has rebuilt the page. */
 const ANALYZE_DELAY = 1200;
@@ -151,137 +153,110 @@ function CheckRow({ check, onTarget }: { check: SeoCheck; onTarget: (target: Seo
 
 const order: Record<SeoStatus, number> = { problem: 0, improve: 1, good: 2 };
 
-const number = (value: number, digits = 0) => value.toLocaleString("de-DE", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-
-function Metric({ label, value, change }: { label: string; value: string; change?: { text: string; better: boolean } | null }) {
-  return (
-    <div className="flex flex-col gap-0.5 rounded-xl border border-border px-3 py-2.5">
-      <span className="text-xs font-medium text-muted">{label}</span>
-      <span className="text-lg font-semibold tabular-nums">{value}</span>
-      {change && (
-        <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium tabular-nums", change.better ? "text-success" : "text-danger")}>
-          {change.better ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-          {change.text}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function GoogleSection({ name, keyword, canEdit, onUseKeyword }: { name: string; keyword: string; canEdit: boolean; onUseKeyword: (value: string) => void }) {
-  const [result, setResult] = useState<{ name: string; data: SearchResult | null; error: string | null } | null>(null);
+/** Calls a server action when `key` changes; drops answers that arrive after the next change. */
+function useLoad<T>(key: string | null, load: (fresh: boolean) => Promise<ActionResult<T>>) {
+  const [result, setResult] = useState<{ key: string; data: T | null; error: string | null } | null>(null);
+  const [run, setRun] = useState({ n: 0, fresh: false });
+  const call = useEffectEvent((fresh: boolean) => load(fresh));
 
   useEffect(() => {
+    if (key === null) return;
     let stale = false;
-    void searchPerformance(name).then((r) => {
-      if (!stale) setResult({ name, data: r.ok ? r.data : null, error: r.ok ? null : r.error });
+    void call(run.fresh).then((r) => {
+      if (!stale) setResult({ key, data: r.ok ? r.data : null, error: r.ok ? null : r.error });
     });
     return () => {
       stale = true;
     };
-  }, [name]);
+  }, [key, run]);
 
-  const current = result?.name === name ? result : null;
+  const current = key !== null && result?.key === key ? result : null;
+  const reload = () => {
+    setResult(null);
+    setRun((r) => ({ n: r.n + 1, fresh: true }));
+  };
+  return { current, reload };
+}
+
+function Loading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted">
+      <Loader2 className="size-4 shrink-0 animate-spin" />
+      {children}
+    </p>
+  );
+}
+
+function SectionHead({ title, note, action }: { title: string; note: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+        <span className="text-sm text-muted">{note}</span>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/** PageSpeed of the live page: scores and loading times as Google measures them. */
+function SpeedSection({ name }: { name: string }) {
+  const { current, reload } = useLoad<PageSpeedResult>(name, (fresh) => pageSpeedOf(name, fresh));
   let content: React.ReactNode;
-  if (!current) {
-    content = (
-      <p className="flex items-center gap-2 text-sm text-muted">
-        <Loader2 className="size-4 animate-spin" />
-        Daten von Google werden geladen…
-      </p>
-    );
-  } else if (current.error || !current.data) {
-    content = <p className="text-sm text-danger">{current.error ?? "Die Daten konnten nicht geladen werden."}</p>;
-  } else if (current.data.state === "off") {
-    content = <p className="text-sm text-muted">Die Google Search Console ist nicht verbunden. Ein App-Admin kann sie im Admin unter „SEO“ einrichten.</p>;
-  } else if (current.data.state === "no-url") {
-    content = <p className="text-sm text-muted">Für diese Website ist keine Live-Adresse hinterlegt. Ohne sie lassen sich die Daten von Google nicht zuordnen.</p>;
-  } else if (current.data.state === "no-property") {
-    content = (
-      <p className="text-sm text-muted">
-        Für die Live-Adresse gibt es keine freigegebene Property. Füge in der Search Console unter Einstellungen → Nutzer und Berechtigungen{" "}
-        <span className="font-mono text-foreground select-all">{current.data.email}</span> als Nutzer hinzu.
-      </p>
-    );
-  } else {
-    const { data } = current.data;
-    if (!data.current) {
-      content = <p className="text-sm text-muted">Google hat diese Seite in den letzten 28 Tagen in keinem Suchergebnis gezeigt.</p>;
-    } else {
-      const now = data.current;
-      const before = data.previous;
-      const posDelta = before ? before.position - now.position : 0;
-      const clickDelta = before && before.clicks > 0 ? ((now.clicks - before.clicks) * 100) / before.clicks : null;
-      content = (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Metric
-              label="Ø Position"
-              value={number(now.position, 1)}
-              change={before && Math.abs(posDelta) >= 0.1 ? { text: `${number(Math.abs(posDelta), 1)} Plätze`, better: posDelta > 0 } : null}
-            />
-            <Metric
-              label="Klicks"
-              value={number(now.clicks)}
-              change={clickDelta !== null && Math.round(clickDelta) !== 0 ? { text: `${number(Math.abs(clickDelta))} %`, better: clickDelta > 0 } : null}
-            />
-            <Metric label="Impressionen" value={number(now.impressions)} />
-            <Metric label="Klickrate" value={`${number(now.ctr * 100, 1)} %`} />
-          </div>
-          {data.queries.length > 0 && (
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between pb-1 text-xs font-medium text-muted">
-                <span>Suchbegriff</span>
-                <span>Position · Klicks</span>
-              </div>
-              {data.queries.map((q) => {
-                const isFocus = keyword.trim() !== "" && matchesPhrase(q.query, keyword) && matchesPhrase(keyword, q.query);
-                const row = (
-                  <>
-                    <span className={cn("min-w-0 flex-1 truncate", isFocus && "font-semibold text-accent")}>{q.query}</span>
-                    <span className="shrink-0 text-muted tabular-nums">
-                      {number(q.position, 1)} · {number(q.clicks)}
-                    </span>
-                  </>
-                );
-                return canEdit ? (
-                  <Tooltip key={q.query} label={`${number(q.impressions)} Impressionen. Klicken, um es als Fokus-Suchphrase zu nehmen.`}>
-                    <button
-                      type="button"
-                      onClick={() => onUseKeyword(q.query)}
-                      className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm transition-colors outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      {row}
-                    </button>
-                  </Tooltip>
-                ) : (
-                  <div key={q.query} className="flex items-center gap-3 py-1.5 text-sm">
-                    {row}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
+  if (!current) content = <Loading>Google misst die Live-Seite. Das dauert bis zu 30 Sekunden…</Loading>;
+  else if (current.error || !current.data) content = <p className="text-sm text-danger">{current.error ?? "Die Messung ist fehlgeschlagen."}</p>;
+  else if (current.data.state === "off") content = <p className="text-sm text-muted">PageSpeed ist nicht eingerichtet. Dafür muss PAGESPEED_API_KEY auf dem Server gesetzt sein.</p>;
+  else if (current.data.state === "no-url") content = <p className="text-sm text-muted">Für diese Website ist keine Live-Adresse hinterlegt.</p>;
+  else content = <PageSpeedView data={current.data.data} columns={2} />;
 
-  const range = current?.data?.state === "ok" ? current.data.data.range : null;
+  const measured = current?.data?.state === "ok" ? new Date(current.data.data.fetchedAt) : null;
   return (
     <section className="flex flex-col gap-3 border-t border-border pt-6">
-      <div className="flex flex-col gap-0.5">
-        <h3 className="text-lg font-semibold tracking-tight">Google</h3>
-        <span className="text-sm text-muted">
-          Live-Seite{range ? `, ${new Date(range.start).toLocaleDateString("de-DE")} bis ${new Date(range.end).toLocaleDateString("de-DE")}` : ", letzte 28 Tage"}
-        </span>
-      </div>
+      <SectionHead
+        title="Ladezeit & Qualität"
+        note={measured ? `Live-Seite, gemessen ${measured.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` : "Live-Seite, gemessen von Google PageSpeed"}
+        action={
+          current?.data?.state === "ok" || current?.error ? (
+            <Tooltip label="Neu messen">
+              <Button variant="ghost" size="icon" className="size-9 shrink-0 rounded-lg" aria-label="Neu messen" onClick={reload}>
+                <RotateCw className="size-4" />
+              </Button>
+            </Tooltip>
+          ) : null
+        }
+      />
       {content}
     </section>
   );
 }
 
-/** The SEO tab: score, focus keyword, checks and Google figures. */
+/** Where the site shows up for the focus keyword: normal Google results and Google Maps. */
+function PositionSection({ keyword }: { keyword: string }) {
+  // Waits until typing stops, so not every keystroke becomes a (billed) search.
+  const [phrase, setPhrase] = useState(keyword.trim());
+  useEffect(() => {
+    const t = setTimeout(() => setPhrase(keyword.replace(/\s+/g, " ").trim()), 1500);
+    return () => clearTimeout(t);
+  }, [keyword]);
+  const active = phrase.length >= 2 ? phrase : null;
+  const { current } = useLoad<PositionsResult>(active, () => googlePositions(phrase));
+
+  let content: React.ReactNode;
+  if (!active) content = <p className="text-sm text-muted">Trage oben eine Fokus-Suchphrase ein, z. B. „Friseur Kreuzberg“. Dann erscheint hier, auf welchem Platz die Website bei Google steht.</p>;
+  else if (!current) content = <Loading>Suche bei Google…</Loading>;
+  else if (current.error || !current.data) content = <p className="text-sm text-danger">{current.error ?? "Die Suche ist fehlgeschlagen."}</p>;
+  else if (current.data.state === "no-url") content = <p className="text-sm text-muted">Für diese Website ist keine Live-Adresse hinterlegt. Ohne sie lässt sich die Position nicht ermitteln.</p>;
+  else content = <PositionsView search={current.data.search} maps={current.data.maps} />;
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-6">
+      <SectionHead title="Position bei Google" note={active ? `Für „${active}“, Stand von heute` : "Für die Fokus-Suchphrase"} />
+      {content}
+    </section>
+  );
+}
+
+/** The SEO tab: score, focus keyword, checks, Google position and PageSpeed. */
 export function SeoPanel({
   seo,
   name,
@@ -351,7 +326,8 @@ export function SeoPanel({
         <p className="text-sm text-muted">Mit einer Fokus-Suchphrase prüft die Bewertung auch, ob Titel, Überschrift und Text dazu passen.</p>
       )}
 
-      <GoogleSection name={name} keyword={seo.keyword} canEdit={canEdit} onUseKeyword={seo.setKeyword} />
+      <PositionSection keyword={seo.keyword} />
+      <SpeedSection name={name} />
     </div>
   );
 }
