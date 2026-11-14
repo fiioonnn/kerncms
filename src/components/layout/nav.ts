@@ -29,7 +29,7 @@ export type NavItem = {
   icon: LucideIcon;
   badge?: "formsUnread" | "approvalsOpen";
   parent?: string;
-  /** Only shown when the AI assistant is set up for this person. */
+  /** Only shown when the AI assistant is set up for this person and offered outside the editor. */
   assistant?: boolean;
 };
 export type NavGroup = { label?: string; items: NavItem[] };

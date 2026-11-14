@@ -9,7 +9,7 @@ import { getWorkspace } from "./sites";
 export async function loadKernClientData(): Promise<KernClientData> {
   const ws = await getWorkspace();
   const changes = await getChangeSet(ws.dir, ws.site.branch);
-  const pages = await listPages(ws.dir, ws.config, changes);
+  const [pages, assistant] = await Promise.all([listPages(ws.dir, ws.config, changes), assistantFor(ws.user, ws.role)]);
   return {
     user: { id: ws.user.id, name: ws.user.name, email: ws.user.email, isAdmin: ws.user.isAdmin },
     role: ws.role,
@@ -28,6 +28,7 @@ export async function loadKernClientData(): Promise<KernClientData> {
     config: ws.config,
     pages: pages.map((p) => ({ name: p.name, title: p.title, path: p.path, status: p.status })),
     mediaPrefix: mediaValue(ws.config, ""),
-    assistant: (await assistantFor(ws.user, ws.role)) !== null,
+    assistant: assistant !== null,
+    assistantPage: assistant?.standalone ?? false,
   };
 }

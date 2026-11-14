@@ -39,13 +39,16 @@ export function mayUseAssistant(access: AiAccess, user: { isAdmin: boolean }, ro
   return hasRole(role, access);
 }
 
-/** The assistant is usable when it is switched on, the chosen provider has a working key and the user's role is allowed. */
+/**
+ * The assistant is usable when the chosen provider has a working key and the user's role is allowed.
+ * `standalone` says whether it is also offered outside the editor (sidebar, topbar, its own page).
+ */
 export async function assistantFor(user: { isAdmin: boolean }, role: Role) {
   const row = await loadAiSettings();
-  if (!row?.enabled) return null;
+  if (!row) return null;
   const apiKey = providerKey(row, row.provider);
   if (!apiKey || !mayUseAssistant(row.access, user, role)) return null;
-  return { provider: row.provider, model: row.model, apiKey };
+  return { provider: row.provider, model: row.model, apiKey, standalone: row.enabled };
 }
 
 /** Models the key can use, newest first (Anthropic) or chat models only (OpenAI). Throws on a bad key. */

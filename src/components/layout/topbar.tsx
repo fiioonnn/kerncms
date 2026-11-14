@@ -176,7 +176,7 @@ export function Topbar() {
 
         <DeployStatus />
 
-        {kern.assistant && pathname !== "/assistant" && (
+        {kern.assistantPage && pathname !== "/assistant" && (
           <Tooltip label="KI-Assistent">
             <Link href="/assistant" aria-label="KI-Assistent" className={buttonStyles({ variant: "ghost", size: "icon" })}>
               <Sparkles strokeWidth={1.75} />

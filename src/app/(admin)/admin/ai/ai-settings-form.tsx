@@ -108,7 +108,7 @@ export function AiSettingsForm({
         toast.error("Nicht gespeichert", { description: result.error });
         return;
       }
-      toast.success(next ? "KI-Assistent eingeschaltet" : "KI-Assistent ausgeschaltet");
+      toast.success(next ? "Assistent in der Seitenleiste eingeschaltet" : "Assistent nur noch im Editor");
       router.refresh();
     });
   };
@@ -118,13 +118,11 @@ export function AiSettingsForm({
       <Card>
         <CardContent className="py-5">
           <Switch
-            label="KI-Assistent anbieten"
+            label="Auch in der Seitenleiste anbieten"
             description={
               enabled
-                ? hint
-                  ? "Erscheint in der Seitenleiste, oben rechts und im Editor, für alle mit Zugriff."
-                  : "Eingeschaltet, erscheint aber erst, wenn unten ein API-Schlüssel hinterlegt ist."
-                : "Ausgeschaltet: Der Assistent ist überall ausgeblendet. Schlüssel und Einstellungen bleiben gespeichert."
+                ? "Der Assistent erscheint im Editor und zusätzlich als eigene Seite in der Seitenleiste und oben rechts."
+                : "Der Assistent erscheint nur im Editor. Seitenleiste, Schnellsuche und die Schaltfläche oben rechts zeigen ihn nicht."
             }
             checked={enabled}
             onCheckedChange={toggle}

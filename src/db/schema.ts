@@ -470,7 +470,7 @@ export const aiSettings = pgTable("ai_settings", {
   anthropicKey: text(),
   openaiKey: text(),
   access: text().$type<AiAccess>().notNull().default("app_admin"),
-  /** Master switch: when off, the assistant is hidden everywhere, even with a key stored. */
+  /** Also offered outside the editor (sidebar, topbar, its own page). The editor assistant does not depend on it. */
   enabled: boolean().notNull().default(false),
   updatedAt: timestamp().notNull().defaultNow(),
 });

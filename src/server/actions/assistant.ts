@@ -60,7 +60,7 @@ export async function saveAiSettings(input: AiSettingsInput) {
 }
 
 /** Models available with the stored key, or with a key typed into the form but not saved yet. */
-/** Switches the assistant on or off for the whole instance; the key and settings stay stored. */
+/** Offers the assistant outside the editor too (sidebar, topbar, its own page), or only in the editor. */
 export async function setAssistantEnabled(enabled: boolean) {
   return run(async () => {
     await requireAdmin();

@@ -132,7 +132,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               const isActive = (active?.parent ?? active?.href) === item.href;
               const badge = item.badge ? (status?.[item.badge] ?? 0) : 0;
               if (item.href === "/approvals" && !site.requireApproval && badge === 0) return null;
-              if (item.assistant && !kern.assistant) return null;
+              if (item.assistant && !kern.assistantPage) return null;
               return (
                 <Link
                   key={item.href}
