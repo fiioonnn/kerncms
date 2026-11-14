@@ -12,12 +12,14 @@ import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import type { BlockData, BlockDef, FieldType, PageData, PageSeo, PageSummary } from "@/lib/kern-types";
+import type { SeoTarget } from "@/lib/seo";
 import { RESTART_FILES } from "@/lib/preview-files";
 import { discardPage, loadPage, savePage, writePageDraft } from "@/server/actions/content";
 import { AssistantPanel, useAssistantChat, type AssistantContext } from "./assistant-panel";
 import { NewPageDialog } from "./page-picker";
 import { blockSummary, changedLeaves, fieldLabel, fieldTypesFor, getAt, newBlockId, samePath, setAt, typeAt } from "./paths";
 import { PreviewFrame, PreviewLoader, usePreview } from "./preview";
+import { useSeo } from "./seo-panel";
 import { GlobalDialog } from "./global-dialog";
 import { EditorSidebar, SidebarDrawer, type SidebarTab } from "./sidebar";
 import { EditorTopbar, type SaveState } from "./topbar";
@@ -156,6 +158,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
   const [globalHint, setGlobalHint] = useState<string | null>(null);
   const kern = useKern();
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const seo = useSeo(name, canEdit);
 
   // Another page was opened (router.replace → new props): start over with its content.
   if (doc.name !== name) {
@@ -178,11 +181,15 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
   const frameTypingRef = useRef(false);
   const savingRef = useRef(false);
   const scrollOnReady = useRef(false);
+  const seoName = useRef(name);
+  const seoRefresh = useRef(seo.refresh);
   const lastWriteError = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     docRef.current = doc;
     selectedRef.current = selectedId;
+    seoName.current = name;
+    seoRefresh.current = seo.refresh;
   });
 
   const blockDefs = config.blocks;
@@ -237,6 +244,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
         return;
       }
       lastWriteError.current = null;
+      if (target === seoName.current) seoRefresh.current();
       const current = docRef.current;
       if (current.name === target && current.framePath !== snapshot.path) apply({ ...current, framePath: snapshot.path });
       const summary = pages.find((p) => p.name === target);
@@ -643,10 +651,22 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
   const pickValue = pickBlock && imagePick ? getAt(pickBlock, imagePick.field) : undefined;
   const pageList = pages.map((p) => (p.name === name ? { ...p, title: data.title, path: data.path, status: dirty ? "unsaved" : p.status } : p)) as PageSummary[];
 
+  const showSeoTarget = (target: SeoTarget) => {
+    if (target.kind === "block") {
+      selectBlock(target.blockId);
+      setTab("properties");
+    } else if (target.kind === "seo") {
+      setTab("page");
+    }
+  };
+
   const sidebarProps = {
     tab,
     onTabChange: setTab,
     page: data,
+    pageName: name,
+    seo,
+    onSeoTarget: showSeoTarget,
     defs,
     blockDefs,
     marks: config.marks,
@@ -729,6 +749,7 @@ function PageEditor({ pages, name, page, requested }: { pages: PageSummary[]; na
           frameRef={frameRef}
           onLoad={() => {
             setFrameLoaded(true);
+            seo.refresh();
             // Also sent on "ready"; this one reaches the overlay even if it guessed the editor's origin wrong.
             post({ type: "schema", fieldTypes, blockLabels });
             if (selectedId) post({ type: "select", blockId: selectedId, scroll: false });

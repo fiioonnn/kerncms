@@ -8,6 +8,8 @@ import { PageRowActions } from "@/components/pages/page-row-actions";
 import { Card, PageHeader, Table, Td, Th } from "@/components/ui/display";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getPage, getPages } from "@/server/queries";
+import { searchConsoleFor, sitePerformance, type Metrics } from "@/server/seo/search-console";
+import { getWorkspace } from "@/server/sites";
 
 export const metadata = { title: "Seiten" };
 
@@ -16,6 +18,7 @@ const editorHref = (name: string) => `/editor?page=${encodeURIComponent(name)}`;
 export default async function PagesPage() {
   const pages = await getPages();
   const seo = await Promise.all(pages.map(async (p) => (await getPage(p.name)).seo ?? {}));
+  const google = await googleByPath();
 
   return (
     <PageContainer>
@@ -41,6 +44,7 @@ export default async function PagesPage() {
                   <Th>Titel</Th>
                   <Th className="hidden @2xl:table-cell">Pfad</Th>
                   <Th className="hidden w-28 @5xl:table-cell">Blöcke</Th>
+                  {google && <Th className="hidden w-36 @3xl:table-cell">Google</Th>}
                   <Th className="hidden w-36 @lg:table-cell">Status</Th>
                   <Th className="hidden w-48 whitespace-nowrap @4xl:table-cell">Zuletzt geändert</Th>
                   <Th className="w-32 @3xl:w-64" aria-label="Aktionen" />
@@ -64,6 +68,11 @@ export default async function PagesPage() {
                     </Td>
                     <Td className="hidden truncate font-mono text-sm text-muted @2xl:table-cell">{page.path}</Td>
                     <Td className="hidden text-muted tabular-nums @5xl:table-cell">{page.blocks}</Td>
+                    {google && (
+                      <Td className="hidden @3xl:table-cell">
+                        <GoogleCell metrics={google[pathKey(page.path)]} />
+                      </Td>
+                    )}
                     <Td className="hidden @lg:table-cell">
                       <StatusBadge status={page.status} />
                     </Td>
@@ -92,5 +101,30 @@ export default async function PagesPage() {
         )}
       </Card>
     </PageContainer>
+  );
+}
+
+const pathKey = (path: string) => (path.length > 1 ? path.replace(/\/+$/, "") : path);
+
+/** Search Console figures of all pages, or null when the site is not connected (then the column is hidden). */
+async function googleByPath(): Promise<Record<string, Metrics> | null> {
+  try {
+    const ws = await getWorkspace("viewer");
+    const sc = await searchConsoleFor(ws.site.liveUrl);
+    if (sc.state !== "ok") return null;
+    return await sitePerformance(sc.account, sc.property, sc.liveUrl);
+  } catch (error) {
+    console.error("[kern] Search Console", error);
+    return null;
+  }
+}
+
+function GoogleCell({ metrics }: { metrics: Metrics | undefined }) {
+  if (!metrics) return <span className="text-sm text-muted">Nicht gefunden</span>;
+  return (
+    <span className="flex flex-col leading-tight tabular-nums" title="Letzte 28 Tage">
+      <span>Platz {metrics.position.toLocaleString("de-DE", { maximumFractionDigits: 1 })}</span>
+      <span className="text-sm text-muted">{metrics.clicks.toLocaleString("de-DE")} Klicks</span>
+    </span>
   );
 }

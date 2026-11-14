@@ -18,9 +18,11 @@ import { cn } from "@/lib/utils";
 import { AddBlockDialog } from "./add-block-dialog";
 import { SourceEntries } from "./source-entries";
 import { BlockOutline } from "./block-outline";
+import { SeoPanel, SeoScoreBadge, type SeoState } from "./seo-panel";
 import { useResizableWidth } from "./use-resizable-width";
+import type { SeoTarget } from "@/lib/seo";
 
-export type SidebarTab = "properties" | "blocks" | "page";
+export type SidebarTab = "properties" | "blocks" | "page" | "seo";
 
 const pageFields: FieldDef[] = [
   { name: "title", type: "text", label: "Titel", required: true },
@@ -38,6 +40,7 @@ export function EditorSidebar({
   tab,
   onTabChange,
   page,
+  pageName,
   defs,
   blockDefs,
   marks,
@@ -57,11 +60,15 @@ export function EditorSidebar({
   onOpenGlobal,
   focusPath,
   onFocusPathChange,
+  seo,
+  onSeoTarget,
   drawer = false,
 }: {
   tab: SidebarTab;
   onTabChange: (tab: SidebarTab) => void;
   page: PageData;
+  /** File name of the page. */
+  pageName: string;
   defs: Map<string, BlockDef>;
   blockDefs: BlockDef[];
   marks: MarkDef[];
@@ -86,6 +93,9 @@ export function EditorSidebar({
   /** Path of the element clicked in the preview (e.g. "buttonLabel", "tiles.0.title"), or null for the whole block. */
   focusPath: string | null;
   onFocusPathChange: (path: string | null) => void;
+  seo: SeoState;
+  /** A check was clicked: show where it can be fixed. */
+  onSeoTarget: (target: SeoTarget) => void;
   /** Rendered inside the slide-over panel on small screens. */
   drawer?: boolean;
 }) {
@@ -115,8 +125,8 @@ export function EditorSidebar({
     const el = target?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, [contenteditable=true], button");
     el?.focus({ preventScroll: true });
   }, [focusPath, selected?.id]);
-  // Tabs share the width so all three stay visible in a narrow sidebar.
-  const tabClass = "min-w-0 flex-1 justify-center px-2";
+  // Tabs share the width so all four stay visible in a narrow sidebar.
+  const tabClass = "min-w-0 flex-1 justify-center gap-1.5 px-1.5";
   const Root = drawer ? "div" : "aside";
 
   return (
@@ -162,6 +172,10 @@ export function EditorSidebar({
           </Tab>
           <Tab value="page" className={tabClass}>
             Seite
+          </Tab>
+          <Tab value="seo" className={tabClass}>
+            SEO
+            <SeoScoreBadge seo={seo} />
           </Tab>
         </TabsList>
 
@@ -310,6 +324,10 @@ export function EditorSidebar({
             ))}
             <p className="text-sm text-muted">Gespeichert wird zusammen mit der Seite.</p>
           </div>
+        </TabPanel>
+
+        <TabPanel value="seo" className="flex min-h-0 flex-1 flex-col pt-0">
+          <SeoPanel seo={seo} name={pageName} canEdit={canEdit} onTarget={onSeoTarget} />
         </TabPanel>
       </Tabs>
 

@@ -491,3 +491,30 @@ export const assistantChats = pgTable(
   },
   (t) => [index().on(t.siteId, t.userId, t.updatedAt)],
 );
+
+/** Focus keyword per page, for the editor's SEO score. Kept here, not in the page JSON, so site schemas stay untouched. */
+export const seoKeywords = pgTable(
+  "seo_keywords",
+  {
+    siteId: uuid()
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    /** Page file name (without .json). */
+    page: text().notNull(),
+    keyword: text().notNull(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.page] })],
+);
+
+/**
+ * Google Search Console access for the whole instance: a service account whose address is added as a
+ * user to each site's Search Console property. The JSON key is encrypted (AES-GCM, KERN_SECRET).
+ */
+export const googleSettings = pgTable("google_settings", {
+  id: text().primaryKey().default("default"),
+  serviceAccount: text(),
+  /** client_email of the service account, shown so admins can add it in Search Console. */
+  email: text(),
+  updatedAt: timestamp().notNull().defaultNow(),
+});
