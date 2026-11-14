@@ -60,6 +60,19 @@ export async function saveAiSettings(input: AiSettingsInput) {
 }
 
 /** Models available with the stored key, or with a key typed into the form but not saved yet. */
+/** Switches the assistant on or off for the whole instance; the key and settings stay stored. */
+export async function setAssistantEnabled(enabled: boolean) {
+  return run(async () => {
+    await requireAdmin();
+    await db
+      .insert(aiSettings)
+      .values({ id: "default", enabled })
+      .onConflictDoUpdate({ target: aiSettings.id, set: { enabled, updatedAt: new Date() } });
+    revalidatePath("/", "layout");
+    return null;
+  });
+}
+
 export async function availableModels(provider: AiProvider, typedKey: string) {
   return run(async () => {
     await requireAdmin();

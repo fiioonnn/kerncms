@@ -39,10 +39,10 @@ export function mayUseAssistant(access: AiAccess, user: { isAdmin: boolean }, ro
   return hasRole(role, access);
 }
 
-/** The assistant is usable when the chosen provider has a working key and the user's role is allowed. */
+/** The assistant is usable when it is switched on, the chosen provider has a working key and the user's role is allowed. */
 export async function assistantFor(user: { isAdmin: boolean }, role: Role) {
   const row = await loadAiSettings();
-  if (!row) return null;
+  if (!row?.enabled) return null;
   const apiKey = providerKey(row, row.provider);
   if (!apiKey || !mayUseAssistant(row.access, user, role)) return null;
   return { provider: row.provider, model: row.model, apiKey };

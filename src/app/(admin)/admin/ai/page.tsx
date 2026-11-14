@@ -21,6 +21,7 @@ export default async function AiSettingsPage() {
           model: row?.model ?? DEFAULT_MODELS.anthropic,
           access: row?.access ?? "app_admin",
         }}
+        enabled={row?.enabled ?? false}
         keyHints={{ anthropic: row ? keyHint(row, "anthropic") : null, openai: row ? keyHint(row, "openai") : null }}
         defaults={DEFAULT_MODELS}
       />

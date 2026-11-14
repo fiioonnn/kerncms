@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/display";
 import { Description, Field, Input, Label } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { availableModels, removeAiKey, saveAiSettings } from "@/server/actions/assistant";
+import { Switch } from "@/components/ui/toggles";
+import { availableModels, removeAiKey, saveAiSettings, setAssistantEnabled } from "@/server/actions/assistant";
 
 const providerItems = [
   { value: "anthropic", label: "Anthropic (Claude)" },
@@ -27,12 +28,16 @@ export function AiSettingsForm({
   initial,
   keyHints,
   defaults,
+  enabled: initialEnabled,
 }: {
   initial: { provider: AiProvider; model: string; access: AiAccess };
+  enabled: boolean;
   keyHints: Record<AiProvider, string | null>;
   defaults: Record<AiProvider, string>;
 }) {
   const router = useRouter();
+  const [enabled, setEnabled] = useState(initialEnabled);
+  const [toggling, startToggle] = useTransition();
   const [provider, setProvider] = useState<AiProvider>(initial.provider);
   const [model, setModel] = useState(initial.model);
   const [access, setAccess] = useState<AiAccess>(initial.access);
@@ -94,8 +99,40 @@ export function AiSettingsForm({
       router.refresh();
     });
 
+  const toggle = (next: boolean) => {
+    setEnabled(next);
+    startToggle(async () => {
+      const result = await setAssistantEnabled(next);
+      if (!result.ok) {
+        setEnabled(!next);
+        toast.error("Nicht gespeichert", { description: result.error });
+        return;
+      }
+      toast.success(next ? "KI-Assistent eingeschaltet" : "KI-Assistent ausgeschaltet");
+      router.refresh();
+    });
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      <Card>
+        <CardContent className="py-5">
+          <Switch
+            label="KI-Assistent anbieten"
+            description={
+              enabled
+                ? hint
+                  ? "Erscheint in der Seitenleiste, oben rechts und im Editor, für alle mit Zugriff."
+                  : "Eingeschaltet, erscheint aber erst, wenn unten ein API-Schlüssel hinterlegt ist."
+                : "Ausgeschaltet: Der Assistent ist überall ausgeblendet. Schlüssel und Einstellungen bleiben gespeichert."
+            }
+            checked={enabled}
+            onCheckedChange={toggle}
+            disabled={toggling}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader title="Anbieter und Modell" description="Der Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt." />
         <CardContent className="flex flex-col gap-5 pt-5">
