@@ -5,41 +5,19 @@ import path from "node:path";
 import { CONFIG_FILE, loadConfig } from "../config";
 import { git, withSiteLock } from "../git";
 import { getPreview } from "../preview";
+import { ACTION_TOOLS } from "./action-tools";
+import { DATA_TOOLS } from "./data-tools";
+import { clip, str, ToolError, type Args, type ToolContext, type ToolDef } from "./tool-kit";
+
+export type { ToolContext } from "./tool-kit";
 
 /*
  * The assistant's tools: plain file access inside the site's draft checkout (kern/draft worktree),
  * plus a config check. Nothing outside the checkout, nothing in .git or node_modules.
+ * The read-only tools for the site's data (statistics, forms, history, SEO) are in data-tools.ts.
  */
 
-export class ToolError extends Error {}
-
-export type ToolContext = {
-  siteId: string;
-  dir: string;
-  /** Repo-relative paths the run wrote or deleted; committed when the run ends. */
-  touched: Set<string>;
-};
-
-type Args = Record<string, unknown>;
-
-export type ToolDef = {
-  name: string;
-  description: string;
-  schema: { type: "object"; properties: Record<string, unknown>; required: string[] };
-  /** Short German line for the chat, e.g. "Liest src/pages/index.astro". */
-  label: (args: Args) => string;
-  run: (ctx: ToolContext, args: Args) => Promise<string>;
-};
-
 const MAX_READ = 400_000;
-const MAX_OUTPUT = 60_000;
-
-function str(args: Args, key: string, required = true): string {
-  const value = args[key];
-  if (typeof value === "string") return value;
-  if (required) throw new ToolError(`Parameter "${key}" fehlt oder ist kein Text.`);
-  return "";
-}
 
 const BLOCKED = /^(\.git|node_modules|\.kern-data)(\/|$)/;
 
@@ -72,10 +50,6 @@ async function realPath(ctx: ToolContext, input: string) {
   }
 }
 
-function clip(text: string) {
-  return text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n… (gekürzt, ${text.length - MAX_OUTPUT} Zeichen mehr)` : text;
-}
-
 async function writeTracked(ctx: ToolContext, rel: string, full: string, content: string) {
   await withSiteLock(ctx.siteId, async () => {
     await mkdir(path.dirname(full), { recursive: true });
@@ -84,7 +58,7 @@ async function writeTracked(ctx: ToolContext, rel: string, full: string, content
   ctx.touched.add(rel);
 }
 
-export const TOOLS: ToolDef[] = [
+const FILE_TOOLS: ToolDef[] = [
   {
     name: "list_files",
     description:
@@ -269,6 +243,8 @@ export const TOOLS: ToolDef[] = [
     },
   },
 ];
+
+export const TOOLS: ToolDef[] = [...FILE_TOOLS, ...DATA_TOOLS, ...ACTION_TOOLS];
 
 export async function runTool(ctx: ToolContext, name: string, args: Args) {
   const tool = TOOLS.find((t) => t.name === name);

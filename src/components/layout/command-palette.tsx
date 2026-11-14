@@ -25,7 +25,7 @@ function useEntries(): Entry[] {
       : kern.config.collections.map((c) => ({ label: `${c.singular} anlegen`, hint: c.label, href: `/collections/${c.key}/new`, icon: Plus }))),
     ...kern.config.globals.map((g) => ({ label: g.label, hint: "Global", href: "/globals", icon: Globe })),
     ...allNavItems
-      .filter((item) => item.href !== "/styleguide")
+      .filter((item) => item.href !== "/styleguide" && (!item.assistant || kern.assistant))
       .map((item) => ({ label: item.label, hint: "Bereich", href: item.href, icon: item.icon })),
   ];
 }

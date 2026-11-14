@@ -12,6 +12,7 @@ import {
   MousePointerClick,
   Palette,
   Settings,
+  Sparkles,
   Trash2,
   UserRound,
   Users,
@@ -22,7 +23,15 @@ import {
  * `badge`: which live count from /api/status the sidebar shows next to the item.
  * `parent`: for pages that are not in the sidebar, the sidebar entry to highlight.
  */
-export type NavItem = { label: string; href: string; icon: LucideIcon; badge?: "formsUnread" | "approvalsOpen"; parent?: string };
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  badge?: "formsUnread" | "approvalsOpen";
+  parent?: string;
+  /** Only shown when the AI assistant is set up for this person. */
+  assistant?: boolean;
+};
 export type NavGroup = { label?: string; items: NavItem[] };
 
 /** What the sidebar shows. Kept short on purpose: daily work first. */
@@ -30,6 +39,7 @@ export const navigation: NavGroup[] = [
   {
     items: [
       { label: "Übersicht", href: "/", icon: LayoutDashboard },
+      { label: "KI-Assistent", href: "/assistant", icon: Sparkles, assistant: true },
       { label: "Seiten", href: "/pages", icon: FileText },
       { label: "Inhalte", href: "/collections", icon: Library },
       { label: "Medien", href: "/media", icon: Image },

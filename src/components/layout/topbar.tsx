@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, X } from "lucide-react";
+import Link from "next/link";
+import { Bell, Search, Sparkles, X } from "lucide-react";
 import { DeployStatus } from "@/components/history/deploy-status";
 import { refreshStatus, useStatus } from "@/components/history/use-status";
 import { PublishButton } from "@/components/actions/publish";
@@ -174,6 +175,14 @@ export function Topbar() {
         <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
 
         <DeployStatus />
+
+        {kern.assistant && pathname !== "/assistant" && (
+          <Tooltip label="KI-Assistent">
+            <Link href="/assistant" aria-label="KI-Assistent" className={buttonStyles({ variant: "ghost", size: "icon" })}>
+              <Sparkles strokeWidth={1.75} />
+            </Link>
+          </Tooltip>
+        )}
 
         <Notifications />
 
