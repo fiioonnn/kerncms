@@ -98,6 +98,10 @@ services:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
       KERN_CUSTOM_DOMAIN_TARGET: ${KERN_CUSTOM_DOMAIN_TARGET:-}
+      # Google in the editor's SEO tab and on the statistics page (optional, see .env.prod.example)
+      PAGESPEED_API_KEY: ${PAGESPEED_API_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
     labels:
       # Catch-all route for customer domains (cms.kundendomain.de) on Dokploy's Traefik.
       # Lowest priority: every router Dokploy creates (app.kerncms.com, other projects) wins.
